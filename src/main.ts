@@ -13,6 +13,7 @@ import {
   COST,
   actionDef,
   junkCount,
+  handRoom,
   ACTION_HAND,
   NERVE_CAP,
   NOISE_EVERY,
@@ -382,11 +383,14 @@ function buildBoard() {
     <canvas class="particles" id="particles"></canvas>
     <div class="token-esc" id="tok-esc"></div>
     <div class="token killer" id="tok-k"><div class="pin">${killerPortrait({ art: c.killer.art })}</div><span class="tag">${esc(c.killer.name.replace(/^The /, ''))}</span></div>
-    <div class="board-hint" id="board-hint"></div>`;
+    <div class="board-hint" id="board-hint"></div>
+    <button class="mapkey-btn" data-go="mapkey">${glyph('key')} Map key</button>
+    <div class="inspect" id="inspect" hidden></div>`;
 }
 
 let lastFinale = false;
 let recorded = false;
+let draftClosedRound = -1;
 
 function renderStats() {
   const stats = load<GameRecord[]>(STATS_KEY, []);
@@ -547,10 +551,10 @@ function updateBoard() {
     el.classList.toggle('reach', reach.includes(id));
     el.classList.toggle('here', id === h.loc);
     const badges: string[] = [];
-    if ((s.searches[id] ?? 0) > 0) badges.push(`<span class="badge search" title="Search tokens left">⌕${s.searches[id]}</span>`);
-    if ((s.barricades[id] ?? 0) > 0) badges.push(`<span class="badge barr" title="Barricade strength">▦${s.barricades[id]}</span>`);
+    if ((s.searches[id] ?? 0) > 0) badges.push(`<span class="badge search" title="${s.searches[id]} search${s.searches[id] > 1 ? 'es' : ''} left here">${glyph('search')}${s.searches[id]}</span>`);
+    if ((s.barricades[id] ?? 0) > 0) badges.push(`<span class="badge barr" title="Barricade: blocks him ${s.barricades[id]} time(s)">${glyph('barricade')}${s.barricades[id]}</span>`);
     if ((s.victims[id] ?? 0) > 0 && (s.panic[id] ?? 0) > 0 && id !== h.loc)
-      badges.push(`<span class="badge panic p${s.panic[id]}" title="Survivors here are panicking (${s.panic[id]}/${PANIC_AT}). Visit or lead them before they bolt.">${'!'.repeat(Math.min(3, s.panic[id]))}</span>`);
+      badges.push(`<span class="badge panic p${s.panic[id]}" title="Survivors left alone ${s.panic[id]} of ${PANIC_AT} rounds. At ${PANIC_AT} they may bolt.">${glyph('alarm')}${s.panic[id]}/${PANIC_AT}</span>`);
     const rk = c.location.rule.kind;
     if (rk === 'cold' && hasTag(c, id, 'outdoor')) badges.push(`<span class="badge env" title="Outdoors: ending a round here adds cold">${glyph('snow')}</span>`);
     if (rk === 'cold' && hasTag(c, id, 'warm')) badges.push(`<span class="badge env warm" title="Warm: ending a round here thaws you">${glyph('fire')}</span>`);
@@ -649,8 +653,9 @@ function updateBottom() {
       : '';
   const bleeding = junkCount(s, 'junk-wound');
   const panicN = junkCount(s, 'junk-panic');
-  const pile = `<div class="pile" title="Your action deck: draw back up to ${ACTION_HAND} each round">
-    <span class="pile-deck"><b>${s.actionDeck.length}</b> deck</span><span><b>${s.actionDiscard.length}</b> discard</span>
+  const pile = `<div class="pile" title="Your hand holds up to ${ACTION_HAND} cards, including Bleeding and Panic">
+    <button class="btn small lineup-btn ${s.picksLeft > 0 && s.lineup.length && handRoom(s) > 0 ? 'hot' : ''}" data-go="openDraft" ${s.phase === 'action' && s.lineup.length ? '' : 'disabled'}>Lineup · ${s.picksLeft} pick${s.picksLeft === 1 ? '' : 's'}</button>
+    <span><b>${s.actionHand.length}</b>/${ACTION_HAND} in hand</span>
     ${bleeding ? `<span class="pile-bad"><b>${bleeding}</b> bleeding</span>` : ''}${panicN ? `<span class="pile-bad"><b>${panicN}</b> panic</span>` : ''}</div>`;
   const btns = pile + cards + answer;
   const hand = s.heroine.hand
@@ -728,6 +733,22 @@ function updateOverlay() {
         <div class="fxline">${esc(describeEffects(t.effects))}</div>
         <button class="btn primary" data-go="ackTerror">Endure <small>(space)</small></button>
       </div></div></div>`;
+    return;
+  }
+  if (s.phase === 'action' && s.lineup.length && s.picksLeft > 0 && handRoom(s) > 0 && draftClosedRound !== s.round) {
+    const cardHtml = (x: { uid: number; id: string }, take: boolean) => {
+      const d = actionDef(c, x.id);
+      return `<button class="act draftcard ${d.junk ? `junk ${d.junk}` : ''}" ${take ? `data-draft="${x.uid}"` : 'disabled'} data-kind="${d.base}">
+        <span class="n">${esc(d.name)}</span><span class="cost"><b>${d.cost}</b> nerve to play</span><span class="c">${esc(d.text)}</span></button>`;
+    };
+    root.innerHTML = `<div class="overlay draft-ov"><div class="draft">
+      <div class="kind">Round ${s.round} · The lineup</div>
+      <h2>Take up to ${s.picksLeft} card${s.picksLeft === 1 ? '' : 's'}</h2>
+      <p>Taking is free. You pay nerve when you <b>play</b> a card. Your hand holds ${ACTION_HAND} (${handRoom(s)} free). Cards you don't take are gone at the end of the round.</p>
+      <div class="draft-row">${s.lineup.map((x) => cardHtml(x, true)).join('')}</div>
+      ${s.actionHand.length ? `<div class="draft-hand"><span>In your hand:</span> ${s.actionHand.map((x) => `<i class="${actionDef(c, x.id).junk ? 'j' : ''}">${esc(actionDef(c, x.id).name)}</i>`).join('')}</div>` : ''}
+      <button class="btn primary" data-go="closeDraft">Done — to the map <small>(space)</small></button>
+    </div></div>`;
     return;
   }
   if (s.phase === 'event' && s.currentEvent) {
@@ -808,6 +829,56 @@ function confirmEnd(): boolean {
   return false;
 }
 
+function showMapKey() {
+  const c = content;
+  const ruleTxt = c ? `<tr><td>${glyph(c.location.rule.kind === 'cold' ? 'snow' : c.location.rule.kind === 'tide' ? 'wave' : c.location.rule.kind === 'calls' ? 'phone' : 'reel')}</td><td><b>${esc(c.location.rule.name)}</b>: ${esc(c.location.rule.text)}</td></tr>` : '';
+  modal(`<h2>Map key</h2><table class="keytable">
+    <tr><td><span class="kpin you"></span></td><td><b>You</b>: the white pin with your name. A white ring pulses on your location.</td></tr>
+    <tr><td><span class="kpin him"></span></td><td><b>The killer</b>: the red pin with his name and a red glow. A red dashed line means he is <b>one step away</b>.</td></tr>
+    <tr><td>${glyph('person')}</td><td><b>Survivors</b>: the little figures. Walk to them, play <b>Lead</b>, and take them to the exit.</td></tr>
+    <tr><td><span class="badge panic p2">${glyph('alarm')}2/${PANIC_AT}</span></td><td><b>Panic</b>: how many rounds those survivors have been alone. At ${PANIC_AT} they may bolt, maybe into the killer.</td></tr>
+    <tr><td><span class="badge search">${glyph('search')}2</span></td><td><b>Searches left</b> at that location.</td></tr>
+    <tr><td><span class="badge barr">${glyph('barricade')}1</span></td><td><b>Barricade</b>: he must break it to get in.</td></tr>
+    <tr><td><span class="kring exit"></span></td><td><b>Green ring</b>: the exit. Bring survivors here.</td></tr>
+    <tr><td><span class="kring lair"></span></td><td><b>Red ring</b>: his lair, where he starts and returns.</td></tr>
+    <tr><td><span class="kring reach"></span></td><td><b>Glowing gold</b>: where you can move right now.</td></tr>
+    ${ruleTxt}
+  </table><p>Hover over (or tap) any location to see everything about it.</p>`);
+}
+
+function inspectNode(id: string | null) {
+  const el = document.getElementById('inspect');
+  if (!el || !game || !content) return;
+  if (!id) {
+    el.hidden = true;
+    return;
+  }
+  const s = game;
+  const c = content;
+  const n = c.location.nodes.find((x) => x.id === id)!;
+  const v = s.victims[id] ?? 0;
+  const lines: string[] = [];
+  if (id === s.heroine.loc) lines.push('<b>You are here.</b>');
+  if (id === s.killer.loc) lines.push(`<b class="bad">${esc(c.killer.name)} is here.</b>`);
+  if (id === c.location.exit) lines.push('<b class="good">Exit</b>: bring survivors here to save them.');
+  if (id === c.location.lair) lines.push('<b>His lair.</b>');
+  if (v) lines.push(`${v} survivor${v > 1 ? 's' : ''}${(s.panic[id] ?? 0) ? `, alone for ${s.panic[id]}/${PANIC_AT} rounds` : ''}.`);
+  lines.push(`${s.searches[id] ?? 0} search${(s.searches[id] ?? 0) === 1 ? '' : 'es'} left.`);
+  if ((s.barricades[id] ?? 0) > 0) lines.push(`Barricaded (${s.barricades[id]}).`);
+  if (n.tags?.includes('outdoor') && c.location.rule.kind === 'cold') lines.push('Outdoors: ending your round here adds cold.');
+  if (n.tags?.includes('warm')) lines.push('Warm: ending your round here thaws you.');
+  if (n.tags?.includes('shore')) lines.push(isFlooded(c, s, id) ? 'Flooded: +1 nerve to enter.' : 'Shore: floods at high tide.');
+  if (n.tags?.includes('phone')) lines.push(s.env.ringing === id ? '<b class="bad">The phone is ringing.</b>' : 'Has a phone.');
+  if (s.phase === 'action' && neighbors(c, s.heroine.loc).includes(id)) lines.push(`Move here: <b>${moveCost(c, s, id)}</b> nerve.`);
+  el.innerHTML = `<h5>${esc(n.name)}</h5><p class="fl">${esc(n.flavor)}</p>${lines.map((l) => `<p>${l}</p>`).join('')}`;
+  el.hidden = false;
+  const left = n.x / 10;
+  const top = n.y / 6.4;
+  el.style.left = left > 60 ? '' : `calc(${left}% + 6%)`;
+  el.style.right = left > 60 ? `calc(${100 - left}% + 6%)` : '';
+  el.style.top = `${Math.min(top, 62)}%`;
+}
+
 function showHint() {
   if (!game || !content || game.phase !== 'action') return;
   const c = content;
@@ -831,6 +902,11 @@ function showHint() {
     case 'playCard': {
       const card = s.actionHand.find((i) => i.uid === a.uid);
       txt = card ? `Play <b>${esc(actionDef(c, card.id).name)}</b>.` : 'Play a card.';
+      break;
+    }
+    case 'draft': {
+      const card = s.lineup.find((i) => i.uid === a.uid);
+      txt = card ? `Take <b>${esc(actionDef(c, card.id).name)}</b> from the lineup.` : 'Take a card from the lineup.';
       break;
     }
     case 'endTurn':
@@ -1040,7 +1116,7 @@ function showRules() {
   <h3>2 · Your actions</h3>
   <p><b>Nerve</b> pays for everything. You gain nerve each round (+3, or +2 when Breaking) and <b>unspent nerve carries over</b>, up to 8. Saving up for a bad round is often the right call.</p>
   <p><b>Noise:</b> every ${NOISE_EVERY} nerve you spend in one round makes noise, and the killer takes a step toward you.</p>
-  <p><b>Moving</b> is always available: click a glowing location (1 nerve, 2 to flee the killer, +1 when escorting 3 or more). Everything else comes from your <b>hand of action cards</b>. You draw back up to ${ACTION_HAND} each round:</p>
+  <p><b>Moving</b> is always available: click a glowing location (1 nerve, 2 to flee the killer, +1 when escorting 3 or more). Everything else comes from your <b>hand of action cards</b>. Each round 6 cards are dealt face up as <b>the lineup</b>: take up to 3 for free (hand max ${ACTION_HAND}), then pay nerve to play them. Cards you don't take are gone at the end of the round.</p>
   <table><tr><th>Card</th><th>Cost</th><th>What it does</th></tr>
   <tr><td>Search / Ransack</td><td>1 / 2</td><td>Roll dice (Ransack +2); each success finds an item (max 2).</td></tr>
   <tr><td>Lead</td><td>1</td><td>Survivors here follow you. Bring them to the exit to save them.</td></tr>
@@ -1049,14 +1125,14 @@ function showRules() {
   <tr><td>Barricade</td><td>2</td><td>He must break it before entering this location.</td></tr>
   <tr><td>Catch Your Breath</td><td>2</td><td>Heal or calm, and clear a Bleeding card.</td></tr>
   <tr><td>Sprint</td><td>1</td><td>Your next 2 moves are free.</td></tr></table>
-  <p><b>Bleeding</b> cards are shuffled into your deck when you're hit; they're dead cards until you rest or heal. <b>Panic</b> cards appear at high horror; pay 1 nerve to shake one off.</p>
+  <p><b>Bleeding</b> cards go straight into your hand when you're hit and take up a slot until you rest or heal. <b>Panic</b> cards appear at high horror; pay 1 nerve to shake one off.</p>
   <p><b>Survivors panic</b> when left alone (the ! badge). After ${PANIC_AT} rounds without you, one may bolt to a nearby location, possibly straight into the killer.</p>
   <p><b>Items</b> are used for free. <b>Instinct cards</b> are played for free; you draw one each round and when you save survivors.</p>
   <h3>3 · The killer</h3><p>If he's with you and you're not hidden, he <b>attacks</b>. Otherwise, if survivors are with him, he <b>kills one</b> (bloodlust +2). Otherwise he hunts toward the nearest prey.</p>
   <h3>Horror</h3><p>Fear makes dice harder and slows your nerve. Steady and Uneasy: +3 nerve, 4+. Terrified: +3, 5+. Breaking: +2, 5+. Past the top, terror becomes wounds.</p>
   <h3>The Finale</h3><p>At high bloodlust, if you "kill" him early, or in the last 3 rounds, the Finale begins: he comes for you. Defeat him in the Finale to win outright — or survive until <b>dawn</b>.</p>
   <h3>Weakness</h3><p>Some items are pieces of the killer's past. Finding them strips his armor.</p>
-  <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p><h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>1–5 play cards · A answer · H hint · Z undo · E end turn · Space continue · R rules</p>`);
+  <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p><h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>Hover a location for details · Map key button explains every marker · 1–5 play cards · A answer · H hint · Z undo · E end turn · Space continue · R rules</p>`);
 }
 
 function showSettings() {
@@ -1148,6 +1224,8 @@ app.addEventListener('click', (e) => {
   if (item) return act({ type: 'useItem', uid: +item });
   const drop = t.closest<HTMLElement>('[data-drop]')?.dataset.drop;
   if (drop) return act({ type: 'dropItem', uid: +drop });
+  const draftUid = t.closest<HTMLElement>('[data-draft]')?.dataset.draft;
+  if (draftUid) return act({ type: 'draft', uid: +draftUid });
   const cardUid = t.closest<HTMLElement>('[data-card]')?.dataset.card;
   if (cardUid) return act({ type: 'playCard', uid: +cardUid });
   const ins = t.closest<HTMLElement>('[data-instinct]')?.dataset.instinct;
@@ -1157,6 +1235,8 @@ document.body.addEventListener('click', (e) => {
   // overlays live outside #app on the game screen root
   const t = e.target as HTMLElement;
   if (app.contains(t)) return;
+  const dr = t.closest<HTMLElement>('#overlay-root [data-draft]')?.dataset.draft;
+  if (dr) return act({ type: 'draft', uid: +dr });
   const a = t.closest<HTMLElement>('#overlay-root [data-act]')?.dataset.act;
   if (a) act({ type: a } as Action);
   const go = t.closest<HTMLElement>('#overlay-root [data-go]')?.dataset.go;
@@ -1173,6 +1253,14 @@ function navigate(go: string) {
       return continueGame();
     case 'undo':
       return undo();
+    case 'closeDraft':
+      if (game) draftClosedRound = game.round;
+      return updateOverlay();
+    case 'openDraft':
+      draftClosedRound = -1;
+      return updateOverlay();
+    case 'mapkey':
+      return showMapKey();
     case 'hint':
       return showHint();
     case 'shuffle': {
@@ -1204,6 +1292,15 @@ function navigate(go: string) {
   }
 }
 
+app.addEventListener('mouseover', (e) => {
+  const n = (e.target as HTMLElement).closest<HTMLElement>('[data-node]')?.dataset.node;
+  inspectNode(n ?? null);
+});
+app.addEventListener('focusin', (e) => {
+  const n = (e.target as HTMLElement).closest<HTMLElement>('[data-node]')?.dataset.node;
+  if (n) inspectNode(n);
+});
+
 window.addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return;
   if (document.querySelector('.modal')) {
@@ -1222,6 +1319,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === ' ' || e.key === 'Enter') {
     e.preventDefault();
     if (cardQueue.length) return navigate('ackTerror');
+    if (document.querySelector('.draft-ov')) return navigate('closeDraft');
     if (game.phase === 'event') return act({ type: 'resolveEvent' });
     if (game.phase === 'killer') return act({ type: 'resolveKiller' });
   }

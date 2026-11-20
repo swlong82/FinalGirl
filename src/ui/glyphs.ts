@@ -12,5 +12,8 @@ const G: Record<string, string> = {
   reel: `<circle ${S} cx="12" cy="12" r="9"/><circle cx="12" cy="7" r="2" fill="currentColor"/><circle cx="16.8" cy="10.5" r="2" fill="currentColor"/><circle cx="15" cy="16" r="2" fill="currentColor"/><circle cx="9" cy="16" r="2" fill="currentColor"/><circle cx="7.2" cy="10.5" r="2" fill="currentColor"/>`,
   search: `<circle ${S} cx="10" cy="10" r="6"/><path ${S} d="M15 15l6 6"/>`,
   barricade: `<path ${S} d="M3 7h18v10H3zM7 7l4 10M13 7l4 10"/>`,
+  alarm: `<circle ${S} cx="12" cy="13" r="8"/><path ${S} d="M12 9v4M12 16.5v.5M4 4l3 2M20 4l-3 2"/>`,
+  person: `<circle ${S} cx="12" cy="6" r="3"/><path ${S} d="M6 21l1-8q5-3 10 0l1 8"/>`,
+  key: `<circle ${S} cx="8" cy="12" r="4"/><path ${S} d="M12 12h9M17 12v3M20 12v2"/>`,
 };
 export const glyph = (name: string, cls = '') => `<svg class="glyph ${cls}" viewBox="0 0 24 24" aria-hidden="true">${G[name] ?? ''}</svg>`;

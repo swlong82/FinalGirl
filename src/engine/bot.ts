@@ -98,6 +98,34 @@ export function botAction(c: Content, s: GameState): Action {
     if (hasOp(e, 'drawItem') && h.items.length < 4) return a;
   }
 
+  // ── Draft: take what this situation needs ──
+  if (s.picksLeft > 0 && s.actionHand.length < 5 && s.lineup.length) {
+    const want = (d: ActionCardDef): number => {
+      const have = (b: string) => s.actionHand.filter((x) => actionDef(c, x.id).base === b).length;
+      const victimsAround = Object.values(s.victims).some((n) => n > 0);
+      switch (d.base) {
+        case 'fight':
+          return (killerNear || k.finale ? 9 : 4) - have('fight') * 3 + (d.dice ?? 0);
+        case 'hide':
+          return (killerNear ? 7 : 3) - have('hide') * 3 + (d.auto ? 2 : 0);
+        case 'lead':
+          return (victimsAround ? 8 : 1) - have('lead') * 4;
+        case 'search':
+          return (h.items.length < 3 ? 6 : 2) - have('search') * 3 + (d.dice ?? 0) / 2;
+        case 'rest':
+          return (wounded > 0 || h.horror >= 3 || s.actionHand.some((x) => actionDef(c, x.id).junk) ? 7 : 1) - have('rest') * 4;
+        case 'effect':
+          return h.escorting > 0 || killerNear ? 5 : 2;
+        case 'barricade':
+          return killerNear ? 4 : 1;
+        default:
+          return 0;
+      }
+    };
+    const best = s.lineup.map((x) => ({ x, v: want(actionDef(c, x.id)) })).sort((p, q) => q.v - p.v)[0];
+    if (best && best.v > 1) return { type: 'draft', uid: best.x.uid };
+  }
+
   // ── Deck upkeep ──
   const panicCard = s.actionHand.find((x) => actionDef(c, x.id).junk === 'panic');
   if (panicCard && h.nerve >= 4 && !killerHere) return { type: 'playCard', uid: panicCard.uid };

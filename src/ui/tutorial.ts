@@ -32,8 +32,14 @@ export const STEPS: TutStep[] = [
     target: '#killer-panel',
   },
   {
+    title: 'The lineup',
+    text: 'Each round, 6 action cards are dealt face up. <b>Take up to 3, for free.</b> You pay nerve later, when you play them. Take <b>Search</b>, <b>Lead</b> and one more you like.',
+    target: '.draft',
+    done: (s) => s.picksLeft === 0 || s.round > 1,
+  },
+  {
     title: 'Your hand',
-    text: 'These ticket stubs are your <b>action cards</b>. You draw back up to 5 every round, so you never get every option at once. When you get hurt, <b>Bleeding</b> cards get shuffled in and clog your hand. Rest clears them.',
+    text: 'Your cards wait down here, ready to play. Getting hurt puts <b>Bleeding</b> cards in your hand, and they take up slots until you rest. Every marker on the map is explained under <b>Map key</b>, and you can hover any location for details.',
     target: '.actions',
   },
   {

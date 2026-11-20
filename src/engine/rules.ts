@@ -27,8 +27,10 @@ export const VICTIM_POOL = 12;
 export const DAWN_ROUND = 13;
 export const NERVE_CAP = 8;
 export const NERVE_START = 3;
-export const ACTION_HAND = 5;
-export const NOISE_EVERY = 5;
+export const ACTION_HAND = 5; // hand cap for drafting
+export const LINEUP_SIZE = 6;
+export const PICKS = 3;
+export const NOISE_EVERY = 6;
 export const PANIC_AT = 4;
 
 export interface Tier {
@@ -180,6 +182,8 @@ export function newGame(c: Content, seed: number, difficulty: Difficulty = 'stan
     actionDeck: [],
     actionDiscard: [],
     actionHand: [],
+    lineup: [],
+    picksLeft: 0,
     panic: {},
     foundLore: [],
     log: [],
@@ -225,42 +229,56 @@ function drawInstinct(s: GameState, n: number) {
 }
 
 // ── Action deck ─────────────────────────────────────────────────────────────
-export function drawActions(s: GameState, upTo = ACTION_HAND) {
-  while (s.actionHand.length < upTo) {
+/** Deal a fresh face-up lineup; last round's leftovers go to the discard. */
+export function dealLineup(c: Content, s: GameState) {
+  for (const x of s.lineup) s.actionDiscard.push(x.id);
+  s.lineup = [];
+  const draw = () => {
     if (!s.actionDeck.length) {
-      if (!s.actionDiscard.length) return;
+      if (!s.actionDiscard.length) return undefined;
       s.actionDeck = shuffle(s, s.actionDiscard);
       s.actionDiscard = [];
     }
-    s.actionHand.push({ uid: s.uid++, id: s.actionDeck.pop()! });
+    return s.actionDeck.pop();
+  };
+  while (s.lineup.length < LINEUP_SIZE) {
+    const id = draw();
+    if (!id) break;
+    s.lineup.push({ uid: s.uid++, id });
   }
+  // Never a dead lineup: guarantee at least one Lead and one way to deal with him.
+  const has = (base: string) => s.lineup.some((x) => actionDef(c, x.id).base === base) || s.actionHand.some((x) => actionDef(c, x.id).base === base);
+  for (const [need, alt] of [['lead', 'lead'], ['hide', 'fight']] as const) {
+    if (has(need) || has(alt) || !s.lineup.length) continue;
+    const i = s.actionDeck.findIndex((id) => actionDef(c, id).base === need);
+    if (i < 0) continue;
+    const [id] = s.actionDeck.splice(i, 1);
+    const out = s.lineup.pop()!;
+    s.actionDeck.unshift(out.id);
+    s.lineup.push({ uid: s.uid++, id });
+  }
+  s.picksLeft = PICKS;
 }
 
-/** Shuffle a junk card into the draw pile at a random depth. */
+/** Junk goes straight into the hand, taking up a slot. */
 function addJunk(s: GameState, id: string) {
-  const at = Math.floor(nextRand(s) * (s.actionDeck.length + 1));
-  s.actionDeck.splice(at, 0, id);
+  s.actionHand.push({ uid: s.uid++, id });
 }
 
-/** Remove one junk card of this id: hand first, then discard, then deck. */
 function removeJunk(s: GameState, id: string): boolean {
   const hi = s.actionHand.findIndex((x) => x.id === id);
-  if (hi >= 0) {
-    s.actionHand.splice(hi, 1);
-    return true;
-  }
-  for (const pile of [s.actionDiscard, s.actionDeck]) {
-    const i = pile.indexOf(id);
-    if (i >= 0) {
-      pile.splice(i, 1);
-      return true;
-    }
-  }
-  return false;
+  if (hi < 0) return false;
+  s.actionHand.splice(hi, 1);
+  return true;
 }
 
 export function junkCount(s: GameState, id: string) {
-  return [...s.actionHand.map((x) => x.id), ...s.actionDiscard, ...s.actionDeck].filter((x) => x === id).length;
+  return s.actionHand.filter((x) => x.id === id).length;
+}
+
+/** Free hand slots. Bleeding and Panic cards take up slots too. */
+export function handRoom(s: GameState) {
+  return ACTION_HAND - s.actionHand.length;
 }
 
 function gainItem(c: Content, s: GameState, id: string) {
@@ -857,6 +875,12 @@ export function check(c: Content, s: GameState, a: Action): Check {
     case 'answer':
       if (s.env.ringing !== h.loc) return { ok: false, why: 'No phone ringing here', cost: 1 };
       return afford(s, c.heroine.traits.freeAnswer ? 0 : 1);
+    case 'draft': {
+      if (!s.lineup.some((x) => x.uid === a.uid)) return { ok: false, why: 'Not in the lineup', cost: 0 };
+      if (s.picksLeft <= 0) return { ok: false, why: 'No picks left this round', cost: 0 };
+      if (handRoom(s) <= 0) return { ok: false, why: `Hand full (${ACTION_HAND})`, cost: 0 };
+      return { ok: true, cost: 0 };
+    }
     case 'playCard': {
       const card = s.actionHand.find((x) => x.uid === a.uid);
       if (!card) return { ok: false, why: 'Not in hand', cost: 0 };
@@ -925,7 +949,7 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       s.phase = 'action';
       const gain = Math.max(1, horrorTier(h.horror).nerve + (s.mods.nerve ?? 0));
       h.nerve = Math.min(NERVE_CAP, h.nerve + gain);
-      drawActions(s);
+      dealLineup(c, s);
       applyEffects(c, s, ev.effects);
       s.eventDiscard.push(ev.id);
       s.currentEvent = undefined;
@@ -957,6 +981,14 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       }
       break;
     }
+    case 'draft': {
+      const i = s.lineup.findIndex((x) => x.uid === a.uid);
+      const [card] = s.lineup.splice(i, 1);
+      s.actionHand.push(card);
+      s.picksLeft--;
+      log(s, `Took ${actionDef(c, card.id).name}.`);
+      break;
+    }
     case 'playCard': {
       const idx = s.actionHand.findIndex((x) => x.uid === a.uid);
       const card = s.actionHand[idx];
@@ -964,7 +996,6 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       s.actionHand.splice(idx, 1);
       if (d.junk === 'panic') {
         spend(1);
-        s.actionDiscard.push(card.id);
         log(s, 'She forces the panic down.', 'good');
         break;
       }

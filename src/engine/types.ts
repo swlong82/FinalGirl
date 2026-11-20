@@ -314,6 +314,8 @@ export interface GameState {
   actionDeck: string[];
   actionDiscard: string[];
   actionHand: HeldInstinct[];
+  lineup: HeldInstinct[]; // face-up cards to draft from this round
+  picksLeft: number;
   panic: Record<NodeId, number>; // rounds a node's survivors have been left alone
   env: { tideHigh: boolean; dark: boolean; ringing?: NodeId; cold: number };
 
@@ -332,6 +334,7 @@ export type Action =
   | { type: 'playInstinct'; uid: number }
   | { type: 'answer' }
   | { type: 'playCard'; uid: number }
+  | { type: 'draft'; uid: number }
   | { type: 'endTurn' }
   | { type: 'resolveKiller' };
 
