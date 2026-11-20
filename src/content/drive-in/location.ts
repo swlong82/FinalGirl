@@ -7,6 +7,7 @@ export const holloway: LocationPack = {
   tagline: 'Two features. One exit. No refunds.',
   era: 'Route 9, autumn 1984',
   palette: { sky: '#0b0f1e', glow: '#8fb7ff', accent: '#ff4d6d' },
+  art: 'drivein',
   lore: [
     'The Holloway opened in 1958 at the edge of the Marrow pine forest — a gravel lot, a giant white screen, and a projection booth perched on a cinder-block concession stand. For twenty years it was the only thing to do on Route 9 after dark.',
     'On Halloween night, 1979, during a sold-out midnight premiere, the projection booth caught fire. The projectionist, Orrin Vale, was trapped inside with the burning reels. The crowd in the lot thought the flames on the screen were part of the show. They honked their horns and cheered.',
@@ -62,6 +63,9 @@ export const holloway: LocationPack = {
     { id: 'ev-popcorn', name: 'Popcorn Machine Overflows', tone: 'dread', text: 'The kettle pops like gunfire. Noise carries.', effects: [{ op: 'killerMove', toward: 'concession', steps: 1 }] },
     { id: 'ev-power', name: 'Generator Sputters', tone: 'dread', text: 'Every bulb on the lot dims to orange. The screen goes grey.', effects: [{ op: 'mod', key: 'searchThreshold', n: 1 }, { op: 'if', cond: { c: 'alone' }, then: [{ op: 'horror', n: 1 }] }] },
     { id: 'ev-radio', name: 'Station Break', tone: 'calm', text: "A trucker's voice cuts in on the radios. Help is out there, somewhere.", effects: [{ op: 'clock', n: 1 }] },
+    { id: 'ev-sprinklers', name: 'Sprinklers Hiss On', tone: 'dread', text: 'Every sprinkler on the lot bursts to life at once. Somebody turned the valve.', effects: [{ op: 'if', cond: { c: 'killerAdjacent' }, then: [{ op: 'horror', n: 1 }], else: [{ op: 'mod', key: 'hideAuto', n: 1 }] }] },
+    { id: 'ev-trucker', name: 'Trucker on the Shoulder', tone: 'victim', text: 'A big rig idles by the gate. The driver is walking in to complain about the noise.', effects: [{ op: 'spawn', at: 'shed', n: 1 }] },
+    { id: 'ev-cartoon', name: 'Cartoon Between Features', tone: 'calm', text: 'A dancing hot dog fills the screen. Nervous laughter, row after row.', effects: [{ op: 'horror', n: -1 }, { op: 'drawInstinct', n: 1 }] },
     { id: 'ev-speaker', name: 'Whisper on the Speaker Pole', tone: 'dread', text: "The car speaker beside you clicks on. Breathing. Then your name.", effects: [{ op: 'horror', n: 1 }] },
   ],
   items: [
@@ -78,6 +82,8 @@ export const holloway: LocationPack = {
     { id: 'walkie', name: 'Walkie-Talkie', kind: 'consumable', text: 'Lure: the killer moves 2 toward the Junkyard.', uses: 1, use: { when: 'anytime', label: 'Key the mic', effects: [{ op: 'killerMove', toward: 'junkyard', steps: 2 }] } },
     { id: 'keys', name: 'Station Wagon Keys', kind: 'consumable', text: 'At Rows A: drive to the Ticket Booth with everyone you escort.', uses: 1, use: { when: 'atNode', node: 'lotA', label: 'Drive', effects: [{ op: 'teleportHeroine', to: 'gate' }] } },
     { id: 'keys-b', name: 'Pickup Truck Keys', kind: 'consumable', text: 'At Rows B: floor it to the Ticket Booth with everyone you escort.', uses: 1, use: { when: 'atNode', node: 'lotB', label: 'Drive', effects: [{ op: 'teleportHeroine', to: 'gate' }] } },
+    { id: 'thermos', name: 'Thermos of Black Coffee', kind: 'consumable', text: '+1 nerve and horror −1.', uses: 1, use: { when: 'anytime', label: 'Drink', effects: [{ op: 'nerve', n: 1 }, { op: 'horror', n: -1 }] } },
+    { id: 'speaker', name: 'Pulled Speaker Box', kind: 'weapon', text: 'Fight +1 die. Heavy and awkward. 3 swings.', fightDice: 1, uses: 3 },
     { id: 'firecrackers', name: 'Firecrackers', kind: 'consumable', text: 'Lure: the killer moves 2 toward the Marrow Pines.', uses: 1, use: { when: 'anytime', label: 'Light & throw', effects: [{ op: 'killerMove', toward: 'woods', steps: 2 }] } },
   ],
 };

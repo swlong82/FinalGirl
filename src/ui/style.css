@@ -69,6 +69,22 @@ body.pulse #vignette { animation: pulse calc(1.2s - var(--horror) * .5s) infinit
 .feature-card .marquee { font-family: var(--display); font-size: 26px; color: #fff3e0; text-shadow: 0 0 12px rgba(255, 51, 85, .5); }
 h2.section { font-family: var(--display); font-size: clamp(36px, 7vw, 60px); margin: 0; color: #fff3e0; text-shadow: 0 0 16px rgba(255, 51, 85, .45); font-weight: 400; }
 
+/* Chips (killer/location/difficulty pickers) */
+.combo { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; width: min(900px, 100%); }
+.combo > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+.combo .sub { width: 100%; text-align: center; color: var(--gold); font-family: var(--ui); text-transform: uppercase; letter-spacing: .14em; font-size: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; font-family: var(--ui); letter-spacing: .06em; font-size: 14px; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--line); background: var(--panel); transition: .15s; }
+.chip:hover, .chip.sel { border-color: var(--blood); box-shadow: 0 0 14px rgba(255, 51, 85, .3); }
+.chip.sel { background: rgba(122, 10, 28, .45); }
+.chip-art { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: inline-block; }
+.chip-art svg { width: 100%; height: 100%; display: block; }
+.diff-note { width: 100%; text-align: center; margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.endcol { display: flex; flex-direction: column; gap: 6px; }
+.endcol .endturn { flex: 1; }
+.card.terror .face { border-color: #3a0008; outline-color: var(--blood); box-shadow: 0 0 80px rgba(255, 51, 85, .45), 0 30px 80px rgba(0, 0, 0, .8); animation: flip .6s cubic-bezier(.2, .7, .2, 1), terrorPulse 1.6s infinite .6s; }
+@keyframes terrorPulse { 50% { box-shadow: 0 0 120px rgba(255, 51, 85, .7), 0 30px 80px rgba(0, 0, 0, .8); } }
+.card.terror h2 { color: var(--blood); }
+
 /* Lore crawl */
 .crawl { max-width: 680px; text-align: left; font-size: clamp(15px, 2.2vw, 18px); line-height: 1.75; }
 .crawl p { opacity: 0; transform: translateY(12px); animation: rise 1.2s forwards; }
@@ -258,6 +274,8 @@ h2.section { font-family: var(--display); font-size: clamp(36px, 7vw, 60px); mar
   .clock span { display: none; }
   .board { grid-row: 2; }
   .bottombar { grid-template-columns: minmax(0, 1fr); grid-row: 3; position: static; padding: 0; background: none; }
+  .endcol { flex-direction: row; }
+  .endcol .btn { flex: 0 0 auto; }
   .side.left { grid-row: 4; }
   .side.right { grid-row: 5; }
   .instinct { width: calc(50% - 4px); min-height: 0; }

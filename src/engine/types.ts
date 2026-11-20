@@ -76,6 +76,7 @@ export interface LocationPack {
   events: EventDef[];
   items: ItemDef[];
   palette: { sky: string; glow: string; accent: string };
+  art: 'drivein' | 'coast'; // backdrop renderer key
 }
 
 export interface KillerPack {
@@ -91,12 +92,24 @@ export interface KillerPack {
   frenzyAt: number; // bloodlust threshold → speed +1
   finaleAt: number; // bloodlust threshold → Finale
   bloodlustMax: number;
-  finale: { name: string; text: string; effects: Effect[]; armor: number; attackDice: number };
+  finale: { name: string; text: string; effects: Effect[]; armor: number; attackDice: number; phases?: FinalePhase[] };
   events: EventDef[];
+  terror: EventDef[]; // escalation deck: one card each time bloodlust crosses a multiple of terrorEvery
+  terrorEvery: number;
+  art: 'projectionist' | 'tidewife'; // portrait renderer key
   weakness: { text: string }; // lore items (onGain killerArmor -1) strip armor
   items: ItemDef[]; // killer-specific items (weakness/lore) shuffled into the item deck
   quotes: string[];
 }
+
+export interface FinalePhase {
+  name: string;
+  text: string;
+  health: number;
+  effects: Effect[];
+}
+
+export type Difficulty = 'story' | 'standard' | 'nightmare';
 
 export interface HeroineTraits {
   freeFirstMove?: boolean;
@@ -202,7 +215,9 @@ export type Fx =
   | { t: 'win' }
   | { t: 'lose' }
   | { t: 'horror'; n: number }
-  | { t: 'stun' };
+  | { t: 'stun' }
+  | { t: 'terror'; id: string }
+  | { t: 'phase'; name: string };
 
 export interface LogEntry {
   round: number;
@@ -216,6 +231,7 @@ export interface GameState {
   rng: number; // rng internal state
   uid: number;
   packs: { location: string; killer: string; heroine: string };
+  difficulty: Difficulty;
   round: number;
   dawnAt: number;
   phase: Phase;
@@ -245,6 +261,8 @@ export interface GameState {
     finale: boolean;
     frenzy: boolean;
     risen: boolean; // has used the "he gets back up" trope
+    finalePhase: number; // index into finale.phases (-1 = main finale)
+    attackBonus: number; // difficulty modifier
     lured?: NodeId;
   };
   victims: Record<NodeId, number>;
@@ -260,6 +278,7 @@ export interface GameState {
   itemDeck: string[];
   instinctDeck: string[];
   instinctDiscard: string[];
+  terrorDeck: string[];
 
   currentEvent?: string;
   lastRoll?: DiceRoll;

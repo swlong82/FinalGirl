@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildContent, HEROINES } from '../src/content/registry';
+import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
 import { check, dispatch, newGame, neighbors, distances, itemDef } from '../src/engine/rules';
 import type { Action, Content, GameState } from '../src/engine/types';
 
@@ -44,8 +44,8 @@ function botAction(c: Content, s: GameState): Action {
   return { type: 'endTurn' };
 }
 
-function play(heroine: string, seed: number) {
-  const c = buildContent('holloway-drive-in', 'the-projectionist', heroine);
+function play(heroine: string, seed: number, loc = 'holloway-drive-in', killer = 'the-projectionist') {
+  const c = buildContent(loc, killer, heroine);
   let s = newGame(c, seed);
   for (let i = 0; i < 2000 && !s.outcome; i++) {
     const a = botAction(c, s);
@@ -75,6 +75,33 @@ describe('engine', () => {
       }
     }
     console.table(tally);
+  });
+
+  it('every killer × location pairing plays to completion', () => {
+    const tally: Record<string, Record<string, number>> = {};
+    for (const l of LOCATIONS)
+      for (const k of KILLERS) {
+        const key = `${k.id} @ ${l.id}`;
+        tally[key] = { slain: 0, survived: 0, died: 0 };
+        for (const h of HEROINES)
+          for (let seed = 1; seed <= 40; seed++) {
+            const s = play(h.id, seed * 104729, l.id, k.id);
+            expect(s.outcome).toBeDefined();
+            tally[key][s.outcome!]++;
+          }
+      }
+    console.table(tally);
+  });
+
+  it('content references are valid', () => {
+    for (const l of LOCATIONS) {
+      const ids = new Set(l.nodes.map((n) => n.id));
+      for (const [a, b] of l.edges) expect(ids.has(a) && ids.has(b), `${l.id} edge ${a}-${b}`).toBe(true);
+      for (const id of [l.exit, l.lair, l.heroineStart, ...l.setupVictims]) expect(ids.has(id), `${l.id} ${id}`).toBe(true);
+      const json = JSON.stringify([l.events, l.items]);
+      for (const m of json.matchAll(/"(?:at|node|toward|to)":"([a-zA-Z]+)"/g))
+        if (!['random', 'farFromKiller', 'heroine', 'lair', 'here'].includes(m[1])) expect(ids.has(m[1]), `${l.id} ref ${m[1]}`).toBe(true);
+    }
   });
 
   it('rejects illegal actions without mutating', () => {

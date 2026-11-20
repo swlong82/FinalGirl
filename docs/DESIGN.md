@@ -62,6 +62,17 @@ Items and Instinct cards cost nothing to use.
 | 4–5 | Terrified | 4 | 5+ |
 | 6 | Breaking | 3 | 5+ |
 
+### Terror & Finale phases
+- `KillerPack.terror` is shuffled into its own deck. Each time bloodlust crosses a multiple of `terrorEvery` (4), one card is revealed and resolved. Terror cards are permanent escalations: heal, armor, teleport to the heroine, wounds.
+- `finale.phases[]`: when the killer drops to 0 in the Finale, the next phase begins with fresh health and its own effects. You only win when the last phase ends.
+
+### Difficulty
+| Mode | Killer health | Killer attack | Dawn |
+|---|---|---|---|
+| Matinee | −3 | — | 1 round earlier |
+| Midnight Show | — | — | round 13 |
+| Nightmare | +3 | +1 die | round 13 |
+
 ### Balance
 `npm test` runs a heuristic bot through 150 seeded games per heroine (750 total) and prints the outcomes.
 The bot plays naively (it fights whenever it can), so humans should do better. Current target band:
@@ -78,6 +89,8 @@ src/
   content/     data packs — the only thing an expansion touches
     drive-in/       LocationPack: The Holloway Drive-In
     projectionist/  KillerPack: The Projectionist
+    tide-cabins/    LocationPack: The Gullhaven Tide Cabins
+    tidewife/       KillerPack: The Tidewife
     heroines/       5 heroines + the core Instinct deck
     registry.ts     Features (killer × location pairs)
   art/art.ts   procedural SVG: portraits, killer, icons, backdrop, dice
@@ -97,8 +110,8 @@ tests/         engine fuzz/balance tests
 2. Create `src/content/<killer>/killer.ts` that exports a `KillerPack`: stats, Finale, events, lore items and quotes.
 3. Register both in `src/content/registry.ts` and add a `Feature`.
 4. Optionally add new heroines (`HeroineDef` with traits and a signature card).
-5. Optional killer‑specific art: add a portrait function in `art.ts` and key it by killer id.
-6. Run `npm test`. The fuzz test checks that every heroine finishes games against the new pack.
+5. Art: set `KillerPack.art` and `LocationPack.art`, then add a portrait or backdrop renderer for that key in `art.ts`.
+6. Run `npm test`. It fuzzes every killer × location × heroine combination and validates every node reference in the packs.
 
 ## 5. Atmosphere & audio
 
@@ -109,9 +122,9 @@ tests/         engine fuzz/balance tests
 
 | Phase | Scope |
 |---|---|
-| **v0.1 (this build)** | Feature One: 1 killer, 1 location (11 nodes), 5 heroines, 22 events, 16 items, 15 instincts; full UI, audio, saves |
-| v0.2 | Difficulty modes (killer HP/bloodlust), undo for non‑dice actions, per‑killer portrait registry, a stats/achievements screen |
-| v0.3 | Feature Two (*The Tide Cabins*: coastal resort + new killer) and mix‑and‑match selection UI |
-| v0.4 | Feature Three (*Saint Agatha After Hours*: hospital), terror cards (killer‑specific escalation deck), multi‑phase Finales |
+| v0.1 | Feature One: 1 killer, 1 location (11 nodes), 5 heroines, 22 events, 16 items, 15 instincts; full UI, audio, saves |
+| **v0.2 (this build)** | Difficulty modes (Matinee / Midnight Show / Nightmare); undo for deterministic actions; Box Office stats screen; **terror deck** (a killer‑specific escalation card each time bloodlust crosses a multiple of 4); **multi‑phase Finales**; **Feature Two** (*The Tide Cabins*, *The Tidewife*); mix‑and‑match Custom Double Bill picker; per‑killer and per‑location art keys; extra Feature One events and items |
+| v0.3 | Feature Three (*Saint Agatha After Hours*: hospital); location‑specific rules hooks (e.g. a tide that floods nodes); heroine scars |
+| v0.4 | Achievements, daily seeded challenge, more heroines |
 | v0.5 | PWA/offline, controller support, localization, optional commissioned art and music swapped into the art/audio slots |
 | Later | Campaign mode (heroines carry scars and items between features), daily seeded challenge with a shared leaderboard (needs a backend) |

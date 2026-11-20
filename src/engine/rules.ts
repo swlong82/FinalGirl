@@ -1,6 +1,7 @@
 import { nextRand, pick, rollD6, shuffle } from './rng';
 import type {
   Action,
+  Difficulty,
   Condition,
   Content,
   DiceRoll,
@@ -57,7 +58,7 @@ export function allEvents(c: Content): EventDef[] {
   return [...c.location.events, ...c.killer.events];
 }
 export function eventDef(c: Content, id: string): EventDef {
-  const d = allEvents(c).find((e) => e.id === id);
+  const d = [...allEvents(c), ...c.killer.terror].find((e) => e.id === id);
   if (!d) throw new Error(`Unknown event ${id}`);
   return d;
 }
@@ -103,15 +104,23 @@ function expand<T extends { id: string; copies?: number }>(defs: T[]): string[] 
   return defs.flatMap((d) => Array(d.copies ?? 1).fill(d.id));
 }
 
-export function newGame(c: Content, seed: number): GameState {
+export const DIFFICULTY: Record<Difficulty, { label: string; text: string; killerHp: number; attack: number; dawn: number }> = {
+  story: { label: 'Matinee', text: 'Killer −3 health, dawn comes a round earlier.', killerHp: -3, attack: 0, dawn: -1 },
+  standard: { label: 'Midnight Show', text: 'The intended experience.', killerHp: 0, attack: 0, dawn: 0 },
+  nightmare: { label: 'Nightmare', text: 'Killer +3 health and +1 attack die.', killerHp: 3, attack: 1, dawn: 0 },
+};
+
+export function newGame(c: Content, seed: number, difficulty: Difficulty = 'standard'): GameState {
+  const dm = DIFFICULTY[difficulty];
   const s: GameState = {
     version: 1,
     seed,
     rng: seed >>> 0,
     uid: 1,
     packs: { location: c.location.id, killer: c.killer.id, heroine: c.heroine.id },
+    difficulty,
     round: 1,
-    dawnAt: DAWN_ROUND,
+    dawnAt: DAWN_ROUND + dm.dawn,
     phase: 'event',
     heroine: {
       loc: c.location.heroineStart,
@@ -129,14 +138,16 @@ export function newGame(c: Content, seed: number): GameState {
     },
     killer: {
       loc: c.location.lair,
-      health: c.killer.health,
-      maxHealth: c.killer.health,
+      health: c.killer.health + dm.killerHp,
+      maxHealth: c.killer.health + dm.killerHp,
       armor: c.killer.armor,
       bloodlust: 0,
       stunned: 0,
       finale: false,
       frenzy: false,
       risen: false,
+      finalePhase: -1,
+      attackBonus: dm.attack,
     },
     victims: Object.fromEntries(c.location.nodes.map((n) => [n.id, 0])),
     searches: Object.fromEntries(c.location.nodes.map((n) => [n.id, n.searches])),
@@ -150,6 +161,7 @@ export function newGame(c: Content, seed: number): GameState {
     itemDeck: [],
     instinctDeck: [],
     instinctDiscard: [],
+    terrorDeck: [],
     foundLore: [],
     log: [],
     fx: [],
@@ -157,6 +169,7 @@ export function newGame(c: Content, seed: number): GameState {
   s.eventDeck = shuffle(s, expand(allEvents(c)));
   s.itemDeck = shuffle(s, expand(allItems(c)));
   s.instinctDeck = shuffle(s, expand(allInstincts(c)));
+  s.terrorDeck = shuffle(s, expand(c.killer.terror));
   for (const at of c.location.setupVictims) placeVictims(c, s, at, 1);
   drawInstinct(s, 2);
   log(s, `The feature begins. ${c.heroine.name} arrives at ${nodeName(c, s.heroine.loc)}.`, 'info');
@@ -270,7 +283,7 @@ function endGame(c: Content, s: GameState, o: GameState['outcome']) {
 }
 
 export function killerAttackDice(c: Content, s: GameState) {
-  return (s.killer.finale ? c.killer.finale.attackDice : c.killer.attackDice) + (s.mods.killerAttackDice ?? 0);
+  return (s.killer.finale ? c.killer.finale.attackDice : c.killer.attackDice) + s.killer.attackBonus + (s.mods.killerAttackDice ?? 0);
 }
 export function killerSpeed(c: Content, s: GameState) {
   return c.killer.speed + (s.killer.frenzy ? 1 : 0);
@@ -278,12 +291,27 @@ export function killerSpeed(c: Content, s: GameState) {
 
 function addBloodlust(c: Content, s: GameState, n: number) {
   const k = s.killer;
+  const before = k.bloodlust;
   k.bloodlust = Math.max(0, Math.min(c.killer.bloodlustMax, k.bloodlust + n));
+  const every = c.killer.terrorEvery;
+  if (every > 0) {
+    const crossed = Math.floor(k.bloodlust / every) - Math.floor(before / every);
+    for (let i = 0; i < crossed && !s.outcome; i++) drawTerror(c, s);
+  }
   if (!k.frenzy && k.bloodlust >= c.killer.frenzyAt) {
     k.frenzy = true;
     log(s, `${c.killer.name} enters a FRENZY. He moves faster now.`, 'killer');
   }
   if (!k.finale && k.bloodlust >= c.killer.finaleAt) triggerFinale(c, s, 'bloodlust');
+}
+
+function drawTerror(c: Content, s: GameState) {
+  const id = s.terrorDeck.pop();
+  if (!id) return;
+  const t = eventDef(c, id);
+  log(s, `TERROR — ${t.name}`, 'killer');
+  s.fx.push({ t: 'terror', id });
+  applyEffects(c, s, t.effects);
 }
 
 export function triggerFinale(c: Content, s: GameState, why: 'bloodlust' | 'clock' | 'risen') {
@@ -317,8 +345,19 @@ function damageKiller(c: Content, s: GameState, n: number, ignoreArmor = false) 
       log(s, `${c.killer.name} collapses… and then, slowly, sits up.`, 'killer');
       triggerFinale(c, s, 'risen');
     } else {
-      k.health = 0;
-      endGame(c, s, 'slain');
+      const phases = c.killer.finale.phases ?? [];
+      const next = phases[k.finalePhase + 1];
+      if (next) {
+        k.finalePhase++;
+        k.health = next.health;
+        k.maxHealth = Math.max(k.maxHealth, next.health);
+        log(s, `${next.name.toUpperCase()} — ${next.text}`, 'killer');
+        s.fx.push({ t: 'phase', name: next.name });
+        applyEffects(c, s, next.effects);
+      } else {
+        k.health = 0;
+        endGame(c, s, 'slain');
+      }
     }
   }
   return dmg;
@@ -837,7 +876,7 @@ function killerAttack(c: Content, s: GameState) {
 // ── Scoring ─────────────────────────────────────────────────────────────────
 export function score(s: GameState) {
   const base = s.outcome === 'slain' ? 100 : s.outcome === 'survived' ? 50 : 0;
-  return base + s.saved * 15 - s.slain * 5 + s.heroine.health * 5;
+  return Math.max(0, base + s.saved * 15 - s.slain * 5 + s.heroine.health * 5);
 }
 
 export function rating(s: GameState): { stars: number; blurb: string } {

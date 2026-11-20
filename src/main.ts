@@ -5,6 +5,7 @@ import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } fr
 import {
   check,
   COST,
+  DIFFICULTY,
   DEFAULT_ESCORT,
   dispatch,
   eventDef,
@@ -25,14 +26,27 @@ import {
   BASE_DICE,
   weaknessFound,
 } from './engine/rules';
-import type { Action, Content, Effect, GameState } from './engine/types';
+import type { Action, Content, Difficulty, Effect, GameState } from './engine/types';
 import { startGrain, setGrainIntensity } from './ui/grain';
 
 // ── App state ───────────────────────────────────────────────────────────────
-type Screen = 'title' | 'feature' | 'heroine' | 'intro' | 'game';
+type Screen = 'title' | 'feature' | 'heroine' | 'intro' | 'game' | 'stats';
 const SAVE_KEY = 'lastlight.save.v1';
 const PREFS_KEY = 'lastlight.prefs.v1';
 const TIPS_KEY = 'lastlight.tips.v1';
+const STATS_KEY = 'lastlight.stats.v1';
+
+interface GameRecord {
+  at: number;
+  heroine: string;
+  killer: string;
+  location: string;
+  difficulty: Difficulty;
+  outcome: string;
+  score: number;
+  saved: number;
+  slain: number;
+}
 
 interface Prefs {
   sound: boolean;
@@ -45,7 +59,11 @@ interface Prefs {
 const app = document.getElementById('app')!;
 let screen: Screen = 'title';
 let feature: Feature = FEATURES[0];
+let pick = { location: FEATURES[0].location, killer: FEATURES[0].killer };
+let difficulty: Difficulty = 'standard';
 let heroineId = HEROINES[0].id;
+let history: GameState[] = [];
+const cardQueue: string[] = [];
 let content: Content | null = null;
 let game: GameState | null = null;
 let killerLogStart = 0;
@@ -101,11 +119,14 @@ function render() {
       return renderIntro();
     case 'game':
       return renderGame();
+    case 'stats':
+      return renderStats();
   }
 }
 
 function backdrop() {
-  return `<div class="backdrop-wrap">${mapBackdrop(LOCATIONS[0], false)}</div>`;
+  const loc = LOCATIONS.find((l) => l.id === pick.location) ?? LOCATIONS[0];
+  return `<div class="backdrop-wrap">${mapBackdrop(loc, false)}</div>`;
 }
 
 function renderTitle() {
@@ -118,6 +139,7 @@ function renderTitle() {
       ${saved && !saved.state.outcome ? `<button class="btn primary" data-go="continue">Continue — Round ${saved.state.round}</button>` : ''}
       <button class="btn ${saved && !saved.state.outcome ? '' : 'primary'}" data-go="feature">New Night</button>
       <button class="btn" data-go="rules">How to Play</button>
+      <button class="btn" data-go="stats">Box Office (Stats)</button>
       <button class="btn" data-go="settings">Sound &amp; Settings</button>
     </div>
     <div class="fineprint">Original game, characters, art &amp; audio. All visuals and sound are generated in code. Headphones recommended.</div>
@@ -130,7 +152,7 @@ function renderFeature() {
     <div class="tagline">choose your feature</div>
     <div class="picker" style="max-width:900px">
       ${FEATURES.map(
-        (f) => `<button class="pick feature-card ${f.id === feature.id ? 'sel' : ''}" data-feature="${f.id}" ${f.available ? '' : 'disabled'}>
+        (f) => `<button class="pick feature-card ${f.available && f.location === pick.location && f.killer === pick.killer ? 'sel' : ''}" data-feature="${f.id}" ${f.available ? '' : 'disabled'}>
           <div class="marquee">${esc(f.title.split(':')[1]?.trim() ?? f.title)}</div>
           <div class="sub">${esc(f.title.split(':')[0])}</div>
           <p>${esc(f.subtitle)}</p>
@@ -138,7 +160,13 @@ function renderFeature() {
         </button>`,
       ).join('')}
     </div>
-    <div class="menu" style="flex-direction:row;justify-content:center">
+    <h2 class="section" style="font-size:34px;margin-top:8px">Custom Double Bill</h2>
+    <div class="tagline" style="margin-bottom:10px">any killer · any location</div>
+    <div class="combo">
+      <div><div class="sub">Killer</div>${KILLERS.map((k) => `<button class="chip ${k.id === pick.killer ? 'sel' : ''}" data-killer="${k.id}"><span class="chip-art">${killerPortrait({ art: k.art })}</span>${esc(k.name)}</button>`).join('')}</div>
+      <div><div class="sub">Location</div>${LOCATIONS.map((l) => `<button class="chip ${l.id === pick.location ? 'sel' : ''}" data-location="${l.id}">${esc(l.name)}</button>`).join('')}</div>
+    </div>
+    <div class="menu" style="flex-direction:row;justify-content:center;margin-top:16px">
       <button class="btn" data-go="title">Back</button>
       <button class="btn primary" data-go="heroine">Choose Heroine</button>
     </div>
@@ -162,6 +190,9 @@ function renderHeroine() {
         </button>`,
       ).join('')}
     </div>
+    <div class="combo" style="margin-bottom:14px"><div><div class="sub">Difficulty</div>${(Object.keys(DIFFICULTY) as Difficulty[])
+      .map((d) => `<button class="chip ${d === difficulty ? 'sel' : ''}" data-difficulty="${d}" title="${esc(DIFFICULTY[d].text)}">${esc(DIFFICULTY[d].label)}</button>`)
+      .join('')}<p class="diff-note">${esc(DIFFICULTY[difficulty].text)}</p></div></div>
     <div class="menu" style="flex-direction:row;justify-content:center">
       <button class="btn" data-go="feature">Back</button>
       <button class="btn primary" data-go="intro">Roll Film</button>
@@ -170,8 +201,8 @@ function renderHeroine() {
 }
 
 function renderIntro() {
-  const loc = LOCATIONS.find((l) => l.id === feature.location)!;
-  const k = KILLERS.find((x) => x.id === feature.killer)!;
+  const loc = LOCATIONS.find((l) => l.id === pick.location)!;
+  const k = KILLERS.find((x) => x.id === pick.killer)!;
   const paras = [...loc.lore, ...k.lore.slice(0, 1)];
   app.innerHTML = `<div class="screen">${backdrop()}
     <div class="crawl">
@@ -186,9 +217,13 @@ function renderIntro() {
 
 // ── Game screen ─────────────────────────────────────────────────────────────
 function startNewGame() {
-  content = buildContent(feature.location, feature.killer, heroineId);
+  content = buildContent(pick.location, pick.killer, heroineId);
   const seed = (Math.random() * 2 ** 31) | 0;
-  game = newGame(content, seed);
+  game = newGame(content, seed, difficulty);
+  history = [];
+  recorded = false;
+  lastFinale = false;
+  cardQueue.length = 0;
   screen = 'game';
   persist();
   render();
@@ -203,18 +238,27 @@ function persist() {
     } catch {
       /* ignore */
     }
-  } else store(SAVE_KEY, { ids: [feature.location, feature.killer, heroineId], state: game });
+  } else store(SAVE_KEY, { ids: [pick.location, pick.killer, heroineId], state: game });
+  if (game.outcome && !recorded) {
+    recorded = true;
+    const stats = load<GameRecord[]>(STATS_KEY, []);
+    stats.push({ at: Date.now(), heroine: heroineId, killer: pick.killer, location: pick.location, difficulty: game.difficulty, outcome: game.outcome, score: score(game), saved: game.saved, slain: game.slain });
+    store(STATS_KEY, stats.slice(-500));
+  }
 }
 
 function continueGame() {
   const saved = load<{ ids: [string, string, string]; state: GameState } | null>(SAVE_KEY, null);
   if (!saved) return;
   const [l, k, h] = saved.ids;
-  feature = FEATURES.find((f) => f.location === l && f.killer === k) ?? FEATURES[0];
+  pick = { location: l, killer: k };
   heroineId = h;
   content = buildContent(l, k, h);
   game = saved.state;
   game.fx = [];
+  history = [];
+  recorded = false;
+  lastFinale = false;
   screen = 'game';
   render();
 }
@@ -259,11 +303,39 @@ function buildBoard() {
       .join('')}
     <div class="token heroine" id="tok-h">${heroinePortrait(c.heroine)}</div>
     <div class="token-esc" id="tok-esc"></div>
-    <div class="token killer" id="tok-k">${killerPortrait()}</div>
+    <div class="token killer" id="tok-k">${killerPortrait({ art: c.killer.art })}</div>
     <div class="board-hint" id="board-hint"></div>`;
 }
 
 let lastFinale = false;
+let recorded = false;
+
+function renderStats() {
+  const stats = load<GameRecord[]>(STATS_KEY, []);
+  const wins = stats.filter((r) => r.outcome !== 'died').length;
+  const best = stats.reduce((m, r) => Math.max(m, r.score), 0);
+  const byHeroine = HEROINES.map((h) => {
+    const rs = stats.filter((r) => r.heroine === h.id);
+    const w = rs.filter((r) => r.outcome !== 'died').length;
+    return `<tr><td>${esc(h.name)}</td><td>${rs.length}</td><td>${w}</td><td>${rs.length ? Math.round((w / rs.length) * 100) : 0}%</td><td>${rs.reduce((m, r) => Math.max(m, r.score), 0)}</td></tr>`;
+  }).join('');
+  const byKiller = KILLERS.map((k) => {
+    const rs = stats.filter((r) => r.killer === k.id);
+    return `<tr><td>${esc(k.name)}</td><td>${rs.length}</td><td>${rs.filter((r) => r.outcome === 'slain').length}</td><td>${rs.filter((r) => r.outcome === 'survived').length}</td><td>${rs.filter((r) => r.outcome === 'died').length}</td></tr>`;
+  }).join('');
+  const recent = stats.slice(-8).reverse().map((r) => `<tr><td>${new Date(r.at).toLocaleDateString()}</td><td>${esc(HEROINES.find((h) => h.id === r.heroine)?.name ?? r.heroine)}</td><td>${esc(KILLERS.find((k) => k.id === r.killer)?.name ?? r.killer)}</td><td>${esc(DIFFICULTY[r.difficulty]?.label ?? '')}</td><td>${r.outcome}</td><td>${r.score}</td></tr>`).join('');
+  app.innerHTML = `<div class="screen">${backdrop()}
+    <h2 class="section">Box Office</h2>
+    <div class="tagline">${stats.length} nights · ${wins} survived · best score ${best}</div>
+    <div class="modal" style="max-height:none">
+      ${stats.length ? `<h3>By heroine</h3><table><tr><th>Heroine</th><th>Played</th><th>Lived</th><th>Rate</th><th>Best</th></tr>${byHeroine}</table>
+      <h3>By killer</h3><table><tr><th>Killer</th><th>Played</th><th>Slain</th><th>Survived</th><th>Died</th></tr>${byKiller}</table>
+      <h3>Recent</h3><table><tr><th>Date</th><th>Heroine</th><th>Killer</th><th>Mode</th><th>Ending</th><th>Score</th></tr>${recent}</table>` : '<p>No nights on record yet. Go make some history.</p>'}
+    </div>
+    <div class="menu" style="margin-top:16px"><button class="btn" data-go="title">Back</button></div>
+  </div>`;
+}
+
 function updateGame() {
   const s = game!;
   const c = content!;
@@ -279,7 +351,7 @@ function updateGame() {
     lastFinale = k.finale;
     const bd = document.querySelector('#board .bd');
     if (bd) bd.innerHTML = mapBackdrop(c.location, k.finale);
-    document.getElementById('tok-k')!.innerHTML = killerPortrait({ finale: k.finale });
+    document.getElementById('tok-k')!.innerHTML = killerPortrait({ finale: k.finale, art: c.killer.art });
   }
 
   // top bar
@@ -332,11 +404,13 @@ function updateGame() {
     <div class="items">${items}</div>`;
 
   // killer panel
+  const totalPhases = (c.killer.finale.phases?.length ?? 0) + 1;
+  const phaseName = k.finalePhase >= 0 ? c.killer.finale.phases![k.finalePhase].name : c.killer.finale.name;
   const bl = Array.from({ length: c.killer.bloodlustMax }, (_, i) => `<i class="${i < k.bloodlust ? 'on' : ''} ${i + 1 === c.killer.frenzyAt || i + 1 === c.killer.finaleAt ? 'mark' : ''}"></i>`).join('');
   document.getElementById('killer-panel')!.innerHTML = `
-    <div class="killer-head"><div>${killerPortrait({ finale: k.finale })}</div>
+    <div class="killer-head"><div>${killerPortrait({ finale: k.finale, art: c.killer.art })}</div>
       <div><h3>${esc(c.killer.name)}</h3><div class="sub" style="font-size:11px;color:var(--muted)">${esc(c.killer.epithet)}</div></div></div>
-    <h4>Health ${k.health}/${k.maxHealth}${k.finale ? ' · <span style="color:var(--blood)">FINALE</span>' : ''}</h4>
+    <h4>Health ${k.health}/${k.maxHealth}${k.finale ? ` · <span style="color:var(--blood)">${esc(phaseName)}</span>` : ''}${k.finale && totalPhases > 1 ? ` · phase ${k.finalePhase + 2}/${totalPhases}` : ''}</h4>
     <div class="hpbar"><div style="width:${(k.health / k.maxHealth) * 100}%"></div></div>
     <h4>Bloodlust ${k.bloodlust}/${c.killer.bloodlustMax}</h4>
     <div class="meter bl" title="Frenzy at ${c.killer.frenzyAt}, Finale at ${c.killer.finaleAt}">${bl}</div>
@@ -442,7 +516,8 @@ function updateBottom() {
     .join('');
   document.getElementById('bottombar')!.innerHTML = `
     <div><div class="actions">${btns}</div>${hand ? `<div class="hand">${hand}</div>` : ''}</div>
-    <button class="endturn" data-act="endTurn" ${s.phase === 'action' ? '' : 'disabled'}>End Turn <small style="display:block;font-size:10px;opacity:.7">${s.heroine.nerve} nerve left · E</small></button>`;
+    <div class="endcol"><button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo last action (Z) — not after dice rolls or draws">↶ Undo</button>
+    <button class="endturn" data-act="endTurn" ${s.phase === 'action' ? '' : 'disabled'}>End Turn <small style="display:block;font-size:10px;opacity:.7">${s.heroine.nerve} nerve left · E</small></button></div>`;
 }
 
 function describeEffects(effs: Effect[]): string {
@@ -472,7 +547,15 @@ function describeEffects(effs: Effect[]): string {
         case 'bloodlust':
           return `Bloodlust +${e.n}`;
         case 'killerStun':
-          return 'Killer loses his turn';
+          return 'Killer loses a turn';
+        case 'killerArmor':
+          return e.n > 0 ? `Killer armor +${e.n}` : `Killer armor ${e.n}`;
+        case 'killerHeal':
+          return `Killer heals ${e.n}`;
+        case 'wound':
+          return `${e.n} wound`;
+        case 'drawInstinct':
+          return `Draw ${e.n} instinct`;
         case 'if':
           return 'Conditional';
         default:
@@ -488,6 +571,18 @@ function updateOverlay() {
   const c = content!;
   const root = document.getElementById('overlay-root')!;
   if (overlayLocked) return;
+  if (cardQueue.length) {
+    const t = eventDef(c, cardQueue[0]);
+    root.innerHTML = `<div class="overlay"><div class="card killer terror">
+      <div class="face">
+        <div class="kind">Terror · ${esc(c.killer.name)} grows stronger</div>
+        <h2>${esc(t.name)}</h2>
+        <p>${esc(t.text)}</p>
+        <div class="fxline">${esc(describeEffects(t.effects))}</div>
+        <button class="btn primary" data-go="ackTerror">Endure <small>(space)</small></button>
+      </div></div></div>`;
+    return;
+  }
   if (s.phase === 'event' && s.currentEvent) {
     const ev = eventDef(c, s.currentEvent);
     root.innerHTML = `<div class="overlay"><div class="card ${ev.tone === 'killer' || ev.tone === 'dread' ? 'killer' : ev.tone === 'calm' ? 'calm' : ''}">
@@ -544,9 +639,12 @@ function act(a: Action) {
     if (!confirmEnd()) return;
   }
   if (a.type === 'endTurn') killerLogStart = game.log.length;
+  const prev = game;
   const next = dispatch(content, game, a);
   if (next === game) return;
   game = next;
+  if (game.phase === 'action' && prev.phase === 'action' && a.type !== 'endTurn') history.push(prev);
+  else history = [];
   persist();
   runFx(game);
   updateGame();
@@ -561,11 +659,38 @@ function confirmEnd(): boolean {
   return false;
 }
 
+function canUndo(): boolean {
+  if (!game || !history.length || game.phase !== 'action') return false;
+  const prev = history[history.length - 1];
+  // Only undo deterministic actions: nothing random consumed, no cards/items drawn.
+  return prev.rng === game.rng && prev.itemDeck.length === game.itemDeck.length && prev.instinctDeck.length === game.instinctDeck.length;
+}
+
+function undo() {
+  if (!canUndo()) return;
+  game = history.pop()!;
+  game.fx = [];
+  persist();
+  audio.play('click');
+  updateGame();
+}
+
 function runFx(s: GameState) {
   const c = content!;
   let diceShown = false;
   for (const f of s.fx) {
     switch (f.t) {
+      case 'terror':
+        cardQueue.push(f.id);
+        audio.play('killer');
+        flash(false);
+        break;
+      case 'phase':
+        audio.play('finale');
+        flash(true);
+        shake();
+        banner(f.name.toUpperCase());
+        break;
       case 'dice':
         if (!diceShown && s.lastRoll) {
           diceShown = true;
@@ -732,7 +857,7 @@ function showRules() {
   <h3>Horror</h3><p>Fear lowers your nerve and makes dice harder. Steady: 5 nerve, 4+ · Uneasy: 4, 4+ · Terrified: 4, 5+ · Breaking: 3, 5+. Past the top, terror becomes wounds.</p>
   <h3>The Finale</h3><p>At high bloodlust, if you "kill" him early, or in the last 3 rounds, the Finale begins: he comes for you. Defeat him in the Finale to win outright — or survive until <b>dawn</b>.</p>
   <h3>Weakness</h3><p>Some items are pieces of the killer's past. Finding them strips his armor.</p>
-  <h3>Keys</h3><p>1–6 actions · E end turn · Space continue · R rules</p>`);
+  <h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>1–6 actions · Z undo · E end turn · Space continue · R rules</p>`);
 }
 
 function showSettings() {
@@ -787,6 +912,25 @@ app.addEventListener('click', (e) => {
   const f = t.closest<HTMLElement>('[data-feature]')?.dataset.feature;
   if (f) {
     feature = FEATURES.find((x) => x.id === f)!;
+    pick = { location: feature.location, killer: feature.killer };
+    audio.play('click');
+    return render();
+  }
+  const kId = t.closest<HTMLElement>('[data-killer]')?.dataset.killer;
+  if (kId) {
+    pick.killer = kId;
+    audio.play('click');
+    return render();
+  }
+  const lId = t.closest<HTMLElement>('[data-location]')?.dataset.location;
+  if (lId) {
+    pick.location = lId;
+    audio.play('click');
+    return render();
+  }
+  const dId = t.closest<HTMLElement>('[data-difficulty]')?.dataset.difficulty as Difficulty | undefined;
+  if (dId) {
+    difficulty = dId;
     audio.play('click');
     return render();
   }
@@ -826,6 +970,12 @@ function navigate(go: string) {
       return showSettings();
     case 'continue':
       return continueGame();
+    case 'undo':
+      return undo();
+    case 'ackTerror':
+      cardQueue.shift();
+      audio.play('card');
+      return updateOverlay();
     case 'start':
     case 'again':
       return startNewGame();
@@ -853,8 +1003,10 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     return;
   }
+  if ((e.key === 'z' || e.key === 'Z') && !e.metaKey) return undo();
   if (e.key === ' ' || e.key === 'Enter') {
     e.preventDefault();
+    if (cardQueue.length) return navigate('ackTerror');
     if (game.phase === 'event') return act({ type: 'resolveEvent' });
     if (game.phase === 'killer') return act({ type: 'resolveKiller' });
   }

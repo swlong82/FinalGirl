@@ -76,8 +76,40 @@ export function heroinePortrait(h: HeroineDef, opts: { grim?: number } = {}): st
 </svg>`;
 }
 
-// ── Killer portrait: The Projectionist (original design) ────────────────────
-export function killerPortrait(state: { finale?: boolean } = {}): string {
+// ── Killer portraits ────────────────────────────────────────────────────────
+export function killerPortrait(state: { finale?: boolean; art?: string } = {}): string {
+  if (state.art === 'tidewife') return tidewifePortrait(state);
+  return projectionistPortrait(state);
+}
+
+// The Tidewife (original design): oilskin coat, salt-grey veil, storm lantern, gaff hook.
+function tidewifePortrait(state: { finale?: boolean }): string {
+  const g = uid('tg');
+  const l = uid('tl');
+  const lamp = state.finale ? '#ff3355' : '#ffd27a';
+  return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="portrait killer" role="img" aria-label="The Tidewife">
+  <defs>
+    <radialGradient id="${g}" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="${state.finale ? '#3a0a18' : '#12343a'}"/><stop offset="1" stop-color="#020607"/></radialGradient>
+    <radialGradient id="${l}" cx="30%" cy="72%" r="40%"><stop offset="0" stop-color="${lamp}" stop-opacity=".55"/><stop offset="1" stop-color="${lamp}" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#${g})"/>
+  <rect width="200" height="200" fill="url(#${l})"/>
+  <path d="M30 200 C34 140 62 118 100 118 C138 118 166 140 170 200 Z" fill="#2c3a2a"/>
+  <path d="M30 200 C34 140 62 118 100 118 C138 118 166 140 170 200 Z" fill="none" stroke="#5e7a5a" stroke-width="1.5" opacity=".6"/>
+  <path d="M100 118 L92 200 M100 118 L108 200" stroke="#1b241a" stroke-width="2"/>
+  <path d="M58 104 C56 40 144 40 142 104 C150 140 146 170 140 186 C120 170 80 170 60 186 C54 170 50 140 58 104 Z" fill="#cfd6d2" opacity=".82"/>
+  <path d="M64 100 C62 50 138 50 136 100 C138 130 132 150 128 160 C110 150 90 150 72 160 C68 150 62 130 64 100 Z" fill="#0b1112"/>
+  ${Array.from({ length: 9 }, (_, i) => `<path d="M${62 + i * 9} 60 Q${66 + i * 9} 120 ${60 + i * 10} 182" stroke="#e8eeea" stroke-width=".7" fill="none" opacity=".35"/>`).join('')}
+  <circle cx="88" cy="96" r="2.4" fill="#bfe9e2" opacity=".8"><animate attributeName="opacity" values=".8;.2;.8" dur="4s" repeatCount="indefinite"/></circle>
+  <circle cx="112" cy="96" r="2.4" fill="#bfe9e2" opacity=".8"><animate attributeName="opacity" values=".8;.2;.8" dur="4s" repeatCount="indefinite"/></circle>
+  ${[70, 92, 120, 134].map((x, i) => `<path d="M${x} 170 q2 ${10 + i * 3} 0 ${16 + i * 4}" stroke="#7fb6b0" stroke-width="2" fill="none" opacity=".6"><animate attributeName="opacity" values=".6;0;.6" dur="${2 + i * 0.4}s" repeatCount="indefinite"/></path>`).join('')}
+  <g transform="translate(36 140)"><path d="M10 0 L22 0 L24 6 L8 6 Z" fill="#222"/><rect x="6" y="6" width="20" height="26" rx="3" fill="${lamp}" opacity=".85"/><path d="M6 6 V32 M26 6 V32 M16 6 V32" stroke="#222" stroke-width="2"/><rect x="4" y="32" width="24" height="5" fill="#222"/><path d="M12 0 Q16 -12 20 0" fill="none" stroke="#222" stroke-width="2"/></g>
+  <g transform="rotate(14 160 150)"><rect x="156" y="104" width="5" height="96" fill="#6b5236"/><path d="M158 104 C158 84 182 84 180 102 C179 110 172 110 170 104" fill="none" stroke="#a9b0b6" stroke-width="4" stroke-linecap="round"/></g>
+</svg>`;
+}
+
+// The Projectionist (original design): film-canister mask, splicing shears.
+function projectionistPortrait(state: { finale?: boolean } = {}): string {
   const g = uid('kg');
   const beam = uid('kb');
   const eye = state.finale ? '#ff2244' : '#ffe9b0';
@@ -125,6 +157,14 @@ export function icon(key: string, color = '#d9d3c7'): string {
     swing: `<path ${s} d="M4 32 L10 6 H28 L34 32"/><path ${s} d="M16 6 V24 M22 6 V24"/><path ${s} d="M14 24 H24"/>`,
     screen: `<rect ${s} x="3" y="5" width="32" height="18"/><path ${s} d="M10 23 V33 M28 23 V33 M10 28 H28"/>`,
     pine: `<path ${s} d="M19 3 L29 17 H24 L32 28 H6 L14 17 H9 Z"/><path ${s} d="M19 28 V34"/>`,
+    gate: `<path ${s} d="M4 32 V10 M34 32 V10"/><path ${s} d="M4 14 H34 M4 22 H34"/><path ${s} d="M10 14 L16 22 M22 14 L28 22"/>`,
+    cabin: `<path ${s} d="M4 18 L19 6 L34 18"/><path ${s} d="M8 15 V32 H30 V15"/><rect ${s} x="12" y="20" width="6" height="6"/><path ${s} d="M22 32 V22 H27 V32"/>`,
+    grass: `<path ${s} d="M6 34 Q8 20 4 8 M12 34 Q14 18 12 4 M19 34 Q19 16 22 6 M26 34 Q26 20 30 10 M32 34 Q31 24 35 16"/>`,
+    hook: `<path ${s} d="M22 4 V22 Q22 32 14 32 Q6 32 6 24"/><path ${s} d="M6 24 L10 20"/><circle ${s} cx="22" cy="4" r="2"/>`,
+    wave: `<path ${s} d="M2 16 Q8 8 14 16 T26 16 T38 16"/><path ${s} d="M2 26 Q8 18 14 26 T26 26 T38 26"/>`,
+    boat: `<path ${s} d="M4 22 H34 L28 30 H10 Z"/><path ${s} d="M18 22 V4 L30 18 H18"/>`,
+    lighthouse: `<path ${s} d="M14 34 L16 12 H22 L24 34 Z"/><rect ${s} x="15" y="6" width="8" height="6"/><path ${s} d="M23 9 L34 5 M23 9 L34 13"/><path ${s} d="M10 34 H28"/>`,
+    dock: `<path ${s} d="M2 18 H36"/><path ${s} d="M6 18 V32 M14 18 V32 M22 18 V32 M30 18 V32"/><path ${s} d="M2 30 Q8 26 14 30 T26 30 T38 30"/>`,
     wreck: `<path ${s} d="M4 28 L8 18 L16 16 L22 20 L32 18 L34 28 Z"/><circle ${s} cx="11" cy="29" r="3"/><path ${s} d="M24 10 L28 6 M30 12 L34 10"/>`,
   };
   return `<svg viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" class="icon">${paths[key] ?? paths.door}</svg>`;
@@ -132,6 +172,57 @@ export function icon(key: string, color = '#d9d3c7'): string {
 
 // ── Map backdrop: the lot at night ──────────────────────────────────────────
 export function mapBackdrop(loc: LocationPack, finale: boolean): string {
+  return loc.art === 'coast' ? coastBackdrop(loc, finale) : driveInBackdrop(loc, finale);
+}
+
+function coastBackdrop(loc: LocationPack, finale: boolean): string {
+  const sky = uid('csky');
+  const sea = uid('csea');
+  const fog = uid('cfog');
+  const beam = uid('cbeam');
+  let seed = 11;
+  const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const stars = Array.from({ length: 60 }, () => `<circle cx="${(r() * 1000).toFixed(0)}" cy="${(r() * 160).toFixed(0)}" r="${(r() * 1.2 + 0.3).toFixed(2)}" fill="#fff" opacity="${(r() * 0.5 + 0.2).toFixed(2)}"/>`).join('');
+  const lamp = finale ? '#ff3355' : '#fff1c2';
+  const waves = Array.from({ length: 9 }, (_, i) => {
+    const y = 200 + i * 48;
+    return `<path d="M${560 - i * 10} ${y} q40 -8 80 0 t80 0 t80 0 t80 0 t80 0" fill="none" stroke="${loc.palette.glow}" stroke-opacity="${0.06 + i * 0.012}" stroke-width="1.5"><animateTransform attributeName="transform" type="translate" values="0 0;-20 2;0 0" dur="${6 + i}s" repeatCount="indefinite"/></path>`;
+  }).join('');
+  const cabins = (x0: number, y: number, n: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const x = x0 + i * 38;
+      const lit = r() > 0.5;
+      return `<path d="M${x} ${y} v-18 l14 -12 l14 12 v18 z" fill="#0b1416" stroke="#1d3034"/><rect x="${x + 9}" y="${y - 14}" width="10" height="8" fill="${lit ? '#ffcf7a' : '#132024'}" opacity="${lit ? 0.6 : 1}"/>`;
+    }).join('');
+  const grass = Array.from({ length: 80 }, () => {
+    const x = 330 + r() * 300;
+    const y = 120 + r() * 70;
+    return `<path d="M${x.toFixed(0)} ${y.toFixed(0)} q${(r() * 6 - 3).toFixed(1)} -14 ${(r() * 8 - 4).toFixed(1)} -22" stroke="#24302a" stroke-width="1.4" fill="none"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" class="backdrop">
+  <defs>
+    <linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#020507"/><stop offset=".5" stop-color="${loc.palette.sky}"/><stop offset="1" stop-color="#0a1214"/></linearGradient>
+    <linearGradient id="${sea}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#071012" stop-opacity="0"/><stop offset=".45" stop-color="#06181c"/><stop offset="1" stop-color="#041114"/></linearGradient>
+    <linearGradient id="${beam}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${lamp}" stop-opacity=".35"/><stop offset="1" stop-color="${lamp}" stop-opacity="0"/></linearGradient>
+    <filter id="${fog}"><feTurbulence type="fractalNoise" baseFrequency=".006 .025" numOctaves="3" seed="9"/><feColorMatrix values="0 0 0 0 .7  0 0 0 0 .85  0 0 0 0 .85  0 0 0 .6 -.2"/></filter>
+  </defs>
+  <rect width="1000" height="640" fill="url(#${sky})"/>
+  ${stars}
+  <circle cx="200" cy="64" r="22" fill="#e9f2ee" opacity=".8"/>
+  <path d="M520 0 L1000 0 L1000 640 L640 640 C600 520 560 360 600 200 C610 120 560 60 520 0 Z" fill="url(#${sea})"/>
+  <path d="M200 70 L210 620" stroke="#e9f2ee" stroke-opacity=".0"/>
+  ${waves}
+  <path d="M0 640 L0 220 C120 200 260 230 380 210 C460 196 540 170 600 200 C560 360 600 520 640 640 Z" fill="#0d1517"/>
+  ${grass}
+  ${cabins(260, 268, 4)}${cabins(420, 486, 4)}
+  <g transform="translate(880 30)"><path d="M10 120 L16 20 L32 20 L38 120 Z" fill="#cfd8d6"/><path d="M12 90 L36 90 M13 60 L35 60" stroke="#8a2a2a" stroke-width="7"/><rect x="14" y="6" width="20" height="16" fill="${lamp}"/><path d="M10 6 L24 -6 L38 6 Z" fill="#1d2628"/></g>
+  <path d="M904 44 L560 0 L560 120 Z" fill="url(#${beam})" class="beam"><animateTransform attributeName="transform" type="rotate" values="-6 904 44;8 904 44;-6 904 44" dur="9s" repeatCount="indefinite"/></path>
+  <path d="M740 404 H940" stroke="#3a2e22" stroke-width="7"/>${Array.from({ length: 9 }, (_, i) => `<path d="M${746 + i * 24} 404 v22" stroke="#2a2018" stroke-width="3"/>`).join('')}
+  <rect width="1000" height="640" filter="url(#${fog})" class="fog" opacity=".6"/>
+</svg>`;
+}
+
+function driveInBackdrop(loc: LocationPack, finale: boolean): string {
   const sky = uid('sky');
   const glow = uid('glow');
   const fog = uid('fog');

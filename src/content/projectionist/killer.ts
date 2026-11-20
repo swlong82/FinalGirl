@@ -5,7 +5,7 @@ export const projectionist: KillerPack = {
   id: 'the-projectionist',
   name: 'The Projectionist',
   epithet: 'Orrin Vale, who never left the booth',
-  health: 12,
+  health: 10,
   armor: 1,
   attackDice: 2,
   attackThreshold: 4,
@@ -27,7 +27,24 @@ export const projectionist: KillerPack = {
     armor: 1,
     attackDice: 3,
     effects: [{ op: 'killerTeleport', to: 'heroine' }, { op: 'killerHeal', n: 1 }, { op: 'horror', n: 1 }],
+    phases: [
+      {
+        name: 'Burn Out',
+        text: 'His canister mask splits down the middle. Burning film trails behind him. One more reel.',
+        health: 3,
+        effects: [{ op: 'horror', n: 1 }],
+      },
+    ],
   },
+  art: 'projectionist',
+  terrorEvery: 4,
+  terror: [
+    { id: 'pt-sprocket', name: 'Sprocket Tear', tone: 'killer', text: 'The film snaps and whips loose. He splices it back with his teeth — and smiles.', effects: [{ op: 'killerHeal', n: 2 }, { op: 'horror', n: 1 }] },
+    { id: 'pt-wrapped', name: 'Wrapped in Celluloid', tone: 'killer', text: 'He winds strips of film around his arms like bandages. Blades skid off them.', effects: [{ op: 'killerArmor', n: 1 }] },
+    { id: 'pt-remembers', name: 'The Reel Remembers', tone: 'killer', text: 'Every frame he ever spliced shows him where she is.', effects: [{ op: 'killerTeleport', to: 'heroine' }] },
+    { id: 'pt-flare', name: 'Projector Flare', tone: 'killer', text: 'The beam swings off the screen and floods the lot with white.', effects: [{ op: 'if', cond: { c: 'horrorAtLeast', n: 3 }, then: [{ op: 'horror', n: 2 }], else: [{ op: 'horror', n: 1 }, { op: 'wound', n: 1 }] }] },
+    { id: 'pt-fullhouse', name: 'Full House', tone: 'killer', text: 'Headlights. A whole carload pulls in to the back row, laughing. He turns toward them.', effects: [{ op: 'spawn', at: 'lotB', n: 2 }, { op: 'killerMove', toward: 'lotB', steps: 1 }] },
+  ],
   quotes: [
     '"Eight… seven… six…"',
     '"Eyes on the screen."',
