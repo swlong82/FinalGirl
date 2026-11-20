@@ -6,7 +6,7 @@ An original, solo slasher survival game for the browser.
 
 [![Deploy to GitHub Pages](https://github.com/swlong82/FinalGirl/actions/workflows/pages.yml/badge.svg)](https://github.com/swlong82/FinalGirl/actions/workflows/pages.yml)
 
-Runs in any modern browser on desktop or mobile, with no install. Headphones recommended.
+Runs in any modern browser on desktop or mobile, with no install. Headphones recommended. First time? Pick **First Night — Guided Tutorial** on the title screen.
 
 > Route 9, autumn 1984. Tonight is the Holloway Drive‑In's farewell double feature, and three minutes into the first reel, the film skips.
 

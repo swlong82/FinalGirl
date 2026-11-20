@@ -4,6 +4,9 @@ import { heroinePortrait, heroineToken, icon, killerPortrait, mapBackdrop, pip, 
 import { eventStill, itemIcon, posterFrame } from './art/scenes';
 import { startParticles } from './ui/particles';
 import { botAction } from './engine/bot';
+import { glyph } from './ui/glyphs';
+import { TUTORIAL, tutorialGame } from './engine/tutorial';
+import { Tutorial } from './ui/tutorial';
 import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } from './content/registry';
 import {
   check,
@@ -40,6 +43,11 @@ const SAVE_KEY = 'lastlight.save.v1';
 const PREFS_KEY = 'lastlight.prefs.v1';
 const TIPS_KEY = 'lastlight.tips.v1';
 const STATS_KEY = 'lastlight.stats.v1';
+const TUT_KEY = 'lastlight.tutorial.v1';
+const tutorial = new Tutorial((finished) => {
+  store(TUT_KEY, true);
+  if (finished) toast('Tutorial complete. The night is yours — press <b>H</b> any time for a hint.', 6000);
+});
 
 interface GameRecord {
   at: number;
@@ -142,7 +150,9 @@ function renderTitle() {
     <div class="tagline">a solo slasher survival game</div>
     <div class="menu">
       ${saved && !saved.state.outcome ? `<button class="btn primary" data-go="continue">Continue — Round ${saved.state.round}</button>` : ''}
-      <button class="btn ${saved && !saved.state.outcome ? '' : 'primary'}" data-go="feature">New Night</button>
+      ${!load(TUT_KEY, false) ? '<button class="btn primary tut-cta" data-go="tutorial">First Night — Guided Tutorial</button>' : ''}
+      <button class="btn ${(saved && !saved.state.outcome) || !load(TUT_KEY, false) ? '' : 'primary'}" data-go="feature">New Night</button>
+      ${load(TUT_KEY, false) ? '<button class="btn" data-go="tutorial">Replay Tutorial</button>' : ''}
       <button class="btn" data-go="rules">How to Play</button>
       <button class="btn" data-go="stats">Box Office (Stats)</button>
       <button class="btn" data-go="settings">Sound &amp; Settings</button>
@@ -193,7 +203,7 @@ function renderFeature() {
         <h3 class="col-h">${curated ? 'Feature' : 'Your Double Bill'}</h3>
         ${comboPoster(pick.location, pick.killer)}
         <p class="preview-txt">${esc(k.lore[0])}</p>
-        <button class="btn small" data-go="shuffle">🎲 Spin the Reel</button>
+        <button class="btn small" data-go="shuffle">${glyph('die')} Spin the Reel</button>
       </section>
       <section>
         <h3 class="col-h">Location</h3>
@@ -270,6 +280,23 @@ function startNewGame() {
   showTip('start', 'Each round: an event card, then you spend <b>nerve</b> on actions, then the killer moves. Survive until dawn — or end him.');
 }
 
+function startTutorial() {
+  pick = { location: TUTORIAL.location, killer: TUTORIAL.killer };
+  heroineId = TUTORIAL.heroine;
+  difficulty = 'story';
+  content = buildContent(pick.location, pick.killer, heroineId);
+  game = tutorialGame(content);
+  history = [];
+  recorded = false;
+  lastFinale = false;
+  cardQueue.length = 0;
+  screen = 'game';
+  persist();
+  render();
+  tutorial.start();
+  tutorial.sync(game);
+}
+
 function persist() {
   if (!game || !content) return;
   if (game.outcome) {
@@ -309,7 +336,7 @@ function renderGame() {
     app.innerHTML = `<div class="game" id="game">
       <header class="topbar"></header>
       <aside class="side left"><div class="panel" id="heroine-panel"></div></aside>
-      <main class="board" id="board"></main>
+      <main class="stage"><div class="board" id="board"></div></main>
       <aside class="side right"><div class="panel" id="killer-panel"></div><div class="panel log-panel"><h4>Script</h4><div class="log" id="log"></div></div></aside>
       <footer class="bottombar" id="bottombar"></footer>
     </div><div id="overlay-root"></div>`;
@@ -333,7 +360,9 @@ function buildBoard() {
     })
     .join('');
   board.innerHTML = `<div class="bd">${mapBackdrop(loc, game!.killer.finale)}</div>
-    <svg class="edges" viewBox="0 0 1000 640" preserveAspectRatio="none">${edges}</svg>
+    <svg class="edges" viewBox="0 0 1000 640" preserveAspectRatio="none">${edges}<line id="threat" class="threat" x1="0" y1="0" x2="0" y2="0"/></svg>
+    <div class="ring here-ring" id="ring-h"></div>
+    <div class="ring danger-ring" id="ring-k"></div>
     ${loc.nodes
       .map(
         (n) => `<button class="node ${n.id === loc.exit ? 'exit' : ''} ${n.id === loc.lair ? 'lair' : ''}" data-node="${n.id}" style="left:${n.x / 10}%;top:${n.y / 6.4}%" title="${esc(n.name)} — ${esc(n.flavor)}">
@@ -343,10 +372,10 @@ function buildBoard() {
       </button>`,
       )
       .join('')}
-    <div class="token heroine" id="tok-h">${heroineToken(c.heroine)}</div>
+    <div class="token heroine" id="tok-h"><div class="pin">${heroineToken(c.heroine)}</div><span class="tag">${esc(c.heroine.name.split(' ')[0])}</span></div>
     <canvas class="particles" id="particles"></canvas>
     <div class="token-esc" id="tok-esc"></div>
-    <div class="token killer" id="tok-k">${killerPortrait({ art: c.killer.art })}</div>
+    <div class="token killer" id="tok-k"><div class="pin">${killerPortrait({ art: c.killer.art })}</div><span class="tag">${esc(c.killer.name.replace(/^The /, ''))}</span></div>
     <div class="board-hint" id="board-hint"></div>`;
 }
 
@@ -387,7 +416,7 @@ function ruleChip(): string {
   if (r.kind === 'tide') state = s.env.tideHigh ? 'HIGH TIDE' : 'low tide';
   else if (r.kind === 'power') state = s.env.dark ? 'BLACKOUT' : 'power on';
   else if (r.kind === 'cold') state = c.heroine.traits.coldImmune ? 'immune' : `cold ${s.env.cold}/3`;
-  else if (r.kind === 'calls') state = s.env.ringing ? `☎ ${nodeName(c, s.env.ringing)}` : 'quiet';
+  else if (r.kind === 'calls') state = s.env.ringing ? `ringing: ${nodeName(c, s.env.ringing)}` : 'quiet';
   else if (r.kind === 'intermission') {
     const p = r.period ?? 4;
     state = s.round % p === 0 ? 'NOW' : `next R${Math.ceil(s.round / p) * p}`;
@@ -411,7 +440,7 @@ function updateGame() {
     lastFinale = k.finale;
     const bd = document.querySelector('#board .bd');
     if (bd) bd.innerHTML = mapBackdrop(c.location, k.finale);
-    document.getElementById('tok-k')!.innerHTML = killerPortrait({ finale: k.finale, art: c.killer.art });
+    document.querySelector('#tok-k .pin')!.innerHTML = killerPortrait({ finale: k.finale, art: c.killer.art });
   }
 
   // top bar
@@ -496,6 +525,7 @@ function updateGame() {
   updateBoard();
   updateBottom();
   updateOverlay();
+  tutorial.sync(s);
 }
 
 function updateBoard() {
@@ -511,17 +541,17 @@ function updateBoard() {
     if ((s.searches[id] ?? 0) > 0) badges.push(`<span class="badge search" title="Search tokens left">⌕${s.searches[id]}</span>`);
     if ((s.barricades[id] ?? 0) > 0) badges.push(`<span class="badge barr" title="Barricade strength">▦${s.barricades[id]}</span>`);
     const rk = c.location.rule.kind;
-    if (rk === 'cold' && hasTag(c, id, 'outdoor')) badges.push('<span class="badge env" title="Outdoors: ending a round here adds cold">❄</span>');
-    if (rk === 'cold' && hasTag(c, id, 'warm')) badges.push('<span class="badge env warm" title="Warm: ending a round here thaws you">🔥</span>');
-    if (rk === 'tide' && hasTag(c, id, 'shore')) badges.push(`<span class="badge env" title="Shore: floods at high tide">${isFlooded(c, s, id) ? '🌊' : '〰'}</span>`);
-    if (rk === 'calls' && hasTag(c, id, 'phone')) badges.push(`<span class="badge env ${s.env.ringing === id ? 'ringing' : ''}" title="${s.env.ringing === id ? 'Ringing! Answer it here.' : 'Phone'}">☎</span>`);
+    if (rk === 'cold' && hasTag(c, id, 'outdoor')) badges.push(`<span class="badge env" title="Outdoors: ending a round here adds cold">${glyph('snow')}</span>`);
+    if (rk === 'cold' && hasTag(c, id, 'warm')) badges.push(`<span class="badge env warm" title="Warm: ending a round here thaws you">${glyph('fire')}</span>`);
+    if (rk === 'tide' && hasTag(c, id, 'shore')) badges.push(`<span class="badge env" title="Shore: floods at high tide">${glyph(isFlooded(c, s, id) ? 'wave' : 'ripple')}</span>`);
+    if (rk === 'calls' && hasTag(c, id, 'phone')) badges.push(`<span class="badge env ${s.env.ringing === id ? 'ringing' : ''}" title="${s.env.ringing === id ? 'Ringing! Answer it here.' : 'Phone'}">${glyph('phone')}</span>`);
     el.classList.toggle('flooded', isFlooded(c, s, id));
     el.classList.toggle('ringing', s.env.ringing === id);
     el.querySelector('.badges')!.innerHTML = badges.join('');
     el.querySelector('.vics')!.innerHTML = Array(s.victims[id] ?? 0).fill(victimIcon()).join('');
     el.disabled = !reach.includes(id) && id !== h.loc;
   });
-  document.querySelectorAll<SVGLineElement>('svg.edges line').forEach((ln) => {
+  document.querySelectorAll<SVGLineElement>('svg.edges line[data-edge]').forEach((ln) => {
     const [a, b] = ln.dataset.edge!.split('|');
     ln.classList.toggle('hot', (a === h.loc && reach.includes(b)) || (b === h.loc && reach.includes(a)));
   });
@@ -529,19 +559,37 @@ function updateBoard() {
   const hp = pos(h.loc);
   const kp = pos(s.killer.loc);
   const same = h.loc === s.killer.loc;
+  const X = (x: number) => x / 10;
+  const Y = (y: number) => y / 6.4;
   const th = document.getElementById('tok-h')!;
-  th.style.left = `${hp.x / 10 - (same ? 2.6 : 0)}%`;
-  th.style.top = `${hp.y / 6.4 - 6}%`;
+  th.style.left = `${X(hp.x) - (same ? 3.4 : 0)}%`;
+  th.style.top = `${Y(hp.y) - 8.5}%`;
   th.classList.toggle('hidden', h.hidden);
+  const rh = document.getElementById('ring-h')!;
+  rh.style.left = `${X(hp.x)}%`;
+  rh.style.top = `${Y(hp.y)}%`;
   const te = document.getElementById('tok-esc')!;
   te.style.left = th.style.left;
   te.style.top = th.style.top;
   te.textContent = h.escorting ? `+${h.escorting}` : '';
   te.style.display = h.escorting ? '' : 'none';
   const tk = document.getElementById('tok-k')!;
-  tk.style.left = `${kp.x / 10 + (same ? 2.6 : 0)}%`;
-  tk.style.top = `${kp.y / 6.4 - 6}%`;
+  tk.style.left = `${X(kp.x) + (same ? 3.4 : 0)}%`;
+  tk.style.top = `${Y(kp.y) - 9}%`;
   tk.classList.toggle('stunned', s.killer.stunned > 0);
+  tk.classList.toggle('finale', s.killer.finale);
+  const rk = document.getElementById('ring-k')!;
+  rk.style.left = `${X(kp.x)}%`;
+  rk.style.top = `${Y(kp.y)}%`;
+  rk.classList.toggle('same', same);
+  // A red line when he is one step away.
+  const thr = document.getElementById('threat') as unknown as SVGLineElement;
+  const adjacent = !same && neighbors(c, h.loc).includes(s.killer.loc);
+  thr.setAttribute('x1', String(hp.x));
+  thr.setAttribute('y1', String(hp.y));
+  thr.setAttribute('x2', String(kp.x));
+  thr.setAttribute('y2', String(kp.y));
+  thr.classList.toggle('on', adjacent);
   document.getElementById('board')!.classList.toggle('dark', s.env.dark);
   const mc = moveCost(c, s);
   document.getElementById('board-hint')!.innerHTML =
@@ -586,7 +634,7 @@ function updateBottom() {
     .join('');
   document.getElementById('bottombar')!.innerHTML = `
     <div><div class="actions">${btns}</div>${hand ? `<div class="hand">${hand}</div>` : ''}</div>
-    <div class="endcol"><div class="endtools"><button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo last action (Z) — not after dice rolls or draws">↶ Undo</button><button class="btn small" data-go="hint" ${s.phase === 'action' ? '' : 'disabled'} title="What would a survivor do? (H)">💡 Hint</button></div>
+    <div class="endcol"><div class="endtools"><button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo last action (Z) — not after dice rolls or draws">${glyph('undo')} Undo</button><button class="btn small" data-go="hint" ${s.phase === 'action' ? '' : 'disabled'} title="What would a survivor do? (H)">${glyph('bulb')} Hint</button></div>
     <button class="endturn" data-act="endTurn" ${s.phase === 'action' ? '' : 'disabled'}>End Turn <small style="display:block;font-size:10px;opacity:.7">${s.heroine.nerve} nerve left · E</small></button></div>`;
 }
 
@@ -758,7 +806,7 @@ function showHint() {
     default:
       txt = `<b>${a.type[0].toUpperCase() + a.type.slice(1)}</b>.`;
   }
-  toast(`💡 ${txt}`, 4000);
+  toast(`${glyph('bulb', 'tip')} ${txt}`, 4000);
 }
 
 function canUndo(): boolean {
@@ -870,6 +918,7 @@ function showDice(s: GameState) {
     el.remove();
     overlayLocked = false;
     updateOverlay();
+    if (game) tutorial.sync(game);
   };
   el.addEventListener('click', done);
   setTimeout(done, 1700 + r.dice.length * 80);
@@ -909,10 +958,11 @@ function toast(html: string, ms = 5000) {
 }
 
 function showTip(id: string, html: string) {
+  if (tutorial.active) return;
   if (!prefs.tips || seenTips.has(id)) return;
   seenTips.add(id);
   store(TIPS_KEY, [...seenTips]);
-  setTimeout(() => toast(`💡 ${html}`, 9000), 600);
+  setTimeout(() => toast(`${glyph('bulb', 'tip')} ${html}`, 9000), 600);
 }
 
 function contextualTips() {
@@ -939,6 +989,11 @@ function modal(html: string) {
   o.innerHTML = `<div class="modal">${html}<div style="text-align:right;margin-top:16px"><button class="btn" data-close>Close</button></div></div>`;
   o.addEventListener('click', (e) => {
     if (e.target === o || (e.target as HTMLElement).closest('[data-close]')) o.remove();
+    const go = (e.target as HTMLElement).closest<HTMLElement>('[data-go]')?.dataset.go;
+    if (go) {
+      o.remove();
+      navigate(go);
+    }
   });
   document.body.appendChild(o);
   return o;
@@ -946,6 +1001,7 @@ function modal(html: string) {
 
 function showRules() {
   modal(`<h2>How to Play</h2>
+  <p><button class="btn small primary" data-go="tutorial">▶ Play the guided first night</button></p>
   <p>You are the last one who can stop it. Each <b>round</b> has three beats:</p>
   <h3>1 · Event</h3><p>Draw an event card: new survivors stumble in, the fog rolls, or the killer makes his move.</p>
   <h3>2 · Your actions</h3>
@@ -1094,7 +1150,11 @@ function navigate(go: string) {
     case 'start':
     case 'again':
       return startNewGame();
+    case 'tutorial':
+      document.querySelector('.modal')?.closest('.overlay')?.remove();
+      return startTutorial();
     case 'quit':
+      tutorial.stop(false);
       screen = 'title';
       game = null;
       document.getElementById('overlay-root')?.remove();
