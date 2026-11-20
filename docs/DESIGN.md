@@ -66,6 +66,17 @@ Items and Instinct cards cost nothing to use.
 - `KillerPack.terror` is shuffled into its own deck. Each time bloodlust crosses a multiple of `terrorEvery` (4), one card is revealed and resolved. Terror cards are permanent escalations: heal, armor, teleport to the heroine, wounds.
 - `finale.phases[]`: when the killer drops to 0 in the Finale, the next phase begins with fresh health and its own effects. You only win when the last phase ends.
 
+### Tension metrics (`SCRIPTS=1 npx vitest run tension`)
+| Metric | v0.6 | v0.7 | Target |
+|---|---|---|---|
+| Quiet rounds (no wound, kill, horror rise or survivor panic; killer not near) | 50% (old metric) | 9% | under 25% |
+| Games reaching 1 health or death | 24% | 43% | about 45% |
+| Avg lowest health | 2.8 | 2.1 | — |
+| Peak horror (of 6) | 3.8 | 4.2 | — |
+| Turns ending with banked nerve | 15% | 50% | meaningful choice |
+| Survivors saved / slain per game | 6.0 / 1.7 | 3.3 / 2.6 | real stakes |
+| Death rate (Midnight Show, bot) | 16% | 32% | 25–30% |
+
 ### Location rules (one per location)
 | Location | Rule | Effect |
 |---|---|---|
@@ -93,7 +104,7 @@ Rules are owned by the location, so they apply whichever killer you choose.
 `npm test` fuzzes all 25 killer × location pairings with every heroine. For a full report, run:
 
 ```
-N=30 npx vitest run scripts/balance.test.ts --dir scripts
+SCRIPTS=1 N=30 npx vitest run balance
 ```
 
 Results on Midnight Show (bot ≈ a careful player):
@@ -177,7 +188,8 @@ tests/         engine fuzz/balance tests
 | **v0.4 (this build): Season 1 complete** | **Feature Four: Whiteout** (*Kettle Peak Lodge*, *The Snowblind*) and **Feature Five: Dead Air** (*KXRL Hilltop Studio*, *The Caller*), giving 5×5 = 25 pairings. Two new heroines: Sunny (cold‑immune) and Dee (phone specialist). **Each location now has one signature rule**: Intermission, The Tide, Rolling Blackouts, Whiteout cold, and Request Line phones. Node tags (`outdoor`, `warm`, `shore`, `phone`), `env` state, an `answer` action, the `warm` effect, and new heroine traits support the rules |
 | **v0.5 (this build): Polish & balance** | Rule‑aware bot (`engine/bot.ts`) powers the balance sim and an in‑game **💡 Hint** (H). Hide‑search roll, Finale +1 speed, Saint Agatha and KXRL retuned. **Per‑location audio themes**: drone key, wind, fluorescent hum, rain and periodic ambience (waves and foghorn, elevator dings, howling gusts, static and thunder), plus stingers for the tide, blackout and phone ring. CI fuzz trimmed to about 20 s |
 | **v0.6 (this build): First night & readability** | **Guided tutorial**: 14 coach‑mark steps on a scripted Drive‑In opening; offered to new players, replayable. **Clear tokens**: name‑tagged standee pins, a "you are here" pulse, a killer danger ring, and a red threat line when he's adjacent. **One‑screen layout**: the board scales to fit and panels scroll internally, with a stacked layout on phones. **Tabletop materials**: cardstock character sheet with polaroid, case‑file killer dossier, typed script‑page log, ticket‑stub actions, marquee‑bulb top bar, and SVG glyphs in place of emoji |
-| v0.7 | Season 2 kickoff; heroine scars and campaign mode |
+| **v0.7 (this build): Tension economy** | **Banked nerve** (+3 per round, cap 8; carries over). **Noise**: every 5 nerve spent in a round draws the killer a step closer. **Action deck**: a hand of 5 ticket cards drawn each round instead of fixed buttons (Search/Ransack, Lead, Fight/Desperate Swing, Hide/Hold Your Breath, Barricade, Catch Your Breath, Sprint). **Bleeding** junk cards per hit and **Panic** junk cards at horror 5 and 6 clog your hand. **Survivor panic clock**: survivors left alone for 4 rounds may bolt, sometimes into the killer. Escorting 3 or more costs +1 per move |
+| v0.8 | Season 2 kickoff; heroine scars and campaign mode |
 | v0.4 | Achievements, daily seeded challenge, more heroines |
 | v0.5 | PWA/offline, controller support, localization, optional commissioned art and music swapped into the art/audio slots |
 | Later | Campaign mode (heroines carry scars and items between features), daily seeded challenge with a shared leaderboard (needs a backend) |

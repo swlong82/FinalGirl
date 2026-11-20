@@ -1,8 +1,8 @@
 // A rule-aware heuristic player. Used for balance simulation and fuzzing, and
 // reusable as an in-game "hint" provider. It reads cards and items by their
 // effect ops, so it works with any content pack without special cases.
-import { check, distances, fightDice, hasTag, instinctDef, isFlooded, itemDef, killerAttackDice, moveCost, neighbors } from './rules';
-import type { Action, Content, Effect, GameState, NodeId } from './types';
+import { actionDef, cardCost, check, distances, fightDice, hasTag, instinctDef, isFlooded, itemDef, killerAttackDice, moveCost, neighbors } from './rules';
+import type { Action, ActionCardDef, Content, Effect, GameState, NodeId } from './types';
 
 const hasOp = (effs: Effect[], op: Effect['op']): boolean =>
   effs.some((e) => e.op === op || (e.op === 'if' && (hasOp(e.then, op) || hasOp(e.else ?? [], op))));
@@ -49,6 +49,14 @@ export function botAction(c: Content, s: GameState): Action {
   const h = s.heroine;
   const k = s.killer;
   const ok = (a: Action) => check(c, s, a).ok;
+  /** Best playable card for an action type (most dice, then cheapest). */
+  const card = (base: ActionCardDef['base']): Action | null => {
+    const opts = s.actionHand
+      .map((x) => ({ x, d: actionDef(c, x.id) }))
+      .filter(({ x, d }) => d.base === base && check(c, s, { type: 'playCard', uid: x.uid }).ok)
+      .sort((p, q) => (q.d.dice ?? 0) + (q.d.auto ? 3 : 0) - ((p.d.dice ?? 0) + (p.d.auto ? 3 : 0)) || cardCost(c, p.d) - cardCost(c, q.d));
+    return opts[0] ? { type: 'playCard', uid: opts[0].x.uid } : null;
+  };
   const killerHere = k.loc === h.loc && k.stunned === 0;
   const killerNear = killerHere || (neighbors(c, h.loc).includes(k.loc) && k.stunned === 0);
   const rule = c.location.rule.kind;
@@ -90,21 +98,27 @@ export function botAction(c: Content, s: GameState): Action {
     if (hasOp(e, 'drawItem') && h.items.length < 4) return a;
   }
 
+  // ── Deck upkeep ──
+  const panicCard = s.actionHand.find((x) => actionDef(c, x.id).junk === 'panic');
+  if (panicCard && h.nerve >= 4 && !killerHere) return { type: 'playCard', uid: panicCard.uid };
+  const sprint = card('effect');
+  if (sprint && (h.escorting > 0 || killerNear) && h.nerve >= 2 && h.freeMoves === 0) return sprint;
+
   // ── Killer in the room ──
   if (killerHere) {
     const dice = fightDice(c, s);
     const expectHit = dice * ((7 - 4) / 6) - k.armor;
     const theirHit = killerAttackDice(c, s) * 0.5;
     const brave = k.finale || expectHit >= 1 || h.health > theirHit + 2;
-    if (brave && ok({ type: 'fight' })) return { type: 'fight' };
-    if (h.health <= 2 && !h.hidden && ok({ type: 'hide' }) && h.nerve <= 2) return { type: 'hide' };
+    if (brave && card('fight')) return card('fight')!;
+    if (h.health <= 2 && !h.hidden && card('hide') && h.nerve <= 2) return card('hide')!;
     // flee toward exit if escorting, else away from him
     const away = neighbors(c, h.loc)
       .filter((n) => ok({ type: 'move', to: n }))
       .sort((a, b) => (distances(c, k.loc)[b] ?? 0) - (distances(c, k.loc)[a] ?? 0))[0];
     if (away && !k.finale) return { type: 'move', to: away };
-    if (ok({ type: 'fight' })) return { type: 'fight' };
-    if (!h.hidden && ok({ type: 'hide' })) return { type: 'hide' };
+    if (card('fight')) return card('fight')!;
+    if (!h.hidden && card('hide')) return card('hide')!;
     return { type: 'endTurn' };
   }
 
@@ -121,13 +135,13 @@ export function botAction(c: Content, s: GameState): Action {
   }
 
   // ── Survivors ──
-  if (ok({ type: 'lead' })) return { type: 'lead' };
+  if (card('lead')) return card('lead')!;
   if (h.escorting > 0) {
     const a = stepToward(c, s, c.location.exit);
     if (a) return a;
   }
 
-  if (ok({ type: 'search' }) && h.items.length < 4 && !killerNear) return { type: 'search' };
+  if (card('search') && h.items.length < 4 && !killerNear) return card('search')!;
 
   const victim = nearest(c, s, (n) => (s.victims[n] ?? 0) > 0 && n !== k.loc);
   if (victim) {
@@ -135,10 +149,10 @@ export function botAction(c: Content, s: GameState): Action {
     if (a && (h.nerve >= 2 || !killerNear)) return a;
   }
 
-  if (ok({ type: 'search' }) && h.items.length < 5) return { type: 'search' };
-  if (!killerNear && ok({ type: 'rest' }) && (wounded > 0 || h.horror >= 2)) return { type: 'rest' };
-  if (killerNear && !h.hidden && ok({ type: 'hide' })) return { type: 'hide' };
-  if (killerNear && ok({ type: 'barricade' })) return { type: 'barricade' };
+  if (card('search') && h.items.length < 5) return card('search')!;
+  if (!killerNear && card('rest') && (wounded > 0 || h.horror >= 2)) return card('rest')!;
+  if (killerNear && !h.hidden && card('hide')) return card('hide')!;
+  if (killerNear && card('barricade')) return card('barricade')!;
 
   // Don't end the round in the cold if a roof is one step away.
   if (cold >= 1 && hasTag(c, h.loc, 'outdoor')) {

@@ -184,6 +184,19 @@ export interface ItemDef {
   copies?: number;
 }
 
+export interface ActionCardDef {
+  id: string;
+  name: string;
+  base: 'search' | 'lead' | 'fight' | 'hide' | 'barricade' | 'rest' | 'effect' | 'junk';
+  cost: number;
+  dice?: number; // bonus dice
+  auto?: boolean; // hide succeeds automatically
+  effects?: Effect[]; // for base 'effect'
+  junk?: 'wound' | 'panic';
+  text: string;
+  copies?: number;
+}
+
 export interface InstinctDef {
   id: string;
   name: string;
@@ -268,6 +281,7 @@ export interface GameState {
     movedThisRound: number;
     horrorTakenThisRound: number;
     freeMoves: number;
+    spentThisRound: number;
   };
   killer: {
     loc: NodeId;
@@ -297,6 +311,10 @@ export interface GameState {
   instinctDeck: string[];
   instinctDiscard: string[];
   terrorDeck: string[];
+  actionDeck: string[];
+  actionDiscard: string[];
+  actionHand: HeldInstinct[];
+  panic: Record<NodeId, number>; // rounds a node's survivors have been left alone
   env: { tideHigh: boolean; dark: boolean; ringing?: NodeId; cold: number };
 
   currentEvent?: string;
@@ -309,16 +327,11 @@ export interface GameState {
 export type Action =
   | { type: 'resolveEvent' }
   | { type: 'move'; to: NodeId }
-  | { type: 'search' }
-  | { type: 'lead' }
-  | { type: 'fight' }
-  | { type: 'hide' }
-  | { type: 'barricade' }
-  | { type: 'rest' }
   | { type: 'useItem'; uid: number }
   | { type: 'dropItem'; uid: number }
   | { type: 'playInstinct'; uid: number }
   | { type: 'answer' }
+  | { type: 'playCard'; uid: number }
   | { type: 'endTurn' }
   | { type: 'resolveKiller' };
 
@@ -327,4 +340,5 @@ export interface Content {
   killer: KillerPack;
   heroine: HeroineDef;
   instincts: InstinctDef[];
+  actions: ActionCardDef[];
 }

@@ -11,6 +11,12 @@ import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } fr
 import {
   check,
   COST,
+  actionDef,
+  junkCount,
+  ACTION_HAND,
+  NERVE_CAP,
+  NOISE_EVERY,
+  PANIC_AT,
   hasTag,
   isFlooded,
   DIFFICULTY,
@@ -34,7 +40,7 @@ import {
   BASE_DICE,
   weaknessFound,
 } from './engine/rules';
-import type { Action, Content, Difficulty, Effect, GameState } from './engine/types';
+import type { Action, ActionCardDef, Content, Difficulty, Effect, GameState } from './engine/types';
 import { startGrain, setGrainIntensity } from './ui/grain';
 
 // ── App state ───────────────────────────────────────────────────────────────
@@ -463,7 +469,9 @@ function updateGame() {
   // heroine panel
   const hearts = Array.from({ length: h.maxHealth }, (_, i) => `<svg class="heart ${i < h.health ? '' : 'empty'}" viewBox="0 0 24 22"><path d="M12 21 C-6 9 4 -4 12 5 C20 -4 30 9 12 21 Z"/></svg>`).join('');
   const meter = Array.from({ length: 6 }, (_, i) => `<i class="${i < h.horror ? 'on' : ''}"></i>`).join('');
-  const nerve = Array.from({ length: Math.max(h.nerve, tier.nerve) }, (_, i) => `<i class="${i < h.nerve ? 'on' : ''}"></i>`).join('');
+  const nerve = Array.from({ length: NERVE_CAP }, (_, i) => `<i class="${i < h.nerve ? 'on' : ''}"></i>`).join('');
+  const noiseLeft = NOISE_EVERY - (h.spentThisRound % NOISE_EVERY);
+  const noise = Array.from({ length: NOISE_EVERY }, (_, i) => `<i class="${i < h.spentThisRound % NOISE_EVERY ? 'on' : ''}"></i>`).join('');
   const items = h.items.length
     ? h.items
         .map((it) => {
@@ -483,9 +491,10 @@ function updateGame() {
     </div>
     <h4>Horror</h4>
     <div class="meter" title="Horror lowers nerve and makes rolls harder">${meter}</div>
-    <div class="tierline"><b>${tier.name}</b><span>${tier.nerve} nerve · dice succeed on ${tier.threshold}+</span></div>
-    <h4>Nerve</h4>
-    <div class="nerve" title="Spend nerve to act">${nerve}</div>
+    <div class="tierline"><b>${tier.name}</b><span>+${tier.nerve} nerve/round · dice ${tier.threshold}+</span></div>
+    <h4>Nerve <span class="h4-note">${h.nerve}/${NERVE_CAP} banked</span></h4>
+    <div class="nerve" title="Nerve carries over between rounds (max ${NERVE_CAP}). You gain +${tier.nerve} each round.">${nerve}</div>
+    <div class="noise" title="Every ${NOISE_EVERY} nerve you spend in one round makes noise: the killer takes a step toward you."><span>Noise</span><div class="noise-bar">${noise}</div><small>${noiseLeft} until he hears you</small></div>
     <h4>Passive</h4>
     <div class="passive-box"><b>${esc(c.heroine.passive.name)}.</b> ${esc(c.heroine.passive.text)}</div>
     <h4>Escorting</h4>
@@ -540,6 +549,8 @@ function updateBoard() {
     const badges: string[] = [];
     if ((s.searches[id] ?? 0) > 0) badges.push(`<span class="badge search" title="Search tokens left">⌕${s.searches[id]}</span>`);
     if ((s.barricades[id] ?? 0) > 0) badges.push(`<span class="badge barr" title="Barricade strength">▦${s.barricades[id]}</span>`);
+    if ((s.victims[id] ?? 0) > 0 && (s.panic[id] ?? 0) > 0 && id !== h.loc)
+      badges.push(`<span class="badge panic p${s.panic[id]}" title="Survivors here are panicking (${s.panic[id]}/${PANIC_AT}). Visit or lead them before they bolt.">${'!'.repeat(Math.min(3, s.panic[id]))}</span>`);
     const rk = c.location.rule.kind;
     if (rk === 'cold' && hasTag(c, id, 'outdoor')) badges.push(`<span class="badge env" title="Outdoors: ending a round here adds cold">${glyph('snow')}</span>`);
     if (rk === 'cold' && hasTag(c, id, 'warm')) badges.push(`<span class="badge env warm" title="Warm: ending a round here thaws you">${glyph('fire')}</span>`);
@@ -596,35 +607,52 @@ function updateBoard() {
     s.phase === 'action' ? `Click a glowing location to move · cost <b style="color:var(--gold)">${mc}</b> nerve${s.killer.loc === h.loc && mc === COST.flee ? ' (fleeing!)' : ''}` : '';
 }
 
-interface ActDef {
-  a: Action;
-  name: string;
-  key: string;
-  desc: string;
-}
 
 function updateBottom() {
   const s = game!;
   const c = content!;
   const thr = threshold(s);
-  const acts: ActDef[] = [
-    { a: { type: 'search' }, name: 'Search', key: '1', desc: `${searchDice(c, s)} dice · ${Math.min(6, thr + (s.mods.searchThreshold ?? 0))}+ · find items` },
-    { a: { type: 'lead' }, name: 'Lead', key: '2', desc: `Gather survivors (max ${c.heroine.traits.escortCap ?? DEFAULT_ESCORT})` },
-    { a: { type: 'fight' }, name: 'Fight', key: '3', desc: `${fightDice(c, s)} dice · ${thr}+ · −${s.killer.armor} armor` },
-    { a: { type: 'hide' }, name: 'Hide', key: '4', desc: (s.mods.hideAuto ?? 0) > 0 ? 'Fog: automatic' : `${BASE_DICE.hide + (c.heroine.traits.hideDice ?? 0)} dice · ${thr}+ · avoid attack` },
-    { a: { type: 'barricade' }, name: 'Barricade', key: '5', desc: `Block his path (${c.heroine.traits.barricadeStrength ?? 1})` },
-    { a: { type: 'rest' }, name: 'Rest', key: '6', desc: `${BASE_DICE.rest} dice · heal or calm` },
-    ...(c.location.rule.kind === 'calls' ? [{ a: { type: 'answer' } as Action, name: 'Answer', key: '7', desc: s.env.ringing ? `Phone ringing at ${nodeName(c, s.env.ringing)}` : 'No phone ringing' }] : []),
-  ];
-  const btns = acts
-    .map((d) => {
-      const chk = check(c, s, d.a);
-      return `<button class="act" data-act="${d.a.type}" ${chk.ok ? '' : 'disabled'} title="${esc(chk.why ?? d.desc)}">
-        <span class="n">${d.name} <kbd>${d.key}</kbd></span>
-        <span class="c"><b>${chk.cost}◉</b> ${esc(d.desc)}</span>
+  const descFor = (d: ActionCardDef): string => {
+    const plus = d.dice ?? 0;
+    switch (d.base) {
+      case 'search':
+        return `${searchDice(c, s) + plus} dice · ${Math.min(6, thr + (s.mods.searchThreshold ?? 0))}+ · find items`;
+      case 'fight':
+        return `${fightDice(c, s) + plus} dice · ${thr}+ · −${s.killer.armor} armor`;
+      case 'hide':
+        return d.auto || (s.mods.hideAuto ?? 0) > 0 ? 'automatic' : `${BASE_DICE.hide + plus + (c.heroine.traits.hideDice ?? 0) + (s.mods.hideDice ?? 0)} dice · ${thr}+`;
+      case 'rest':
+        return `${BASE_DICE.rest} dice · heal / calm · clears Bleeding`;
+      case 'lead':
+        return `bring survivors (max ${c.heroine.traits.escortCap ?? DEFAULT_ESCORT})`;
+      default:
+        return d.text;
+    }
+  };
+  const cards = s.actionHand
+    .map((card, i) => {
+      const d = actionDef(c, card.id);
+      const chk = check(c, s, { type: 'playCard', uid: card.uid });
+      const junk = d.junk ? `junk ${d.junk}` : '';
+      return `<button class="act ${junk}" data-card="${card.uid}" data-kind="${d.base}" ${chk.ok ? '' : 'disabled'} title="${esc(chk.why ? `${chk.why}. ${d.text}` : d.text)}">
+        <span class="n">${esc(d.name)} <kbd>${i + 1}</kbd></span>
+        <span class="c"><b>${chk.cost}◉</b> ${esc(d.junk ? d.text : descFor(d))}</span>
       </button>`;
     })
     .join('');
+  const answer =
+    c.location.rule.kind === 'calls'
+      ? (() => {
+          const chk = check(c, s, { type: 'answer' });
+          return `<button class="act answer" data-act="answer" data-kind="answer" ${chk.ok ? '' : 'disabled'} title="${esc(chk.why ?? 'Answer the ringing phone')}"><span class="n">Answer <kbd>A</kbd></span><span class="c"><b>${chk.cost}◉</b> ${esc(s.env.ringing ? `ringing at ${nodeName(c, s.env.ringing)}` : 'no phone ringing')}</span></button>`;
+        })()
+      : '';
+  const bleeding = junkCount(s, 'junk-wound');
+  const panicN = junkCount(s, 'junk-panic');
+  const pile = `<div class="pile" title="Your action deck: draw back up to ${ACTION_HAND} each round">
+    <span class="pile-deck"><b>${s.actionDeck.length}</b> deck</span><span><b>${s.actionDiscard.length}</b> discard</span>
+    ${bleeding ? `<span class="pile-bad"><b>${bleeding}</b> bleeding</span>` : ''}${panicN ? `<span class="pile-bad"><b>${panicN}</b> panic</span>` : ''}</div>`;
+  const btns = pile + cards + answer;
   const hand = s.heroine.hand
     .map((card) => {
       const d = instinctDef(c, card.id);
@@ -800,8 +828,13 @@ function showHint() {
       txt = card ? `Play <b>${esc(instinctDef(c, card.id).name)}</b>.` : 'Play an Instinct.';
       break;
     }
+    case 'playCard': {
+      const card = s.actionHand.find((i) => i.uid === a.uid);
+      txt = card ? `Play <b>${esc(actionDef(c, card.id).name)}</b>.` : 'Play a card.';
+      break;
+    }
     case 'endTurn':
-      txt = 'Nothing better to do. <b>End the turn</b>.';
+      txt = s.heroine.nerve > 0 ? `<b>End the turn</b> and bank your ${s.heroine.nerve} nerve.` : '<b>End the turn</b>.';
       break;
     default:
       txt = `<b>${a.type[0].toUpperCase() + a.type.slice(1)}</b>.`;
@@ -1005,21 +1038,25 @@ function showRules() {
   <p>You are the last one who can stop it. Each <b>round</b> has three beats:</p>
   <h3>1 · Event</h3><p>Draw an event card: new survivors stumble in, the fog rolls, or the killer makes his move.</p>
   <h3>2 · Your actions</h3>
-  <p>You get <b>nerve</b> based on your horror. Spend it in any order:</p>
-  <table><tr><th>Action</th><th>Cost</th><th>What it does</th></tr>
-  <tr><td>Move</td><td>1 (2 to flee the killer)</td><td>Click a glowing adjacent location. Escorted survivors come with you.</td></tr>
-  <tr><td>Search</td><td>1</td><td>Roll dice; each success finds an item (max 2). Uses a search token.</td></tr>
+  <p><b>Nerve</b> pays for everything. You gain nerve each round (+3, or +2 when Breaking) and <b>unspent nerve carries over</b>, up to 8. Saving up for a bad round is often the right call.</p>
+  <p><b>Noise:</b> every ${NOISE_EVERY} nerve you spend in one round makes noise, and the killer takes a step toward you.</p>
+  <p><b>Moving</b> is always available: click a glowing location (1 nerve, 2 to flee the killer, +1 when escorting 3 or more). Everything else comes from your <b>hand of action cards</b>. You draw back up to ${ACTION_HAND} each round:</p>
+  <table><tr><th>Card</th><th>Cost</th><th>What it does</th></tr>
+  <tr><td>Search / Ransack</td><td>1 / 2</td><td>Roll dice (Ransack +2); each success finds an item (max 2).</td></tr>
   <tr><td>Lead</td><td>1</td><td>Survivors here follow you. Bring them to the exit to save them.</td></tr>
-  <tr><td>Fight</td><td>2</td><td>Roll 3 dice + your best weapon. Damage = successes − armor.</td></tr>
-  <tr><td>Hide</td><td>1</td><td>Roll 2 dice; any success and he won't attack you this round.</td></tr>
+  <tr><td>Fight / Desperate Swing</td><td>2 / 3</td><td>Roll 3 dice + best weapon (+2 for Swing). Damage = successes − armor.</td></tr>
+  <tr><td>Hide / Hold Your Breath</td><td>1 / 2</td><td>Roll to hide, or hide automatically. He may still search the room.</td></tr>
   <tr><td>Barricade</td><td>2</td><td>He must break it before entering this location.</td></tr>
-  <tr><td>Rest</td><td>2</td><td>Roll 2 dice; each success heals 1 (or calms 1 horror).</td></tr></table>
-  <p><b>Items</b> are used for free. <b>Instinct cards</b> are played for free — you draw one each round and when you save survivors.</p>
+  <tr><td>Catch Your Breath</td><td>2</td><td>Heal or calm, and clear a Bleeding card.</td></tr>
+  <tr><td>Sprint</td><td>1</td><td>Your next 2 moves are free.</td></tr></table>
+  <p><b>Bleeding</b> cards are shuffled into your deck when you're hit; they're dead cards until you rest or heal. <b>Panic</b> cards appear at high horror; pay 1 nerve to shake one off.</p>
+  <p><b>Survivors panic</b> when left alone (the ! badge). After ${PANIC_AT} rounds without you, one may bolt to a nearby location, possibly straight into the killer.</p>
+  <p><b>Items</b> are used for free. <b>Instinct cards</b> are played for free; you draw one each round and when you save survivors.</p>
   <h3>3 · The killer</h3><p>If he's with you and you're not hidden, he <b>attacks</b>. Otherwise, if survivors are with him, he <b>kills one</b> (bloodlust +2). Otherwise he hunts toward the nearest prey.</p>
-  <h3>Horror</h3><p>Fear lowers your nerve and makes dice harder. Steady: 5 nerve, 4+ · Uneasy: 4, 4+ · Terrified: 4, 5+ · Breaking: 3, 5+. Past the top, terror becomes wounds.</p>
+  <h3>Horror</h3><p>Fear makes dice harder and slows your nerve. Steady and Uneasy: +3 nerve, 4+. Terrified: +3, 5+. Breaking: +2, 5+. Past the top, terror becomes wounds.</p>
   <h3>The Finale</h3><p>At high bloodlust, if you "kill" him early, or in the last 3 rounds, the Finale begins: he comes for you. Defeat him in the Finale to win outright — or survive until <b>dawn</b>.</p>
   <h3>Weakness</h3><p>Some items are pieces of the killer's past. Finding them strips his armor.</p>
-  <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p><h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>1–7 actions · H hint · Z undo · E end turn · Space continue · R rules</p>`);
+  <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p><h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>1–5 play cards · A answer · H hint · Z undo · E end turn · Space continue · R rules</p>`);
 }
 
 function showSettings() {
@@ -1111,6 +1148,8 @@ app.addEventListener('click', (e) => {
   if (item) return act({ type: 'useItem', uid: +item });
   const drop = t.closest<HTMLElement>('[data-drop]')?.dataset.drop;
   if (drop) return act({ type: 'dropItem', uid: +drop });
+  const cardUid = t.closest<HTMLElement>('[data-card]')?.dataset.card;
+  if (cardUid) return act({ type: 'playCard', uid: +cardUid });
   const ins = t.closest<HTMLElement>('[data-instinct]')?.dataset.instinct;
   if (ins) return act({ type: 'playInstinct', uid: +ins });
 });
@@ -1186,9 +1225,13 @@ window.addEventListener('keydown', (e) => {
     if (game.phase === 'event') return act({ type: 'resolveEvent' });
     if (game.phase === 'killer') return act({ type: 'resolveKiller' });
   }
-  const map: Record<string, Action['type']> = { '1': 'search', '2': 'lead', '3': 'fight', '4': 'hide', '5': 'barricade', '6': 'rest', '7': 'answer', e: 'endTurn', E: 'endTurn' };
-  const t = map[e.key];
-  if (t) act({ type: t } as Action);
+  if (/^[1-9]$/.test(e.key)) {
+    const card = game.actionHand[Number(e.key) - 1];
+    if (card) act({ type: 'playCard', uid: card.uid });
+    return;
+  }
+  if (e.key === 'a' || e.key === 'A') return act({ type: 'answer' });
+  if (e.key === 'e' || e.key === 'E') return act({ type: 'endTurn' });
 });
 
 startGrain(document.getElementById('grain') as HTMLCanvasElement);

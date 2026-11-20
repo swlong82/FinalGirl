@@ -555,3 +555,29 @@ h2.section { font-family: var(--display); font-size: clamp(36px, 7vw, 60px); mar
   .hand .instinct:hover { z-index: 3; transform: translateY(-14px) rotate(0); }
   .hand .instinct:hover + .instinct { margin-left: -10px; }
 }
+
+/* ── v0.7: action deck, banked nerve, noise, panic ── */
+.pile { flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 10px; margin-right: 4px; font-family: var(--ui); font-size: 11px; letter-spacing: .06em; color: var(--muted);
+  border-left: 3px double rgba(241, 231, 210, .35); }
+.pile b { color: var(--ink); font-weight: 400; font-size: 14px; margin-right: 3px; }
+.pile .pile-bad, .pile .pile-bad b { color: #ff8b9e; }
+.act.junk { background: linear-gradient(170deg, #4a2a2a, #2a1414); color: #f3d9d9; }
+.act.junk .n { color: #ffd0d6; }
+.act.junk .c { color: #d9a9b0; }
+.act.junk.wound { background: repeating-linear-gradient(135deg, rgba(160, 18, 44, .35) 0 6px, transparent 6px 12px), linear-gradient(170deg, #3a1a1c, #1e0c0e); }
+.act.junk.panic { background: repeating-linear-gradient(90deg, rgba(199, 125, 255, .18) 0 2px, transparent 2px 5px), linear-gradient(170deg, #3a2448, #1c1224); }
+.act.junk:disabled { opacity: .85; filter: none; cursor: not-allowed; }
+.act.answer { background: linear-gradient(170deg, #f7d6e8, #e3b5cf); }
+.h4-note { float: right; text-transform: none; letter-spacing: 0; font-family: var(--type); }
+.nerve i { width: 14px; height: 14px; }
+.noise { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px 8px; margin-top: 8px; font-size: 11px; }
+.noise > span { font-family: var(--ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.noise small { grid-column: 1 / -1; color: var(--muted); }
+.noise-bar { display: flex; gap: 3px; }
+.noise-bar i { flex: 1; height: 7px; border-radius: 2px; background: rgba(60, 40, 20, .18); }
+.noise-bar i.on { background: linear-gradient(90deg, #e07a1f, #a0122c); }
+.badge.panic { background: #f9c74f; color: #2a1408; border-color: #2a1408; font-weight: 700; min-width: 16px; }
+.badge.panic.p2 { background: #ff8a3c; }
+.badge.panic.p3 { background: var(--blood); color: #fff; animation: ring .5s infinite; }
+@media (max-width: 900px) { .pile { flex-direction: row; flex-wrap: wrap; gap: 8px; border-left: none; width: 100%; } }
+#killer-panel { padding-bottom: 38px; }

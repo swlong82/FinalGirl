@@ -23,7 +23,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'You',
-    text: '<b>Hearts</b> are your health. <b>Horror</b> builds as things go wrong: it lowers your nerve and makes dice harder. <b>Nerve</b> (the gold coins) is what you spend on actions each round.',
+    text: '<b>Hearts</b> are your health. <b>Horror</b> builds as things go wrong and makes dice harder. <b>Nerve</b> (gold coins) pays for everything. It <b>carries over</b> between rounds (up to 8), so saving some for a bad moment is smart. Spend too much in one round and you make <b>noise</b>, which draws him toward you.',
     target: '#heroine-panel',
   },
   {
@@ -32,21 +32,26 @@ export const STEPS: TutStep[] = [
     target: '#killer-panel',
   },
   {
+    title: 'Your hand',
+    text: 'These ticket stubs are your <b>action cards</b>. You draw back up to 5 every round, so you never get every option at once. When you get hurt, <b>Bleeding</b> cards get shuffled in and clog your hand. Rest clears them.',
+    target: '.actions',
+  },
+  {
     title: 'Search for something useful',
-    text: '<b>Search</b> costs 1 nerve and rolls dice. Each die showing the target number or higher is a success and finds an item. Try it.',
-    target: '[data-act=search]',
+    text: 'Play your <b>Search</b> card. It costs 1 nerve and rolls dice; each die showing the target number or higher finds an item.',
+    target: '[data-kind=search]',
     done: (s) => (s.searches.concession ?? 3) < 3 || s.round > 1,
   },
   {
     title: 'Someone needs you',
-    text: 'There is a survivor in <b>Parking Rows A</b> (the little figure). Glowing locations are where you can move. Rosa’s first move each round is <b>free</b>. Click Parking Rows A.',
+    text: 'There is a survivor in <b>Parking Rows A</b> (the little figure). Moving is always available: click a glowing location. Rosa’s first move each round is <b>free</b>. Survivors left alone start to <b>panic</b> (the ! badge) and run off, so don’t make them wait.',
     target: '[data-node=lotA]',
     done: (s) => s.heroine.loc === 'lotA' || s.saved > 0,
   },
   {
     title: '“Stay close to me.”',
     text: '<b>Lead</b> (1 nerve) brings the survivors here with you. They follow wherever you go.',
-    target: '[data-act=lead]',
+    target: '[data-kind=lead]',
     done: (s) => s.heroine.escorting > 0 || s.saved > 0,
   },
   {
@@ -62,7 +67,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'End your turn',
-    text: 'When you’re out of nerve, or done, click <b>End Turn</b>. Then the killer acts.',
+    text: 'Click <b>End Turn</b>. Any nerve you didn’t spend stays in the bank for next round. Then the killer acts.',
     target: '[data-act=endTurn]',
     done: (s) => s.phase === 'killer' || s.round > 1,
   },
@@ -74,8 +79,8 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'When he finds you',
-    text: 'If you share a location with him, you have three choices. <b>Fight</b> (2 nerve, weapons add dice). <b>Hide</b>: he might not find you. <b>Flee</b>: leaving his location costs 2 nerve. Items like flares stun him.',
-    target: '.actions',
+    text: 'If you share a location with him, your options depend on your hand: <b>Fight</b> (weapons add dice), <b>Hide</b> (he might still find you), or <b>flee</b> (moving away costs 2 nerve). Items like flares stun him. Banked nerve is what saves you here.',
+    target: '#heroine-panel .nerve',
   },
   {
     title: 'Every place has a rule',

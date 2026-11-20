@@ -1,4 +1,4 @@
-// Balance report (not part of CI): `npx vitest run scripts/balance.test.ts`
+// Balance report (not part of CI): `SCRIPTS=1 N=30 npx vitest run balance`
 import { it } from 'vitest';
 import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
 import { dispatch, newGame } from '../src/engine/rules';

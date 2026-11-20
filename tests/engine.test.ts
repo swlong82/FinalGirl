@@ -67,6 +67,6 @@ describe('engine', () => {
   it('rejects illegal actions without mutating', () => {
     const c = buildContent('holloway-drive-in', 'the-projectionist', 'june');
     const s = newGame(c, 1);
-    expect(dispatch(c, s, { type: 'fight' })).toBe(s);
+    expect(dispatch(c, s, { type: 'playCard', uid: -1 })).toBe(s);
   });
 });

@@ -41,7 +41,7 @@ npm test
 npm run build
 ```
 
-`npm test` fuzzes every killer × location × heroine combination with a rule‑aware bot. For the full balance report, run `N=30 npx vitest run scripts/balance.test.ts --dir scripts`.
+`npm test` fuzzes every killer × location × heroine combination with a rule‑aware bot. For the full balance report, run `SCRIPTS=1 N=30 npx vitest run balance`.
 
 ## Deploy (GitHub Pages)
 

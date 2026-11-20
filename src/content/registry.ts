@@ -10,6 +10,7 @@ import { snowblind } from './snowblind/killer';
 import { deadAir } from './dead-air/location';
 import { caller } from './caller/killer';
 import { coreInstincts, heroines } from './heroines/heroines';
+import { coreActions, junkActions } from './actions';
 
 // Content registry. Add a new Feature (expansion) by registering its packs here.
 // Killers and locations are independent so any killer can stalk any location.
@@ -39,5 +40,5 @@ export function buildContent(locationId: string, killerId: string, heroineId: st
   const killer = KILLERS.find((k) => k.id === killerId);
   const heroine = HEROINES.find((h) => h.id === heroineId);
   if (!location || !killer || !heroine) throw new Error('Unknown content pack');
-  return { location, killer, heroine, instincts: coreInstincts };
+  return { location, killer, heroine, instincts: coreInstincts, actions: [...coreActions, ...junkActions] };
 }
