@@ -8,6 +8,7 @@ export const holloway: LocationPack = {
   era: 'Route 9, autumn 1984',
   palette: { sky: '#0b0f1e', glow: '#8fb7ff', accent: '#ff4d6d' },
   art: 'drivein',
+  rule: { kind: 'intermission', period: 4, name: 'Intermission', text: 'Every 4th round the projector stops for intermission: +1 nerve and horror −1.' },
   lore: [
     'The Holloway opened in 1958 at the edge of the Marrow pine forest — a gravel lot, a giant white screen, and a projection booth perched on a cinder-block concession stand. For twenty years it was the only thing to do on Route 9 after dark.',
     'On Halloween night, 1979, during a sold-out midnight premiere, the projection booth caught fire. The projectionist, Orrin Vale, was trapped inside with the burning reels. The crowd in the lot thought the flames on the screen were part of the show. They honked their horns and cheered.',

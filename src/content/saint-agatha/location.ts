@@ -8,6 +8,7 @@ export const saintAgatha: LocationPack = {
   era: 'Harlow County, Ohio — the night of the closure, March 1989',
   palette: { sky: '#0d1012', glow: '#b8ffd8', accent: '#7ae0a0' },
   art: 'hospital',
+  rule: { kind: 'power', name: 'Rolling Blackouts', text: 'From round 3 the power fails on a cycle (rounds 3–4, 7–8, 11–12). In the dark: searching needs +1, hiding rolls +1 die.' },
   lore: [
     "Saint Agatha's opened in 1921 and grew wing by wing for sixty years. The West Wing is the oldest, all green tile and brass fixtures, and tonight is the last night it will ever be used.",
     "In 1964 the West Wing was home to Ward C, where an anesthetist named Dr. Ambrose Lull ran a 'restorative sleep' program for patients with insomnia and nerves. Eleven patients went to sleep in Ward C. None of them woke up. Lull disappeared before the inquest, and Ward C was bricked over.",

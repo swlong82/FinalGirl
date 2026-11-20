@@ -352,3 +352,18 @@ h2.section { font-family: var(--display); font-size: clamp(36px, 7vw, 60px); mar
 
 .end-poster { width: 120px; margin: 0 auto 8px; transform: rotate(-2deg); }
 .end-poster .poster-title { font-size: 13px; }
+
+/* ── v0.4: location rules ── */
+.rulechip { font-family: var(--ui); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; padding: 5px 10px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+.rulechip b { color: var(--ink); font-weight: 400; }
+.rulechip.hot { border-color: var(--blood); color: #ffb3c0; box-shadow: 0 0 14px rgba(255, 51, 85, .3); animation: breathe 1.6s infinite; }
+.badge.env { background: #12202a; border-color: #2a4a5a; }
+.badge.env.warm { background: #2a1a10; border-color: #8a5a2a; }
+.badge.env.ringing { background: var(--blood); color: #fff; animation: ring .4s infinite; }
+@keyframes ring { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
+.node.flooded .disc { border-color: #4cc9f0; background: radial-gradient(circle at 40% 30%, #1c4a5e, #06141c 70%); box-shadow: 0 0 18px rgba(76, 201, 240, .45); }
+.node.ringing .disc { box-shadow: 0 0 22px rgba(255, 51, 85, .7); }
+.board.dark .bd { filter: brightness(.35) saturate(.6); transition: filter 1.2s; }
+.board .bd { transition: filter 1.2s; }
+.board.dark .node .label { opacity: .7; }
+@media (max-width: 700px) { .rulechip { order: 3; width: 100%; } }

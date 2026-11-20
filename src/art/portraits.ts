@@ -66,6 +66,13 @@ function outfit(l: PortraitLook, w: string, accent: string): string {
       return `<path d="M30 200 C34 160 64 144 100 144 C136 144 166 160 170 200 Z" fill="#b3122c"/><path d="M84 146 Q100 160 116 146" stroke="#7a0a1c" stroke-width="5" fill="none"/>
         <path d="M86 146 Q100 186 114 146" stroke="${accent}" stroke-width="2" fill="none"/><rect x="94" y="176" width="16" height="10" rx="4" fill="#e6e6e6"/><circle cx="98" cy="181" r="2" fill="#555"/>
         <path d="M56 176 L68 200 M144 176 L132 200" stroke="#7a0a1c" stroke-width="3"/>`;
+    case 'goggles':
+      return `<path d="M30 200 C34 160 64 144 100 144 C136 144 166 160 170 200 Z" fill="#1f5f8f"/><path d="M30 200 C40 176 60 168 72 168 L60 200 Z M170 200 C160 176 140 168 128 168 L140 200 Z" fill="#e8e4da"/>
+        <path d="M84 146 L84 200 M116 146 L116 200" stroke="#174a70" stroke-width="2"/><path d="M96 150 V200" stroke="#c9c9c9" stroke-width="2" stroke-dasharray="3 2"/>
+        <g transform="translate(74 150)"><rect width="52" height="18" rx="9" fill="#111"/><rect x="4" y="3" width="44" height="12" rx="6" fill="${accent}" opacity=".85"/><path d="M8 6 Q26 2 44 6" stroke="#fff" stroke-width="1.5" opacity=".6" fill="none"/></g>`;
+    case 'headphones':
+      return `<path d="M30 200 C34 160 64 144 100 144 C136 144 166 160 170 200 Z" fill="#26242e"/><path d="M76 164 h48 v36 h-48 z" fill="#3a3646"/><circle cx="100" cy="182" r="10" fill="none" stroke="${accent}" stroke-width="2.5"/><path d="M94 182 h12 M100 176 v12" stroke="${accent}" stroke-width="1.5"/>
+        <path d="M70 156 Q100 132 130 156" stroke="#1a1a1a" stroke-width="5" fill="none"/><rect x="62" y="150" width="14" height="20" rx="5" fill="#1a1a1a"/><rect x="124" y="150" width="14" height="20" rx="5" fill="#1a1a1a"/><rect x="65" y="154" width="8" height="12" rx="3" fill="${accent}" opacity=".6"/>`;
     case 'camera':
       return `<path d="M30 200 C34 160 64 144 100 144 C136 144 166 160 170 200 Z" fill="#2a1f1a"/><path d="M84 146 L76 200 M116 146 L124 200" stroke="#46352b" stroke-width="7"/>
         <path d="M60 158 L140 190" stroke="#3a2a22" stroke-width="5"/>

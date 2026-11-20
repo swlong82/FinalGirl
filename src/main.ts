@@ -7,6 +7,8 @@ import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } fr
 import {
   check,
   COST,
+  hasTag,
+  isFlooded,
   DIFFICULTY,
   DEFAULT_ESCORT,
   dispatch,
@@ -375,6 +377,23 @@ function renderStats() {
   </div>`;
 }
 
+function ruleChip(): string {
+  const s = game!;
+  const c = content!;
+  const r = c.location.rule;
+  let state = '';
+  if (r.kind === 'tide') state = s.env.tideHigh ? 'HIGH TIDE' : 'low tide';
+  else if (r.kind === 'power') state = s.env.dark ? 'BLACKOUT' : 'power on';
+  else if (r.kind === 'cold') state = c.heroine.traits.coldImmune ? 'immune' : `cold ${s.env.cold}/3`;
+  else if (r.kind === 'calls') state = s.env.ringing ? `☎ ${nodeName(c, s.env.ringing)}` : 'quiet';
+  else if (r.kind === 'intermission') {
+    const p = r.period ?? 4;
+    state = s.round % p === 0 ? 'NOW' : `next R${Math.ceil(s.round / p) * p}`;
+  }
+  const hot = s.env.tideHigh || s.env.dark || !!s.env.ringing || s.env.cold >= 2;
+  return `<button class="rulechip ${hot ? 'hot' : ''}" data-go="rules" title="${esc(r.text)}"><b>${esc(r.name)}</b> · ${esc(state)}</button>`;
+}
+
 function updateGame() {
   const s = game!;
   const c = content!;
@@ -402,6 +421,7 @@ function updateGame() {
   }).join('');
   document.querySelector('.topbar')!.innerHTML = `
     <div class="title">LAST <span>LIGHT</span></div>
+    ${ruleChip()}
     <div class="clock" title="Rounds until dawn">${clock}<i class="dawn" title="Dawn"></i><span style="margin-left:8px">Round ${s.round}/${s.dawnAt}</span></div>
     <div class="tools">
       <button class="btn small" data-go="rules" title="Rules (R)">Rules</button>
@@ -488,6 +508,13 @@ function updateBoard() {
     const badges: string[] = [];
     if ((s.searches[id] ?? 0) > 0) badges.push(`<span class="badge search" title="Search tokens left">⌕${s.searches[id]}</span>`);
     if ((s.barricades[id] ?? 0) > 0) badges.push(`<span class="badge barr" title="Barricade strength">▦${s.barricades[id]}</span>`);
+    const rk = c.location.rule.kind;
+    if (rk === 'cold' && hasTag(c, id, 'outdoor')) badges.push('<span class="badge env" title="Outdoors: ending a round here adds cold">❄</span>');
+    if (rk === 'cold' && hasTag(c, id, 'warm')) badges.push('<span class="badge env warm" title="Warm: ending a round here thaws you">🔥</span>');
+    if (rk === 'tide' && hasTag(c, id, 'shore')) badges.push(`<span class="badge env" title="Shore: floods at high tide">${isFlooded(c, s, id) ? '🌊' : '〰'}</span>`);
+    if (rk === 'calls' && hasTag(c, id, 'phone')) badges.push(`<span class="badge env ${s.env.ringing === id ? 'ringing' : ''}" title="${s.env.ringing === id ? 'Ringing! Answer it here.' : 'Phone'}">☎</span>`);
+    el.classList.toggle('flooded', isFlooded(c, s, id));
+    el.classList.toggle('ringing', s.env.ringing === id);
     el.querySelector('.badges')!.innerHTML = badges.join('');
     el.querySelector('.vics')!.innerHTML = Array(s.victims[id] ?? 0).fill(victimIcon()).join('');
     el.disabled = !reach.includes(id) && id !== h.loc;
@@ -513,6 +540,7 @@ function updateBoard() {
   tk.style.left = `${kp.x / 10 + (same ? 2.6 : 0)}%`;
   tk.style.top = `${kp.y / 6.4 - 6}%`;
   tk.classList.toggle('stunned', s.killer.stunned > 0);
+  document.getElementById('board')!.classList.toggle('dark', s.env.dark);
   const mc = moveCost(c, s);
   document.getElementById('board-hint')!.innerHTML =
     s.phase === 'action' ? `Click a glowing location to move · cost <b style="color:var(--gold)">${mc}</b> nerve${s.killer.loc === h.loc && mc === COST.flee ? ' (fleeing!)' : ''}` : '';
@@ -536,6 +564,7 @@ function updateBottom() {
     { a: { type: 'hide' }, name: 'Hide', key: '4', desc: (s.mods.hideAuto ?? 0) > 0 ? 'Fog: automatic' : `${BASE_DICE.hide + (c.heroine.traits.hideDice ?? 0)} dice · ${thr}+ · avoid attack` },
     { a: { type: 'barricade' }, name: 'Barricade', key: '5', desc: `Block his path (${c.heroine.traits.barricadeStrength ?? 1})` },
     { a: { type: 'rest' }, name: 'Rest', key: '6', desc: `${BASE_DICE.rest} dice · heal or calm` },
+    ...(c.location.rule.kind === 'calls' ? [{ a: { type: 'answer' } as Action, name: 'Answer', key: '7', desc: s.env.ringing ? `Phone ringing at ${nodeName(c, s.env.ringing)}` : 'No phone ringing' }] : []),
   ];
   const btns = acts
     .map((d) => {
@@ -727,6 +756,10 @@ function runFx(s: GameState) {
         audio.play('killer');
         flash(false);
         break;
+      case 'env':
+        audio.play(/High|Blackout|ringing/i.test(f.text) ? 'killer' : 'card');
+        toast(`<b>${esc(c.location.rule.name)}</b> — ${esc(f.text)}`, 3500);
+        break;
       case 'phase':
         audio.play('finale');
         flash(true);
@@ -899,7 +932,7 @@ function showRules() {
   <h3>Horror</h3><p>Fear lowers your nerve and makes dice harder. Steady: 5 nerve, 4+ · Uneasy: 4, 4+ · Terrified: 4, 5+ · Breaking: 3, 5+. Past the top, terror becomes wounds.</p>
   <h3>The Finale</h3><p>At high bloodlust, if you "kill" him early, or in the last 3 rounds, the Finale begins: he comes for you. Defeat him in the Finale to win outright — or survive until <b>dawn</b>.</p>
   <h3>Weakness</h3><p>Some items are pieces of the killer's past. Finding them strips his armor.</p>
-  <h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>1–6 actions · Z undo · E end turn · Space continue · R rules</p>`);
+  <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p><h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>1–6 actions · Z undo · E end turn · Space continue · R rules</p>`);
 }
 
 function showSettings() {
@@ -1059,7 +1092,7 @@ window.addEventListener('keydown', (e) => {
     if (game.phase === 'event') return act({ type: 'resolveEvent' });
     if (game.phase === 'killer') return act({ type: 'resolveKiller' });
   }
-  const map: Record<string, Action['type']> = { '1': 'search', '2': 'lead', '3': 'fight', '4': 'hide', '5': 'barricade', '6': 'rest', e: 'endTurn', E: 'endTurn' };
+  const map: Record<string, Action['type']> = { '1': 'search', '2': 'lead', '3': 'fight', '4': 'hide', '5': 'barricade', '6': 'rest', '7': 'answer', e: 'endTurn', E: 'endTurn' };
   const t = map[e.key];
   if (t) act({ type: t } as Action);
 });

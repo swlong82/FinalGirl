@@ -66,6 +66,17 @@ Items and Instinct cards cost nothing to use.
 - `KillerPack.terror` is shuffled into its own deck. Each time bloodlust crosses a multiple of `terrorEvery` (4), one card is revealed and resolved. Terror cards are permanent escalations: heal, armor, teleport to the heroine, wounds.
 - `finale.phases[]`: when the killer drops to 0 in the Finale, the next phase begins with fresh health and its own effects. You only win when the last phase ends.
 
+### Location rules (one per location)
+| Location | Rule | Effect |
+|---|---|---|
+| Holloway Drive‑In | Intermission | Every 4th round: +1 nerve, horror −1 |
+| Gullhaven Tide Cabins | The Tide | Turns every 3 rounds; at high tide, entering a shore node costs +1 nerve |
+| Saint Agatha's | Rolling Blackouts | Rounds 3–4, 7–8, 11–12: search target +1, hide +1 die, the board goes dark |
+| Kettle Peak Lodge | Whiteout | End a round outdoors: cold +1 (a wound at 3); by a fire: thaw; at 2+ cold: −1 nerve per round |
+| KXRL Hilltop | Request Line | A phone rings each round; answer it (1 nerve: +1 horror, draw 2 Instincts) or a survivor appears there and the killer is lured to it |
+
+Rules are owned by the location, so they apply whichever killer you choose.
+
 ### Difficulty
 | Mode | Killer health | Killer attack | Dawn |
 |---|---|---|---|
@@ -93,11 +104,16 @@ src/
     tidewife/       KillerPack: The Tidewife
     saint-agatha/   LocationPack: Saint Agatha's West Wing
     anesthetist/    KillerPack: The Anesthetist
+    whiteout-lodge/ LocationPack: Kettle Peak Lodge
+    snowblind/      KillerPack: The Snowblind
+    dead-air/       LocationPack: KXRL 1340 Hilltop Studio
+    caller/         KillerPack: The Caller
     heroines/       5 heroines + the core Instinct deck
     registry.ts     Features (killer × location pairs)
   art/art.ts       dispatchers: killer portraits, backdrops, node icons, dice
   art/portraits.ts layered heroine portraits (fear & injury states)
   art/scenes.ts    Anesthetist, hospital backdrop, card film stills, item icons, posters
+  art/season1.ts   Snowblind, Caller, snow & radio-hill backdrops, their node icons
   ui/particles.ts  ambient board particles per location (dust/moths, drizzle, motes, embers)
   audio/       procedural WebAudio score + SFX
   ui/          grain canvas, styles
@@ -131,7 +147,8 @@ tests/         engine fuzz/balance tests
 | v0.1 | Feature One: 1 killer, 1 location (11 nodes), 5 heroines, 22 events, 16 items, 15 instincts; full UI, audio, saves |
 | **v0.2 (this build)** | Difficulty modes (Matinee / Midnight Show / Nightmare); undo for deterministic actions; Box Office stats screen; **terror deck** (a killer‑specific escalation card each time bloodlust crosses a multiple of 4); **multi‑phase Finales**; **Feature Two** (*The Tide Cabins*, *The Tidewife*); mix‑and‑match Custom Double Bill picker; per‑killer and per‑location art keys; extra Feature One events and items |
 | **v0.3 (this build)** | **Feature Three** (*Saint Agatha After Hours*, *The Anesthetist*): 3×3 = 9 killer/location pairings. **Double Bill builder**: shelf of curated posters, killer and location cards, a live poster preview, and a random "Spin the Reel" button. Generic `nearKiller` spawn target, plus a test that keeps killer packs free of location‑specific node references. **Art overhaul**: layered heroine portraits that show injuries and fear, an Anesthetist portrait, a hospital cutaway backdrop, film‑still illustrations on every event and terror card, item icons, VHS feature posters, and ambient particles on the board |
-| v0.35 | Location‑specific rules hooks (e.g. a tide that floods nodes, a power cut); heroine scars |
+| **v0.4 (this build): Season 1 complete** | **Feature Four: Whiteout** (*Kettle Peak Lodge*, *The Snowblind*) and **Feature Five: Dead Air** (*KXRL Hilltop Studio*, *The Caller*), giving 5×5 = 25 pairings. Two new heroines: Sunny (cold‑immune) and Dee (phone specialist). **Each location now has one signature rule**: Intermission, The Tide, Rolling Blackouts, Whiteout cold, and Request Line phones. Node tags (`outdoor`, `warm`, `shore`, `phone`), `env` state, an `answer` action, the `warm` effect, and new heroine traits support the rules |
+| v0.5 | Season 2 kickoff; heroine scars and campaign mode |
 | v0.4 | Achievements, daily seeded challenge, more heroines |
 | v0.5 | PWA/offline, controller support, localization, optional commissioned art and music swapped into the art/audio slots |
 | Later | Campaign mode (heroines carry scars and items between features), daily seeded challenge with a shared leaderboard (needs a backend) |

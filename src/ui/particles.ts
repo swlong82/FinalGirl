@@ -26,6 +26,10 @@ export function startParticles(canvas: HTMLCanvasElement, style: string, finale:
     switch (style) {
       case 'coast': // salt drizzle, slanted
         return { x: Math.random() * (W + 200), y: fresh ? Math.random() * H : -10, vx: -1.2, vy: 3 + Math.random() * 2, r: 0.8, a: 0, life: 1 };
+      case 'snow': // heavy wind-blown snow
+        return { x: Math.random() * (W + 300) - 100, y: fresh ? Math.random() * H : -10, vx: -0.8 - Math.random() * 1.2, vy: 1 + Math.random() * 1.6, r: 0.8 + Math.random() * 2, a: 0, life: 1 };
+      case 'radio': // prairie rain, near-vertical
+        return { x: Math.random() * (W + 100), y: fresh ? Math.random() * H : -10, vx: -0.4, vy: 6 + Math.random() * 3, r: 0.8, a: 0, life: 1 };
       case 'hospital': // slow dust motes in the light
         return { x: Math.random() * W, y: fresh ? Math.random() * H : Math.random() * H, vx: (Math.random() - 0.5) * 0.15, vy: (Math.random() - 0.5) * 0.15, r: 0.6 + Math.random() * 1.2, a: 0, life: 1 };
       default: // drive-in: moths & dust drifting toward the screen beam
@@ -51,7 +55,13 @@ export function startParticles(canvas: HTMLCanvasElement, style: string, finale:
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
-      } else if (style === 'coast') {
+      } else if (style === 'snow') {
+        p.vx += Math.sin((t + i * 31) / 40) * 0.02;
+        ctx.fillStyle = `rgba(240,248,255,${0.75 * p.a})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (style === 'coast' || style === 'radio') {
         ctx.strokeStyle = `rgba(190,230,230,${0.25 * p.a})`;
         ctx.lineWidth = 1;
         ctx.beginPath();

@@ -8,6 +8,7 @@ export const tideCabins: LocationPack = {
   era: 'Crane Point, Maine — Labor Day weekend, 1986',
   palette: { sky: '#081318', glow: '#a8f0e0', accent: '#4cc9f0' },
   art: 'coast',
+  rule: { kind: 'tide', period: 3, name: 'The Tide', text: 'The tide turns every 3 rounds. At high tide the Beach, Long Dock and Tidepools flood: moving into them costs +1 nerve.' },
   lore: [
     'The Gullhaven Tide Cabins sit at the end of a two-mile causeway on Crane Point: eight clapboard cabins, a bait shop, a boathouse, and a lighthouse that has not been lit since 1951.',
     "That October a nor'easter took the keeper's boat with him on board. His wife, Hester Crane, carried a lantern to the end of the Long Dock every night for six weeks. On the forty-second night she set the lantern down, folded her coat, and walked into the water.",
@@ -22,11 +23,11 @@ export const tideCabins: LocationPack = {
     { id: 'dunes', name: 'Dune Grass', x: 470, y: 96, icon: 'grass', searches: 1, flavor: 'Waist-high and hissing. Footprints that stop suddenly.' },
     { id: 'south', name: 'Cabins 5–8', x: 470, y: 452, icon: 'cabin', searches: 2, flavor: 'Somebody left a radio playing in number seven.' },
     { id: 'bait', name: 'Bait & Tackle', x: 530, y: 268, icon: 'hook', searches: 3, flavor: 'Coolers, knives, and a smell that never washes out.' },
-    { id: 'beach', name: 'Black Sand Beach', x: 700, y: 168, icon: 'wave', searches: 2, flavor: 'The waves break without a sound.' },
+    { id: 'beach', name: 'Black Sand Beach', x: 700, y: 168, icon: 'wave', searches: 2, flavor: 'The waves break without a sound.', tags: ['shore', 'outdoor'] },
     { id: 'boathouse', name: 'Boathouse', x: 690, y: 420, icon: 'boat', searches: 2, flavor: 'Hulls on sawhorses. Water slaps under the floorboards.' },
     { id: 'light', name: 'Crane Point Light', x: 898, y: 130, icon: 'lighthouse', searches: 2, flavor: 'One hundred and twelve steps. The lamp is warm.' },
-    { id: 'dock', name: 'The Long Dock', x: 872, y: 400, icon: 'dock', searches: 1, flavor: 'At the very end, a lantern. Still lit.' },
-    { id: 'pools', name: 'Tidepools', x: 820, y: 572, icon: 'wave', searches: 2, flavor: 'Starfish, anemones, and a wedding ring caught in the weed.' },
+    { id: 'dock', name: 'The Long Dock', x: 872, y: 400, icon: 'dock', searches: 1, flavor: 'At the very end, a lantern. Still lit.', tags: ['shore', 'outdoor'] },
+    { id: 'pools', name: 'Tidepools', x: 820, y: 572, icon: 'wave', searches: 2, flavor: 'Starfish, anemones, and a wedding ring caught in the weed.', tags: ['shore', 'outdoor'] },
   ],
   edges: [
     ['causeway', 'office'],

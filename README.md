@@ -7,7 +7,10 @@ An original, solo slasher survival game for the browser.
 - **Feature One: Last Show at the Holloway**. Killer: *The Projectionist*. Location: *The Holloway Drive‑In*.
 - **Feature Two: The Tide Cabins**. Killer: *The Tidewife*. Location: *The Gullhaven Tide Cabins*.
 - **Feature Three: Saint Agatha After Hours**. Killer: *The Anesthetist*. Location: *Saint Agatha's West Wing*.
-- **Double Bill builder**: put any killer in any location (9 pairings), with live VHS‑poster previews and a random pick. Three difficulty modes, terror cards, multi‑phase finales, and a stats screen.
+- **Feature Four: Whiteout**. Killer: *The Snowblind*. Location: *Kettle Peak Lodge*.
+- **Feature Five: Dead Air**. Killer: *The Caller*. Location: *KXRL Hilltop Studio*.
+- **Season 1 is complete**: 5 features, 7 heroines, and a signature rule for every location (tide, blackouts, cold, ringing phones, intermission).
+- **Double Bill builder**: put any killer in any location (25 pairings), with live VHS‑poster previews and a random pick. Three difficulty modes, terror cards, multi‑phase finales, and a stats screen.
 - 5 playable heroines, each with her own passive and signature card.
 - Procedural art (SVG) and a procedural soundtrack (WebAudio). There are no external assets.
 - Autosave, keyboard shortcuts, mobile layout, and in‑context tutorial tips.
@@ -47,4 +50,4 @@ See [`docs/DESIGN.md`](docs/DESIGN.md) for genre research, rules, architecture, 
 
 ## Controls
 
-`1`–`6` actions · click glowing locations to move · `Z` undo · `E` end turn · `Space` continue · `R` rules
+`1`–`7` actions · click glowing locations to move · `Z` undo · `E` end turn · `Space` continue · `R` rules

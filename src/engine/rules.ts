@@ -12,6 +12,7 @@ import type {
   EventDef,
   LogEntry,
   NodeId,
+  NodeTag,
 } from './types';
 
 // ── Tunables ────────────────────────────────────────────────────────────────
@@ -162,6 +163,7 @@ export function newGame(c: Content, seed: number, difficulty: Difficulty = 'stan
     instinctDeck: [],
     instinctDiscard: [],
     terrorDeck: [],
+    env: { tideHigh: false, dark: false, cold: 0 },
     foundLore: [],
     log: [],
     fx: [],
@@ -372,7 +374,7 @@ function saveEscorted(c: Content, s: GameState) {
   log(s, `${n === 1 ? 'A survivor flees' : `${n} survivors flee`} down the highway. Saved!`, 'good');
   s.fx.push({ t: 'saved', n });
   addHorror(c, s, -(c.heroine.traits.saveHorror ?? 1) * n);
-  drawInstinct(s, 1);
+  drawInstinct(s, 1 + (c.heroine.traits.saveDraw ?? 0));
 }
 
 function checkCond(c: Content, s: GameState, cond: Condition): boolean {
@@ -467,7 +469,7 @@ function applyEffect(c: Content, s: GameState, e: Effect) {
       break;
     case 'killerMove': {
       for (let i = 0; i < e.steps; i++) {
-        const target = e.toward === 'heroine' ? h.loc : e.toward;
+        const target = e.toward === 'heroine' ? h.loc : e.toward === 'lair' ? c.location.lair : e.toward;
         if (!moveKiller(c, s, stepToward(c, k.loc, target))) break;
       }
       if (k.loc === h.loc) s.fx.push({ t: 'killerAppears' });
@@ -522,6 +524,10 @@ function applyEffect(c: Content, s: GameState, e: Effect) {
     case 'if':
       applyEffects(c, s, checkCond(c, s, e.cond) ? e.then : e.else ?? []);
       break;
+    case 'warm':
+      if (s.env.cold > 0) log(s, 'Warmth floods back into her hands.', 'good');
+      s.env.cold = 0;
+      break;
     case 'log':
       log(s, e.text, 'info');
       break;
@@ -541,6 +547,8 @@ function startRound(c: Content, s: GameState) {
   }
   if (!s.killer.finale && s.round >= s.dawnAt - 3) triggerFinale(c, s, 'clock');
   if (s.outcome) return;
+  ruleRoundStart(c, s);
+  if (s.outcome) return;
   if (!s.eventDeck.length) {
     s.eventDeck = shuffle(s, s.eventDiscard);
     s.eventDiscard = [];
@@ -551,8 +559,102 @@ function startRound(c: Content, s: GameState) {
   s.fx.push({ t: 'card' });
 }
 
+// ── Location rules ──────────────────────────────────────────────────────────
+export function hasTag(c: Content, node: NodeId, tag: NodeTag) {
+  return !!c.location.nodes.find((n) => n.id === node)?.tags?.includes(tag);
+}
+export function isFlooded(c: Content, s: GameState, node: NodeId) {
+  return c.location.rule.kind === 'tide' && s.env.tideHigh && hasTag(c, node, 'shore');
+}
+
+function ruleRoundStart(c: Content, s: GameState) {
+  const r = c.location.rule;
+  const env = s.env;
+  const period = r.period ?? 3;
+  switch (r.kind) {
+    case 'intermission':
+      if (s.round % period === 0) {
+        s.mods.nerve = (s.mods.nerve ?? 0) + 1;
+        addHorror(c, s, -1);
+        log(s, `${r.name}: the projector stops. +1 nerve, horror −1.`, 'good');
+        s.fx.push({ t: 'env', text: r.name });
+      }
+      break;
+    case 'tide': {
+      const high = Math.floor((s.round - 1) / period) % 2 === 1;
+      if (high !== env.tideHigh) {
+        env.tideHigh = high;
+        log(s, high ? 'HIGH TIDE — the shore floods. Entering it costs +1 nerve.' : 'Low tide — the water draws back.', high ? 'killer' : 'good');
+        s.fx.push({ t: 'env', text: high ? 'High Tide' : 'Low Tide' });
+      }
+      break;
+    }
+    case 'power': {
+      const dark = s.round >= 3 && (s.round % 4 === 3 || s.round % 4 === 0);
+      if (dark !== env.dark) {
+        env.dark = dark;
+        log(s, dark ? 'BLACKOUT — the power fails. Searching is harder; hiding is easier.' : 'The lights stutter back on.', dark ? 'killer' : 'good');
+        s.fx.push({ t: 'env', text: dark ? 'Blackout' : 'Power Restored' });
+      }
+      if (dark) {
+        s.mods.searchThreshold = (s.mods.searchThreshold ?? 0) + 1;
+        s.mods.hideDice = (s.mods.hideDice ?? 0) + 1;
+      }
+      break;
+    }
+    case 'cold':
+      if (env.cold >= 2) {
+        s.mods.nerve = (s.mods.nerve ?? 0) - 1;
+        log(s, 'Numb fingers, slow thoughts. −1 nerve from the cold.', 'bad');
+      }
+      break;
+    case 'calls': {
+      const phones = c.location.nodes.filter((n) => n.tags?.includes('phone') && n.id !== s.heroine.loc).map((n) => n.id);
+      env.ringing = phones.length ? pick(s, phones) : undefined;
+      if (env.ringing) {
+        log(s, `☎ The phone is ringing at ${nodeName(c, env.ringing)}.`, 'killer');
+        s.fx.push({ t: 'env', text: 'Phone ringing' });
+      }
+      break;
+    }
+  }
+}
+
+/** After the heroine's turn, before the killer acts. */
+function ruleBeforeKiller(c: Content, s: GameState) {
+  const env = s.env;
+  if (c.location.rule.kind === 'calls' && env.ringing) {
+    const at = env.ringing;
+    env.ringing = undefined;
+    log(s, `Nobody stopped the ringing at ${nodeName(c, at)}. Someone else picks up — and ${c.killer.name} hears where.`, 'killer');
+    if (at !== s.killer.loc) placeVictims(c, s, at, 1);
+    s.killer.lured = at;
+  }
+}
+
+function ruleRoundEnd(c: Content, s: GameState) {
+  const env = s.env;
+  const h = s.heroine;
+  if (c.location.rule.kind === 'cold' && !c.heroine.traits.coldImmune) {
+    if (hasTag(c, h.loc, 'warm')) {
+      if (env.cold > 0) log(s, 'She thaws out by the fire.', 'good');
+      env.cold = 0;
+    } else if (hasTag(c, h.loc, 'outdoor')) {
+      env.cold++;
+      log(s, `The cold bites. Cold ${env.cold}/3.`, 'bad');
+      if (env.cold >= 3) {
+        log(s, 'Frostbite.', 'bad');
+        env.cold = 0;
+        wound(c, s, 1);
+      }
+    }
+  }
+}
+
 function endRound(c: Content, s: GameState) {
   const h = s.heroine;
+  ruleRoundEnd(c, s);
+  if (s.outcome) return;
   s.mods = {};
   h.hidden = false;
   h.movedThisRound = 0;
@@ -577,12 +679,13 @@ function afford(s: GameState, cost: number): Check {
   return s.heroine.nerve >= cost ? { ok: true, cost } : { ok: false, why: `Needs ${cost} nerve`, cost };
 }
 
-export function moveCost(c: Content, s: GameState): number {
+export function moveCost(c: Content, s: GameState, to?: NodeId): number {
   const h = s.heroine;
-  if (h.freeMoves > 0) return 0;
-  if (c.heroine.traits.freeFirstMove && h.movedThisRound === 0) return 0;
+  const flood = to && isFlooded(c, s, to) ? 1 : 0;
+  if (h.freeMoves > 0) return flood;
+  if (c.heroine.traits.freeFirstMove && h.movedThisRound === 0) return flood;
   const fleeing = s.killer.loc === h.loc && s.killer.stunned === 0;
-  return fleeing ? COST.flee : COST.move;
+  return (fleeing ? COST.flee : COST.move) + flood;
 }
 
 export function check(c: Content, s: GameState, a: Action): Check {
@@ -596,7 +699,10 @@ export function check(c: Content, s: GameState, a: Action): Check {
       return { ok: s.phase === 'killer', cost: 0 };
     case 'move':
       if (!neighbors(c, h.loc).includes(a.to)) return { ok: false, why: 'Not adjacent', cost: 0 };
-      return afford(s, moveCost(c, s));
+      return afford(s, moveCost(c, s, a.to));
+    case 'answer':
+      if (s.env.ringing !== h.loc) return { ok: false, why: 'No phone ringing here', cost: 1 };
+      return afford(s, c.heroine.traits.freeAnswer ? 0 : 1);
     case 'search':
       if ((s.searches[h.loc] ?? 0) <= 0) return { ok: false, why: 'Nothing left to find here', cost: COST.search };
       if (!s.itemDeck.length) return { ok: false, why: 'Nothing left anywhere', cost: COST.search };
@@ -672,15 +778,23 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       const ev = eventDef(c, s.currentEvent!);
       log(s, `◆ ${ev.name}`, ev.tone === 'calm' ? 'info' : 'killer');
       s.phase = 'action';
-      h.nerve = horrorTier(h.horror).nerve;
+      h.nerve = Math.max(1, horrorTier(h.horror).nerve + (s.mods.nerve ?? 0));
       applyEffects(c, s, ev.effects);
       s.eventDiscard.push(ev.id);
       s.currentEvent = undefined;
       break;
     }
+    case 'answer': {
+      spend(c.heroine.traits.freeAnswer ? 0 : 1);
+      s.env.ringing = undefined;
+      log(s, '☎ She answers. Breathing… then a calm voice tells her exactly where it is going next. She hangs up first.', 'good');
+      addHorror(c, s, 1);
+      drawInstinct(s, 2);
+      break;
+    }
     case 'move': {
-      const cost = moveCost(c, s);
-      if (h.freeMoves > 0 && cost === 0) h.freeMoves--;
+      const cost = moveCost(c, s, a.to);
+      if (h.freeMoves > 0 && cost <= (isFlooded(c, s, a.to) ? 1 : 0)) h.freeMoves--;
       spend(cost);
       breakCover();
       const from = h.loc;
@@ -740,7 +854,7 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
     case 'hide': {
       spend(COST.hide);
       const auto = (s.mods.hideAuto ?? 0) > 0;
-      const r = auto ? null : rollDice(s, 'Hide', BASE_DICE.hide + (c.heroine.traits.hideDice ?? 0), threshold(s));
+      const r = auto ? null : rollDice(s, 'Hide', BASE_DICE.hide + (c.heroine.traits.hideDice ?? 0) + (s.mods.hideDice ?? 0), threshold(s));
       if (auto || (r && r.successes > 0)) {
         h.hidden = true;
         s.fx.push({ t: 'hide' });
@@ -791,6 +905,7 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
     }
     case 'endTurn':
       s.phase = 'killer';
+      ruleBeforeKiller(c, s);
       killerTurn(c, s);
       break;
     case 'resolveKiller':

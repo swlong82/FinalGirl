@@ -17,7 +17,7 @@ export type Effect =
   | { op: 'killerHeal'; n: number }
   | { op: 'killerDamage'; n: number; ignoreArmor?: boolean }
   | { op: 'killerStun'; n: number }
-  | { op: 'killerMove'; toward: 'heroine' | NodeId; steps: number }
+  | { op: 'killerMove'; toward: 'heroine' | 'lair' | NodeId; steps: number }
   | { op: 'killerTeleport'; to: 'lair' | 'random' | 'heroine' | NodeId }
   | { op: 'killerArmor'; n: number }
   | { op: 'clock'; n: number }
@@ -29,6 +29,7 @@ export type Effect =
   | { op: 'teleportHeroine'; to: NodeId }
   | { op: 'saveEscorted' }
   | { op: 'if'; cond: Condition; then: Effect[]; else?: Effect[] }
+  | { op: 'warm' }
   | { op: 'log'; text: string };
 
 export type Condition =
@@ -49,7 +50,18 @@ export type RoundModKey =
   | 'killerAttackDice'
   | 'rerollNext'
   | 'brace'
-  | 'nerve';
+  | 'nerve'
+  | 'hideDice';
+
+export type NodeTag = 'outdoor' | 'warm' | 'shore' | 'phone';
+
+/** One signature rule per location, interpreted by the engine. */
+export interface LocationRule {
+  kind: 'intermission' | 'tide' | 'power' | 'cold' | 'calls';
+  name: string;
+  text: string;
+  period?: number;
+}
 
 export interface NodeDef {
   id: NodeId;
@@ -59,6 +71,7 @@ export interface NodeDef {
   icon: string; // art key
   searches: number; // search tokens at setup
   flavor: string;
+  tags?: NodeTag[];
 }
 
 export interface LocationPack {
@@ -76,7 +89,8 @@ export interface LocationPack {
   events: EventDef[];
   items: ItemDef[];
   palette: { sky: string; glow: string; accent: string };
-  art: 'drivein' | 'coast' | 'hospital'; // backdrop renderer key
+  art: 'drivein' | 'coast' | 'hospital' | 'snow' | 'radio'; // backdrop renderer key
+  rule: LocationRule;
 }
 
 export interface KillerPack {
@@ -96,7 +110,7 @@ export interface KillerPack {
   events: EventDef[];
   terror: EventDef[]; // escalation deck: one card each time bloodlust crosses a multiple of terrorEvery
   terrorEvery: number;
-  art: 'projectionist' | 'tidewife' | 'anesthetist'; // portrait renderer key
+  art: 'projectionist' | 'tidewife' | 'anesthetist' | 'snowblind' | 'caller'; // portrait renderer key
   weakness: { text: string }; // lore items (onGain killerArmor -1) strip armor
   items: ItemDef[]; // killer-specific items (weakness/lore) shuffled into the item deck
   quotes: string[];
@@ -121,6 +135,9 @@ export interface HeroineTraits {
   ignoreFirstHorror?: boolean;
   fightDice?: number;
   hideDice?: number;
+  coldImmune?: boolean;
+  saveDraw?: number; // extra instincts drawn per rescue
+  freeAnswer?: boolean; // answering a phone costs no nerve
 }
 
 export interface HeroineDef {
@@ -141,7 +158,7 @@ export interface PortraitLook {
   hair: string;
   hairStyle: 'bob' | 'ponytail' | 'curls' | 'long' | 'pixie';
   accent: string;
-  prop: 'apron' | 'ticket' | 'wrench' | 'whistle' | 'camera';
+  prop: 'apron' | 'ticket' | 'wrench' | 'whistle' | 'camera' | 'goggles' | 'headphones';
 }
 
 export interface EventDef {
@@ -217,7 +234,8 @@ export type Fx =
   | { t: 'horror'; n: number }
   | { t: 'stun' }
   | { t: 'terror'; id: string }
-  | { t: 'phase'; name: string };
+  | { t: 'phase'; name: string }
+  | { t: 'env'; text: string };
 
 export interface LogEntry {
   round: number;
@@ -279,6 +297,7 @@ export interface GameState {
   instinctDeck: string[];
   instinctDiscard: string[];
   terrorDeck: string[];
+  env: { tideHigh: boolean; dark: boolean; ringing?: NodeId; cold: number };
 
   currentEvent?: string;
   lastRoll?: DiceRoll;
@@ -299,6 +318,7 @@ export type Action =
   | { type: 'useItem'; uid: number }
   | { type: 'dropItem'; uid: number }
   | { type: 'playInstinct'; uid: number }
+  | { type: 'answer' }
   | { type: 'endTurn' }
   | { type: 'resolveKiller' };
 
