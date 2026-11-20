@@ -1,6 +1,8 @@
 import './ui/style.css';
 import { audio } from './audio/audio';
-import { heroinePortrait, icon, killerPortrait, mapBackdrop, pip, victimIcon } from './art/art';
+import { heroinePortrait, heroineToken, icon, killerPortrait, mapBackdrop, pip, victimIcon } from './art/art';
+import { eventStill, itemIcon, posterFrame } from './art/scenes';
+import { startParticles } from './ui/particles';
 import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } from './content/registry';
 import {
   check,
@@ -146,25 +148,60 @@ function renderTitle() {
   </div>`;
 }
 
+function comboPoster(locId: string, killerId: string, title?: string): string {
+  const loc = LOCATIONS.find((l) => l.id === locId)!;
+  const k = KILLERS.find((x) => x.id === killerId)!;
+  const curated = FEATURES.find((f) => f.location === locId && f.killer === killerId);
+  return posterFrame({
+    backdrop: mapBackdrop(loc, false),
+    killer: killerPortrait({ art: k.art }),
+    title: esc(title ?? (curated ? curated.title.split(':')[1].trim() : `${k.name} at ${loc.name.replace(/^The /, 'the ')}`)),
+    sub: esc(curated ? loc.tagline : `A custom double bill · ${loc.era.split(/[—,]/)[0].trim()}`),
+    accent: loc.palette.accent,
+  });
+}
+
 function renderFeature() {
-  app.innerHTML = `<div class="screen">${backdrop()}
+  const k = KILLERS.find((x) => x.id === pick.killer)!;
+  const curated = FEATURES.find((f) => f.location === pick.location && f.killer === pick.killer);
+  app.innerHTML = `<div class="screen builder">${backdrop()}
     <h2 class="section">Now Showing</h2>
-    <div class="tagline">choose your feature</div>
-    <div class="picker" style="max-width:900px">
+    <div class="tagline">pick a feature — or build your own double bill</div>
+    <div class="shelf">
       ${FEATURES.map(
-        (f) => `<button class="pick feature-card ${f.available && f.location === pick.location && f.killer === pick.killer ? 'sel' : ''}" data-feature="${f.id}" ${f.available ? '' : 'disabled'}>
-          <div class="marquee">${esc(f.title.split(':')[1]?.trim() ?? f.title)}</div>
-          <div class="sub">${esc(f.title.split(':')[0])}</div>
-          <p>${esc(f.subtitle)}</p>
-          ${f.available ? `<p>${esc(LOCATIONS.find((l) => l.id === f.location)!.tagline)}</p>` : '<span class="tag">In production</span>'}
+        (f) => `<button class="shelf-item ${f.location === pick.location && f.killer === pick.killer ? 'sel' : ''}" data-feature="${f.id}" ${f.available ? '' : 'disabled'} title="${esc(f.subtitle)}">
+          ${comboPoster(f.location, f.killer)}
+          <span class="shelf-label">${esc(f.title.split(':')[0])}</span>
         </button>`,
       ).join('')}
     </div>
-    <h2 class="section" style="font-size:34px;margin-top:8px">Custom Double Bill</h2>
-    <div class="tagline" style="margin-bottom:10px">any killer · any location</div>
-    <div class="combo">
-      <div><div class="sub">Killer</div>${KILLERS.map((k) => `<button class="chip ${k.id === pick.killer ? 'sel' : ''}" data-killer="${k.id}"><span class="chip-art">${killerPortrait({ art: k.art })}</span>${esc(k.name)}</button>`).join('')}</div>
-      <div><div class="sub">Location</div>${LOCATIONS.map((l) => `<button class="chip ${l.id === pick.location ? 'sel' : ''}" data-location="${l.id}">${esc(l.name)}</button>`).join('')}</div>
+    <div class="builder-grid">
+      <section>
+        <h3 class="col-h">Killer</h3>
+        <div class="cards">${KILLERS.map(
+          (x) => `<button class="mini ${x.id === pick.killer ? 'sel' : ''}" data-killer="${x.id}">
+            <span class="mini-art">${killerPortrait({ art: x.art })}</span>
+            <b>${esc(x.name)}</b><small>${esc(x.epithet)}</small>
+            <span class="mini-stats">♥${x.health} · ⛨${x.armor} · ${x.attackDice}d</span>
+          </button>`,
+        ).join('')}</div>
+      </section>
+      <section class="preview">
+        <h3 class="col-h">${curated ? 'Feature' : 'Your Double Bill'}</h3>
+        ${comboPoster(pick.location, pick.killer)}
+        <p class="preview-txt">${esc(k.lore[0])}</p>
+        <button class="btn small" data-go="shuffle">🎲 Spin the Reel</button>
+      </section>
+      <section>
+        <h3 class="col-h">Location</h3>
+        <div class="cards">${LOCATIONS.map(
+          (l) => `<button class="mini loc ${l.id === pick.location ? 'sel' : ''}" data-location="${l.id}">
+            <span class="mini-art wide">${mapBackdrop(l, false)}</span>
+            <b>${esc(l.name)}</b><small>${esc(l.era)}</small>
+            <span class="mini-stats">${l.nodes.length} locations · ${l.events.length} events</span>
+          </button>`,
+        ).join('')}</div>
+      </section>
     </div>
     <div class="menu" style="flex-direction:row;justify-content:center;margin-top:16px">
       <button class="btn" data-go="title">Back</button>
@@ -275,6 +312,7 @@ function renderGame() {
     </div><div id="overlay-root"></div>`;
     buildBoard();
     boardBuilt = true;
+    startParticles(document.getElementById('particles') as HTMLCanvasElement, content!.location.art, () => !!game?.killer.finale);
   }
   updateGame();
 }
@@ -301,7 +339,8 @@ function buildBoard() {
       </button>`,
       )
       .join('')}
-    <div class="token heroine" id="tok-h">${heroinePortrait(c.heroine)}</div>
+    <div class="token heroine" id="tok-h">${heroineToken(c.heroine)}</div>
+    <canvas class="particles" id="particles"></canvas>
     <div class="token-esc" id="tok-esc"></div>
     <div class="token killer" id="tok-k">${killerPortrait({ art: c.killer.art })}</div>
     <div class="board-hint" id="board-hint"></div>`;
@@ -380,7 +419,7 @@ function updateGame() {
           const d = itemDef(c, it.id);
           const chk = check(c, s, { type: 'useItem', uid: it.uid });
           return `<div class="item ${d.kind}" title="${esc(d.lore ?? d.text)}">
-            <div><div class="name">${esc(d.name)}${it.usesLeft !== undefined ? ` <span class="k">×${it.usesLeft}</span>` : ''}</div><div class="txt">${esc(d.text)}</div></div>
+            ${itemIcon(d)}<div class="grow"><div class="name">${esc(d.name)}${it.usesLeft !== undefined ? ` <span class="k">×${it.usesLeft}</span>` : ''}</div><div class="txt">${esc(d.text)}</div></div>
             <div class="acts">${d.use ? `<button class="btn small" data-item="${it.uid}" ${chk.ok ? '' : `disabled title="${esc(chk.why ?? '')}"`}>${esc(d.use.label)}</button>` : ''}
             <button class="btn small" data-drop="${it.uid}" title="Drop">✕</button></div>
           </div>`;
@@ -388,7 +427,7 @@ function updateGame() {
         .join('')
     : '<div class="empty-note">Empty-handed. Search to find something.</div>';
   document.getElementById('heroine-panel')!.innerHTML = `
-    <div class="who">${heroinePortrait(c.heroine, { grim: h.horror / 6 })}
+    <div class="who">${heroinePortrait(c.heroine, { grim: h.horror / 6, hurt: 1 - h.health / h.maxHealth })}
       <div><h3>${esc(c.heroine.name)}</h3><div class="sub">${esc(c.heroine.title)}</div><div class="hearts" title="Health">${hearts}</div></div>
     </div>
     <h4>Horror</h4>
@@ -575,6 +614,7 @@ function updateOverlay() {
     const t = eventDef(c, cardQueue[0]);
     root.innerHTML = `<div class="overlay"><div class="card killer terror">
       <div class="face">
+        <div class="still-wrap">${eventStill(t, 'terror')}</div>
         <div class="kind">Terror · ${esc(c.killer.name)} grows stronger</div>
         <h2>${esc(t.name)}</h2>
         <p>${esc(t.text)}</p>
@@ -587,6 +627,7 @@ function updateOverlay() {
     const ev = eventDef(c, s.currentEvent);
     root.innerHTML = `<div class="overlay"><div class="card ${ev.tone === 'killer' || ev.tone === 'dread' ? 'killer' : ev.tone === 'calm' ? 'calm' : ''}">
       <div class="face">
+        <div class="still-wrap">${eventStill(ev, 'event')}</div>
         <div class="kind">Round ${s.round} · ${ev.tone === 'victim' ? 'Survivors' : ev.tone === 'calm' ? 'Respite' : ev.tone === 'killer' ? c.killer.name : 'Dread'}</div>
         <h2>${esc(ev.name)}</h2>
         <p>${esc(ev.text)}</p>
@@ -615,6 +656,7 @@ function updateOverlay() {
           : `${c.heroine.name} does not make it to the credits.`;
     const lore = c.killer.items.filter((i) => s.foundLore.includes(i.id));
     root.innerHTML = `<div class="overlay"><div class="modal ending" style="text-align:center">
+      <div class="end-poster">${comboPoster(c.location.id, c.killer.id)}</div>
       <h2 style="font-size:64px;color:${s.outcome === 'died' ? 'var(--blood)' : '#fff3e0'}">${title}</h2>
       <p>${esc(sub)}</p>
       <div class="stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</div>
@@ -972,6 +1014,13 @@ function navigate(go: string) {
       return continueGame();
     case 'undo':
       return undo();
+    case 'shuffle': {
+      const prev = `${pick.killer}|${pick.location}`;
+      for (let i = 0; i < 10 && `${pick.killer}|${pick.location}` === prev; i++)
+        pick = { killer: KILLERS[(Math.random() * KILLERS.length) | 0].id, location: LOCATIONS[(Math.random() * LOCATIONS.length) | 0].id };
+      audio.play('card');
+      return render();
+    }
     case 'ackTerror':
       cardQueue.shift();
       audio.play('card');

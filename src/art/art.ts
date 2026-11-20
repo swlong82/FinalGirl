@@ -1,6 +1,8 @@
 // Original procedural SVG art for LAST LIGHT. Everything is drawn in code:
 // silhouettes, rim light, film grain filters. No external image assets.
 import type { HeroineDef, LocationPack, PortraitLook } from '../engine/types';
+import { heroinePortraitV2 } from './portraits';
+import { anesthetistPortrait, hospitalBackdrop, HOSPITAL_ICONS } from './scenes';
 
 let gid = 0;
 const uid = (p: string) => `${p}${++gid}`;
@@ -51,7 +53,12 @@ function prop(p: PortraitLook['prop'], accent: string) {
   }
 }
 
-export function heroinePortrait(h: HeroineDef, opts: { grim?: number } = {}): string {
+export function heroinePortrait(h: HeroineDef, opts: { grim?: number; hurt?: number } = {}): string {
+  return heroinePortraitV2(h, opts);
+}
+
+/** v1 flat portrait, kept for the small board token. */
+export function heroineToken(h: HeroineDef, opts: { grim?: number } = {}): string {
   const l = h.look;
   const rim = uid('rim');
   const bg = uid('bg');
@@ -79,6 +86,7 @@ export function heroinePortrait(h: HeroineDef, opts: { grim?: number } = {}): st
 // ── Killer portraits ────────────────────────────────────────────────────────
 export function killerPortrait(state: { finale?: boolean; art?: string } = {}): string {
   if (state.art === 'tidewife') return tidewifePortrait(state);
+  if (state.art === 'anesthetist') return anesthetistPortrait(state);
   return projectionistPortrait(state);
 }
 
@@ -167,11 +175,13 @@ export function icon(key: string, color = '#d9d3c7'): string {
     dock: `<path ${s} d="M2 18 H36"/><path ${s} d="M6 18 V32 M14 18 V32 M22 18 V32 M30 18 V32"/><path ${s} d="M2 30 Q8 26 14 30 T26 30 T38 30"/>`,
     wreck: `<path ${s} d="M4 28 L8 18 L16 16 L22 20 L32 18 L34 28 Z"/><circle ${s} cx="11" cy="29" r="3"/><path ${s} d="M24 10 L28 6 M30 12 L34 10"/>`,
   };
-  return `<svg viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" class="icon">${paths[key] ?? paths.door}</svg>`;
+  const extra = HOSPITAL_ICONS[key]?.(s, f);
+  return `<svg viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" class="icon" style="color:${color}">${extra ?? paths[key] ?? paths.door}</svg>`;
 }
 
 // ── Map backdrop: the lot at night ──────────────────────────────────────────
 export function mapBackdrop(loc: LocationPack, finale: boolean): string {
+  if (loc.art === 'hospital') return hospitalBackdrop(loc, finale);
   return loc.art === 'coast' ? coastBackdrop(loc, finale) : driveInBackdrop(loc, finale);
 }
 

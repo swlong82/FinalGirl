@@ -6,7 +6,8 @@ An original, solo slasher survival game for the browser.
 
 - **Feature One: Last Show at the Holloway**. Killer: *The Projectionist*. Location: *The Holloway Drive‑In*.
 - **Feature Two: The Tide Cabins**. Killer: *The Tidewife*. Location: *The Gullhaven Tide Cabins*.
-- **Custom Double Bill**: put any killer in any location. Three difficulty modes, terror cards, multi‑phase finales, and a stats screen.
+- **Feature Three: Saint Agatha After Hours**. Killer: *The Anesthetist*. Location: *Saint Agatha's West Wing*.
+- **Double Bill builder**: put any killer in any location (9 pairings), with live VHS‑poster previews and a random pick. Three difficulty modes, terror cards, multi‑phase finales, and a stats screen.
 - 5 playable heroines, each with her own passive and signature card.
 - Procedural art (SVG) and a procedural soundtrack (WebAudio). There are no external assets.
 - Autosave, keyboard shortcuts, mobile layout, and in‑context tutorial tips.

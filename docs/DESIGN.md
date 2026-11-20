@@ -91,9 +91,14 @@ src/
     projectionist/  KillerPack: The Projectionist
     tide-cabins/    LocationPack: The Gullhaven Tide Cabins
     tidewife/       KillerPack: The Tidewife
+    saint-agatha/   LocationPack: Saint Agatha's West Wing
+    anesthetist/    KillerPack: The Anesthetist
     heroines/       5 heroines + the core Instinct deck
     registry.ts     Features (killer × location pairs)
-  art/art.ts   procedural SVG: portraits, killer, icons, backdrop, dice
+  art/art.ts       dispatchers: killer portraits, backdrops, node icons, dice
+  art/portraits.ts layered heroine portraits (fear & injury states)
+  art/scenes.ts    Anesthetist, hospital backdrop, card film stills, item icons, posters
+  ui/particles.ts  ambient board particles per location (dust/moths, drizzle, motes, embers)
   audio/       procedural WebAudio score + SFX
   ui/          grain canvas, styles
   main.ts      screens, board, panels, overlays, input, FX
@@ -107,6 +112,7 @@ tests/         engine fuzz/balance tests
 ## 4. Adding a Feature (expansion)
 
 1. Create `src/content/<location>/location.ts` that exports a `LocationPack`: nodes with map coordinates, edges, exit, lair, events and items.
+   - **Mixing rule:** killer packs must never name a location's nodes. Use `heroine`, `lair`, `random`, `nearKiller` or `farFromKiller` instead. A test enforces this.
 2. Create `src/content/<killer>/killer.ts` that exports a `KillerPack`: stats, Finale, events, lore items and quotes.
 3. Register both in `src/content/registry.ts` and add a `Feature`.
 4. Optionally add new heroines (`HeroineDef` with traits and a signature card).
@@ -124,7 +130,8 @@ tests/         engine fuzz/balance tests
 |---|---|
 | v0.1 | Feature One: 1 killer, 1 location (11 nodes), 5 heroines, 22 events, 16 items, 15 instincts; full UI, audio, saves |
 | **v0.2 (this build)** | Difficulty modes (Matinee / Midnight Show / Nightmare); undo for deterministic actions; Box Office stats screen; **terror deck** (a killer‑specific escalation card each time bloodlust crosses a multiple of 4); **multi‑phase Finales**; **Feature Two** (*The Tide Cabins*, *The Tidewife*); mix‑and‑match Custom Double Bill picker; per‑killer and per‑location art keys; extra Feature One events and items |
-| v0.3 | Feature Three (*Saint Agatha After Hours*: hospital); location‑specific rules hooks (e.g. a tide that floods nodes); heroine scars |
+| **v0.3 (this build)** | **Feature Three** (*Saint Agatha After Hours*, *The Anesthetist*): 3×3 = 9 killer/location pairings. **Double Bill builder**: shelf of curated posters, killer and location cards, a live poster preview, and a random "Spin the Reel" button. Generic `nearKiller` spawn target, plus a test that keeps killer packs free of location‑specific node references. **Art overhaul**: layered heroine portraits that show injuries and fear, an Anesthetist portrait, a hospital cutaway backdrop, film‑still illustrations on every event and terror card, item icons, VHS feature posters, and ambient particles on the board |
+| v0.35 | Location‑specific rules hooks (e.g. a tide that floods nodes, a power cut); heroine scars |
 | v0.4 | Achievements, daily seeded challenge, more heroines |
 | v0.5 | PWA/offline, controller support, localization, optional commissioned art and music swapped into the art/audio slots |
 | Later | Campaign mode (heroines carry scars and items between features), daily seeded challenge with a shared leaderboard (needs a backend) |

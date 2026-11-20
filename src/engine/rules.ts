@@ -422,6 +422,9 @@ function applyEffect(c: Content, s: GameState, e: Effect) {
       if (at === 'random') {
         const opts = c.location.nodes.map((n) => n.id).filter((id) => id !== k.loc && id !== c.location.exit);
         at = pick(s, opts);
+      } else if (at === 'nearKiller') {
+        const opts = neighbors(c, k.loc).filter((id) => id !== c.location.exit && id !== h.loc);
+        at = opts.length ? pick(s, opts) : stepAwayFrom(c, s, k.loc);
       } else if (at === 'farFromKiller') {
         const d = distances(c, k.loc);
         at = c.location.nodes
@@ -446,7 +449,7 @@ function applyEffect(c: Content, s: GameState, e: Effect) {
       wound(c, s, e.n);
       break;
     case 'nerve':
-      h.nerve += e.n;
+      h.nerve = Math.max(0, h.nerve + e.n);
       break;
     case 'bloodlust':
       addBloodlust(c, s, e.n);
@@ -488,7 +491,7 @@ function applyEffect(c: Content, s: GameState, e: Effect) {
       break;
     case 'mod':
       s.mods[e.key] = (s.mods[e.key] ?? 0) + e.n;
-      if (e.key === 'nerve') h.nerve += e.n;
+      if (e.key === 'nerve') h.nerve = Math.max(0, h.nerve + e.n);
       break;
     case 'freeMove':
       h.freeMoves++;

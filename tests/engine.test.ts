@@ -100,7 +100,15 @@ describe('engine', () => {
       for (const id of [l.exit, l.lair, l.heroineStart, ...l.setupVictims]) expect(ids.has(id), `${l.id} ${id}`).toBe(true);
       const json = JSON.stringify([l.events, l.items]);
       for (const m of json.matchAll(/"(?:at|node|toward|to)":"([a-zA-Z]+)"/g))
-        if (!['random', 'farFromKiller', 'heroine', 'lair', 'here'].includes(m[1])) expect(ids.has(m[1]), `${l.id} ref ${m[1]}`).toBe(true);
+        if (!['random', 'farFromKiller', 'nearKiller', 'heroine', 'lair', 'here'].includes(m[1])) expect(ids.has(m[1]), `${l.id} ref ${m[1]}`).toBe(true);
+    }
+  });
+
+  it('killer packs never reference location-specific nodes', () => {
+    const generic = ['random', 'farFromKiller', 'nearKiller', 'heroine', 'lair', 'here'];
+    for (const k of KILLERS) {
+      const json = JSON.stringify([k.events, k.terror, k.items, k.finale]);
+      for (const m of json.matchAll(/"(?:at|node|toward|to)":"([a-zA-Z]+)"/g)) expect(generic, `${k.id} refs ${m[1]}`).toContain(m[1]);
     }
   });
 

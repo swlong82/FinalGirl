@@ -8,7 +8,7 @@ export type NodeId = string;
 
 /** Atomic, data-driven effect operations used by events, items and instinct cards. */
 export type Effect =
-  | { op: 'spawn'; at: NodeId | 'random' | 'farFromKiller'; n: number }
+  | { op: 'spawn'; at: NodeId | 'random' | 'farFromKiller' | 'nearKiller'; n: number }
   | { op: 'horror'; n: number }
   | { op: 'heal'; n: number }
   | { op: 'wound'; n: number }
@@ -76,7 +76,7 @@ export interface LocationPack {
   events: EventDef[];
   items: ItemDef[];
   palette: { sky: string; glow: string; accent: string };
-  art: 'drivein' | 'coast'; // backdrop renderer key
+  art: 'drivein' | 'coast' | 'hospital'; // backdrop renderer key
 }
 
 export interface KillerPack {
@@ -96,7 +96,7 @@ export interface KillerPack {
   events: EventDef[];
   terror: EventDef[]; // escalation deck: one card each time bloodlust crosses a multiple of terrorEvery
   terrorEvery: number;
-  art: 'projectionist' | 'tidewife'; // portrait renderer key
+  art: 'projectionist' | 'tidewife' | 'anesthetist'; // portrait renderer key
   weakness: { text: string }; // lore items (onGain killerArmor -1) strip armor
   items: ItemDef[]; // killer-specific items (weakness/lore) shuffled into the item deck
   quotes: string[];
