@@ -4,5 +4,5 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: './',
   build: { outDir: 'dist', assetsInlineLimit: 0 },
-  test: { globals: true, environment: 'node' },
+  test: { globals: true, environment: 'node', include: ['tests/**/*.test.ts'] },
 } as any);

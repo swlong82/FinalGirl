@@ -85,9 +85,35 @@ Rules are owned by the location, so they apply whichever killer you choose.
 | Nightmare | +3 | +1 die | round 13 |
 
 ### Balance
-`npm test` runs a heuristic bot through 150 seeded games per heroine (750 total) and prints the outcomes.
-The bot plays naively (it fights whenever it can), so humans should do better. Current target band:
-the bot kills the killer in ~50–60% of games and dies in ~20–35%.
+`src/engine/bot.ts` is a rule‑aware heuristic player. It:
+- reads cards and items by their effect ops;
+- answers phones, warms up and avoids flooded nodes;
+- hides or flees when weak, and fights when the odds favor it.
+
+`npm test` fuzzes all 25 killer × location pairings with every heroine. For a full report, run:
+
+```
+N=30 npx vitest run scripts/balance.test.ts --dir scripts
+```
+
+Results on Midnight Show (bot ≈ a careful player):
+
+| Location | Killed him | Survived to dawn | Died |
+|---|---|---|---|
+| Holloway Drive‑In | 42% | 36% | 22% |
+| Gullhaven Tide Cabins | 25% | 60% | 15% |
+| Saint Agatha's | 33% | 55% | 12% |
+| Kettle Peak Lodge | 33% | 49% | 18% |
+| KXRL Hilltop | 17% | 59% | 25% |
+
+KXRL is deliberately a survival map: the phone lures keep him moving, so killing him is rare.
+
+**v0.5 balance changes:**
+- Hiding is no longer absolute. A killer in your room searches on 1d6 and finds you on 5+ (4+ in the Finale).
+- The killer gets +1 speed in the Finale.
+- Blackouts at Saint Agatha also give the killer +1 speed.
+- New service‑elevator shortcut at Saint Agatha; less healing in its deck.
+- Extra weapon at KXRL.
 
 ## 3. Architecture
 
@@ -138,6 +164,7 @@ tests/         engine fuzz/balance tests
 ## 5. Atmosphere & audio
 
 - **Visual:** a 24 fps film‑grain canvas with scratch lines, a vignette that reddens and pulses with horror, a projector beam flicker, drifting fog (`feTurbulence`), a screen shake on hits, a red or white flash, and the backdrop turning blood‑red in the Finale.
+- **Location themes:** Drive‑In = A (crickets, projector), Coast = G (waves, foghorn), Hospital = B♭ (fluorescent hum, elevator dings), Snow = E (howling gusts), Radio = C (rain, static, thunder).
 - **Audio (all synthesized):** an A‑minor drone whose filter opens with horror and drops to E in the Finale; wind; crickets that thin out as fear rises; 24 fps projector clatter; a heartbeat whose BPM follows horror and killer proximity; an original music‑box motif with tape delay that drops a semitone in the Finale; and stingers for the killer appearing, wounds, hits, kills, saves, items, dice, cards and the Finale.
 
 ## 6. Roadmap
@@ -148,7 +175,8 @@ tests/         engine fuzz/balance tests
 | **v0.2 (this build)** | Difficulty modes (Matinee / Midnight Show / Nightmare); undo for deterministic actions; Box Office stats screen; **terror deck** (a killer‑specific escalation card each time bloodlust crosses a multiple of 4); **multi‑phase Finales**; **Feature Two** (*The Tide Cabins*, *The Tidewife*); mix‑and‑match Custom Double Bill picker; per‑killer and per‑location art keys; extra Feature One events and items |
 | **v0.3 (this build)** | **Feature Three** (*Saint Agatha After Hours*, *The Anesthetist*): 3×3 = 9 killer/location pairings. **Double Bill builder**: shelf of curated posters, killer and location cards, a live poster preview, and a random "Spin the Reel" button. Generic `nearKiller` spawn target, plus a test that keeps killer packs free of location‑specific node references. **Art overhaul**: layered heroine portraits that show injuries and fear, an Anesthetist portrait, a hospital cutaway backdrop, film‑still illustrations on every event and terror card, item icons, VHS feature posters, and ambient particles on the board |
 | **v0.4 (this build): Season 1 complete** | **Feature Four: Whiteout** (*Kettle Peak Lodge*, *The Snowblind*) and **Feature Five: Dead Air** (*KXRL Hilltop Studio*, *The Caller*), giving 5×5 = 25 pairings. Two new heroines: Sunny (cold‑immune) and Dee (phone specialist). **Each location now has one signature rule**: Intermission, The Tide, Rolling Blackouts, Whiteout cold, and Request Line phones. Node tags (`outdoor`, `warm`, `shore`, `phone`), `env` state, an `answer` action, the `warm` effect, and new heroine traits support the rules |
-| v0.5 | Season 2 kickoff; heroine scars and campaign mode |
+| **v0.5 (this build): Polish & balance** | Rule‑aware bot (`engine/bot.ts`) powers the balance sim and an in‑game **💡 Hint** (H). Hide‑search roll, Finale +1 speed, Saint Agatha and KXRL retuned. **Per‑location audio themes**: drone key, wind, fluorescent hum, rain and periodic ambience (waves and foghorn, elevator dings, howling gusts, static and thunder), plus stingers for the tide, blackout and phone ring. CI fuzz trimmed to about 20 s |
+| v0.6 | Season 2 kickoff; heroine scars and campaign mode |
 | v0.4 | Achievements, daily seeded challenge, more heroines |
 | v0.5 | PWA/offline, controller support, localization, optional commissioned art and music swapped into the art/audio slots |
 | Later | Campaign mode (heroines carry scars and items between features), daily seeded challenge with a shared leaderboard (needs a backend) |

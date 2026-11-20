@@ -288,7 +288,7 @@ export function killerAttackDice(c: Content, s: GameState) {
   return (s.killer.finale ? c.killer.finale.attackDice : c.killer.attackDice) + s.killer.attackBonus + (s.mods.killerAttackDice ?? 0);
 }
 export function killerSpeed(c: Content, s: GameState) {
-  return c.killer.speed + (s.killer.frenzy ? 1 : 0);
+  return c.killer.speed + (s.killer.frenzy ? 1 : 0) + (s.killer.finale ? 1 : 0) + (s.env.dark ? 1 : 0);
 }
 
 function addBloodlust(c: Content, s: GameState, n: number) {
@@ -593,7 +593,7 @@ function ruleRoundStart(c: Content, s: GameState) {
       const dark = s.round >= 3 && (s.round % 4 === 3 || s.round % 4 === 0);
       if (dark !== env.dark) {
         env.dark = dark;
-        log(s, dark ? 'BLACKOUT — the power fails. Searching is harder; hiding is easier.' : 'The lights stutter back on.', dark ? 'killer' : 'good');
+        log(s, dark ? 'BLACKOUT — the power fails. Searching is harder, hiding is easier — and he knows these halls in the dark.' : 'The lights stutter back on.', dark ? 'killer' : 'good');
         s.fx.push({ t: 'env', text: dark ? 'Blackout' : 'Power Restored' });
       }
       if (dark) {
@@ -937,7 +937,18 @@ function killerTurn(c: Content, s: GameState) {
     log(s, `${name} staggers, dazed. He loses his turn.`, 'good');
     return;
   }
-  const exposed = !h.hidden;
+  let exposed = !h.hidden;
+  if (k.loc === h.loc && h.hidden) {
+    // He searches the room. Hiding buys a chance, not a guarantee.
+    const need = k.finale ? 4 : 5;
+    const r = rollD6(s);
+    if (r >= need) {
+      h.hidden = false;
+      exposed = true;
+      log(s, `${name} tears the room apart… and finds her.`, 'killer');
+      s.fx.push({ t: 'killerAppears' });
+    }
+  }
   if (k.loc === h.loc && exposed) {
     killerAttack(c, s);
     return;

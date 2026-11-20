@@ -35,7 +35,7 @@ npm test
 npm run build
 ```
 
-`npm test` fuzzes the engine with a bot (750 seeded games) and prints the win/loss balance.
+`npm test` fuzzes every killer × location × heroine combination with a rule‑aware bot. For the full balance report, run `N=30 npx vitest run scripts/balance.test.ts --dir scripts`.
 
 ## Deploy (GitHub Pages)
 
@@ -50,4 +50,4 @@ See [`docs/DESIGN.md`](docs/DESIGN.md) for genre research, rules, architecture, 
 
 ## Controls
 
-`1`–`7` actions · click glowing locations to move · `Z` undo · `E` end turn · `Space` continue · `R` rules
+`1`–`7` actions · `H` hint · click glowing locations to move · `Z` undo · `E` end turn · `Space` continue · `R` rules

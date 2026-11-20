@@ -24,6 +24,9 @@ class AudioEngine {
   private motifStep = 0;
   private nextNote = 0;
   enabled = true;
+  theme = 'drivein';
+  private humGain?: GainNode;
+  private rainGain?: GainNode;
   volume = 0.8;
   musicVolume = 0.7;
 
@@ -63,6 +66,10 @@ class AudioEngine {
     this.timers.push(window.setInterval(() => this.schedule(), 100));
     this.timers.push(window.setInterval(() => this.cricket(), 2300));
     this.timers.push(window.setInterval(() => this.projectorClatter(), 6000));
+    this.timers.push(window.setInterval(() => this.themeTick(), 4000));
+    this.buildHum();
+    this.buildRain();
+    this.setTheme(this.theme);
   }
 
   setEnabled(on: boolean) {
@@ -87,7 +94,8 @@ class AudioEngine {
     this.droneFilter.frequency.setTargetAtTime(160 + h * 520 + (m.finale ? 500 : 0), t, 1.5);
     this.droneGain.gain.setTargetAtTime(0.06 + h * 0.07 + (m.killerNear ? 0.05 : 0), t, 1);
     this.windGain.gain.setTargetAtTime(0.03 + h * 0.03, t, 2);
-    const base = m.finale ? 41.2 : 55; // E1 in finale, A1 otherwise
+    const root = THEMES[this.theme]?.root ?? 55;
+    const base = m.finale ? root * 0.75 : root; // drops a fourth in the finale
     this.droneOscs.forEach((o, i) => o.frequency.setTargetAtTime(base * [1, 1.003, 1.5, 0.5][i], t, 2));
   }
 
@@ -226,7 +234,88 @@ class AudioEngine {
     src.stop(t + dur + 0.05);
   }
 
+  /** Per-location ambience: drone key, wind level, hum, rain, and periodic sounds. */
+  setTheme(theme: string) {
+    this.theme = theme;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const th = THEMES[theme] ?? THEMES.drivein;
+    this.humGain?.gain.setTargetAtTime(th.hum, t, 1);
+    this.rainGain?.gain.setTargetAtTime(th.rain, t, 1);
+    this.windGain?.gain.setTargetAtTime(0.03 * th.wind, t, 1);
+    this.setMood(this.mood);
+  }
+
+  private buildHum() {
+    const ctx = this.ctx!;
+    this.humGain = ctx.createGain();
+    this.humGain.gain.value = 0;
+    for (const [f, a] of [[120, 1], [240, 0.4], [360, 0.15]]) {
+      const o = ctx.createOscillator();
+      o.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.value = a * 0.02;
+      o.connect(g).connect(this.humGain);
+      o.start();
+    }
+    this.humGain.connect(this.musicBus!);
+  }
+
+  private buildRain() {
+    const ctx = this.ctx!;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise!;
+    src.loop = true;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 2500;
+    this.rainGain = ctx.createGain();
+    this.rainGain.gain.value = 0;
+    src.connect(hp).connect(this.rainGain).connect(this.musicBus!);
+    src.start();
+  }
+
+  private themeTick() {
+    const ctx = this.ctx;
+    if (!ctx || !this.enabled) return;
+    const t = ctx.currentTime;
+    const r = Math.random();
+    switch (this.theme) {
+      case 'coast': // wave swell, rare foghorn
+        this.noiseBurst(t, 3.2, 500, 0.6, 0.06, this.musicBus!);
+        if (r < 0.12) this.tone(t + 0.5, 82, 2.6, 'sawtooth', 0.05, 0.4);
+        break;
+      case 'hospital': // distant elevator ding, flicker buzz
+        if (r < 0.15) [1318.5, 1046.5].forEach((f, i) => this.tone(t + i * 0.35, f, 1.2, 'sine', 0.025));
+        else if (r < 0.4) this.noiseBurst(t, 0.15, 3200, 4, 0.02, this.musicBus!);
+        break;
+      case 'snow': // howling gust
+        if (r < 0.5) {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(380, t);
+          o.frequency.linearRampToValueAtTime(520 + r * 200, t + 1.6);
+          o.frequency.linearRampToValueAtTime(300, t + 3.2);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.02, t + 1.2);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 3.4);
+          o.connect(g).connect(this.musicBus!);
+          o.start(t);
+          o.stop(t + 3.5);
+          this.noiseBurst(t, 3.4, 900, 0.8, 0.05, this.musicBus!);
+        }
+        break;
+      case 'radio': // static burst, distant thunder
+        if (r < 0.35) this.noiseBurst(t, 0.4, 1800, 0.4, 0.03, this.musicBus!);
+        else if (r < 0.45) this.noiseBurst(t, 2.8, 90, 0.7, 0.18, this.musicBus!);
+        break;
+    }
+  }
+
   private cricket() {
+    if (!(THEMES[this.theme]?.crickets ?? true)) return;
     if (!this.ctx || this.mood.finale || Math.random() < 0.35 + this.mood.horror * 0.08) return;
     const t = this.ctx.currentTime;
     for (let i = 0; i < 3; i++) {
@@ -243,7 +332,7 @@ class AudioEngine {
   }
 
   private projectorClatter() {
-    if (!this.ctx) return;
+    if (!this.ctx || this.theme !== 'drivein') return;
     const t = this.ctx.currentTime;
     for (let i = 0; i < 24; i++) this.noiseBurst(t + i * (1 / 24), 0.015, 2500, 3, 0.012, this.musicBus!);
   }
@@ -321,6 +410,20 @@ class AudioEngine {
       case 'win':
         [57, 61, 64, 69, 73, 76].forEach((n, i) => this.tone(t + i * 0.15, 440 * Math.pow(2, (n - 69) / 12), 3, 'triangle', 0.06, 0.3));
         break;
+      case 'ring':
+        for (let i = 0; i < 2; i++) {
+          this.tone(t + i * 0.5, 440, 0.4, 'square', 0.03);
+          this.tone(t + i * 0.5, 480, 0.4, 'square', 0.03);
+        }
+        break;
+      case 'tide':
+        this.noiseBurst(t, 2.5, 300, 0.5, 0.25);
+        this.tone(t, 55, 2.5, 'sine', 0.15, 0.6);
+        break;
+      case 'blackout':
+        this.tone(t, 120, 0.8, 'sawtooth', 0.08);
+        this.noiseBurst(t, 0.3, 2000, 2, 0.15);
+        break;
       case 'lose':
         this.tone(t, 36, 4, 'sine', 0.35);
         for (const f of [73.4, 77.8]) this.tone(t, f, 4, 'sawtooth', 0.04, 1);
@@ -344,5 +447,13 @@ class AudioEngine {
     o.stop(t + dur + 0.05);
   }
 }
+
+const THEMES: Record<string, { root: number; wind: number; hum: number; rain: number; crickets: boolean }> = {
+  drivein: { root: 55, wind: 1, hum: 0, rain: 0, crickets: true }, // A
+  coast: { root: 49, wind: 1.4, hum: 0, rain: 0, crickets: false }, // G
+  hospital: { root: 58.27, wind: 0.3, hum: 0.6, rain: 0.004, crickets: false }, // B-flat
+  snow: { root: 41.2, wind: 2.2, hum: 0, rain: 0, crickets: false }, // E
+  radio: { root: 65.41, wind: 0.8, hum: 0.15, rain: 0.012, crickets: false }, // C
+};
 
 export const audio = new AudioEngine();

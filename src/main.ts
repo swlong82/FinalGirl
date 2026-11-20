@@ -3,6 +3,7 @@ import { audio } from './audio/audio';
 import { heroinePortrait, heroineToken, icon, killerPortrait, mapBackdrop, pip, victimIcon } from './art/art';
 import { eventStill, itemIcon, posterFrame } from './art/scenes';
 import { startParticles } from './ui/particles';
+import { botAction } from './engine/bot';
 import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } from './content/registry';
 import {
   check,
@@ -314,6 +315,7 @@ function renderGame() {
     </div><div id="overlay-root"></div>`;
     buildBoard();
     boardBuilt = true;
+    audio.setTheme(content!.location.art);
     startParticles(document.getElementById('particles') as HTMLCanvasElement, content!.location.art, () => !!game?.killer.finale);
   }
   updateGame();
@@ -584,7 +586,7 @@ function updateBottom() {
     .join('');
   document.getElementById('bottombar')!.innerHTML = `
     <div><div class="actions">${btns}</div>${hand ? `<div class="hand">${hand}</div>` : ''}</div>
-    <div class="endcol"><button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo last action (Z) — not after dice rolls or draws">↶ Undo</button>
+    <div class="endcol"><div class="endtools"><button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo last action (Z) — not after dice rolls or draws">↶ Undo</button><button class="btn small" data-go="hint" ${s.phase === 'action' ? '' : 'disabled'} title="What would a survivor do? (H)">💡 Hint</button></div>
     <button class="endturn" data-act="endTurn" ${s.phase === 'action' ? '' : 'disabled'}>End Turn <small style="display:block;font-size:10px;opacity:.7">${s.heroine.nerve} nerve left · E</small></button></div>`;
 }
 
@@ -730,6 +732,35 @@ function confirmEnd(): boolean {
   return false;
 }
 
+function showHint() {
+  if (!game || !content || game.phase !== 'action') return;
+  const c = content;
+  const s = game;
+  const a = botAction(c, s);
+  let txt = '';
+  switch (a.type) {
+    case 'move':
+      txt = `Move to <b>${esc(nodeName(c, a.to))}</b>.`;
+      break;
+    case 'useItem': {
+      const it = s.heroine.items.find((i) => i.uid === a.uid);
+      txt = it ? `Use <b>${esc(itemDef(c, it.id).name)}</b>.` : 'Use an item.';
+      break;
+    }
+    case 'playInstinct': {
+      const card = s.heroine.hand.find((i) => i.uid === a.uid);
+      txt = card ? `Play <b>${esc(instinctDef(c, card.id).name)}</b>.` : 'Play an Instinct.';
+      break;
+    }
+    case 'endTurn':
+      txt = 'Nothing better to do. <b>End the turn</b>.';
+      break;
+    default:
+      txt = `<b>${a.type[0].toUpperCase() + a.type.slice(1)}</b>.`;
+  }
+  toast(`💡 ${txt}`, 4000);
+}
+
 function canUndo(): boolean {
   if (!game || !history.length || game.phase !== 'action') return false;
   const prev = history[history.length - 1];
@@ -757,7 +788,7 @@ function runFx(s: GameState) {
         flash(false);
         break;
       case 'env':
-        audio.play(/High|Blackout|ringing/i.test(f.text) ? 'killer' : 'card');
+        audio.play(/High Tide/i.test(f.text) ? 'tide' : /Blackout/i.test(f.text) ? 'blackout' : /ringing/i.test(f.text) ? 'ring' : 'card');
         toast(`<b>${esc(c.location.rule.name)}</b> — ${esc(f.text)}`, 3500);
         break;
       case 'phase':
@@ -932,7 +963,7 @@ function showRules() {
   <h3>Horror</h3><p>Fear lowers your nerve and makes dice harder. Steady: 5 nerve, 4+ · Uneasy: 4, 4+ · Terrified: 4, 5+ · Breaking: 3, 5+. Past the top, terror becomes wounds.</p>
   <h3>The Finale</h3><p>At high bloodlust, if you "kill" him early, or in the last 3 rounds, the Finale begins: he comes for you. Defeat him in the Finale to win outright — or survive until <b>dawn</b>.</p>
   <h3>Weakness</h3><p>Some items are pieces of the killer's past. Finding them strips his armor.</p>
-  <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p><h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>1–6 actions · Z undo · E end turn · Space continue · R rules</p>`);
+  <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p><h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>1–7 actions · H hint · Z undo · E end turn · Space continue · R rules</p>`);
 }
 
 function showSettings() {
@@ -1047,6 +1078,8 @@ function navigate(go: string) {
       return continueGame();
     case 'undo':
       return undo();
+    case 'hint':
+      return showHint();
     case 'shuffle': {
       const prev = `${pick.killer}|${pick.location}`;
       for (let i = 0; i < 10 && `${pick.killer}|${pick.location}` === prev; i++)
@@ -1086,6 +1119,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if ((e.key === 'z' || e.key === 'Z') && !e.metaKey) return undo();
+  if (e.key === 'h' || e.key === 'H') return showHint();
   if (e.key === ' ' || e.key === 'Enter') {
     e.preventDefault();
     if (cardQueue.length) return navigate('ackTerror');

@@ -367,3 +367,5 @@ h2.section { font-family: var(--display); font-size: clamp(36px, 7vw, 60px); mar
 .board .bd { transition: filter 1.2s; }
 .board.dark .node .label { opacity: .7; }
 @media (max-width: 700px) { .rulechip { order: 3; width: 100%; } }
+.endtools { display: flex; gap: 6px; }
+.endtools .btn { flex: 1; }

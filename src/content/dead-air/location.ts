@@ -74,7 +74,7 @@ export const deadAir: LocationPack = {
   ],
   items: [
     { id: 'micstand', name: 'Mic Stand', kind: 'weapon', text: 'Fight +1 die.', fightDice: 1, copies: 2 },
-    { id: 'towerwrench', name: 'Tower Wrench', kind: 'weapon', text: 'Fight +2 dice.', fightDice: 2 },
+    { id: 'towerwrench', name: 'Tower Wrench', kind: 'weapon', text: 'Fight +2 dice.', fightDice: 2, copies: 2 },
     { id: 'nailgun', name: 'Pneumatic Nail Gun', kind: 'weapon', text: 'Fight +3 dice. 2 bursts.', fightDice: 3, uses: 2 },
     { id: 'roadflare', name: 'Road Flare', kind: 'consumable', text: 'Killer here: 2 damage (ignores armor) and stun him.', uses: 1, use: { when: 'killerHere', label: 'Strike', effects: [{ op: 'killerDamage', n: 2, ignoreArmor: true }, { op: 'killerStun', n: 1 }] } },
     { id: 'halon', name: 'Halon Extinguisher', kind: 'consumable', text: 'Killer here: blind him. Stun 1 round.', uses: 1, use: { when: 'killerHere', label: 'Spray', effects: [{ op: 'killerStun', n: 1 }] } },
