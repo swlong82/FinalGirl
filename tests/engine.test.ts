@@ -18,7 +18,7 @@ describe('engine', () => {
   it('every game terminates, for every heroine', () => {
     const tally: Record<string, Record<string, number>> = {};
     for (const h of HEROINES) {
-      tally[h.id] = { slain: 0, survived: 0, died: 0 };
+      tally[h.id] = { slain: 0, escaped: 0, died: 0 };
       for (let seed = 1; seed <= 150; seed++) {
         const s = play(h.id, seed * 7919);
         expect(s.outcome).toBeDefined();
@@ -34,7 +34,7 @@ describe('engine', () => {
     for (const l of LOCATIONS)
       for (const k of KILLERS) {
         const key = `${k.id} @ ${l.id}`;
-        tally[key] = { slain: 0, survived: 0, died: 0 };
+        tally[key] = { slain: 0, escaped: 0, died: 0 };
         for (const h of HEROINES)
           for (let seed = 1; seed <= 12; seed++) {
             const s = play(h.id, seed * 104729, l.id, k.id);

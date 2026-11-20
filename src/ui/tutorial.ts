@@ -13,7 +13,7 @@ export interface TutStep {
 export const STEPS: TutStep[] = [
   {
     title: 'Welcome to your first night',
-    text: 'You are <b>Rosa</b>, working the snack bar on the Holloway Drive-In’s last night. A killer is loose on the lot. <b>You win</b> by killing him in the Finale or surviving until <b>dawn</b>. Save as many people as you can along the way.',
+    text: 'You are <b>Rosa</b>, working the snack bar on the Holloway Drive-In’s last night. A killer is loose on the lot. <b>The only way to win is to kill him before dawn.</b> If the sun comes up and he’s still breathing, he gets away. Saving people along the way is how you get strong enough to do it.',
   },
   {
     title: 'Every round starts with an event',
@@ -23,7 +23,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'You',
-    text: '<b>Hearts</b> are your health. <b>Horror</b> builds as things go wrong and makes dice harder. <b>Nerve</b> (gold coins) pays for everything. It <b>carries over</b> between rounds (up to 8), so saving some for a bad moment is smart. Spend too much in one round and you make <b>noise</b>, which draws him toward you.',
+    text: '<b>Hearts</b> are your health. <b>Horror</b> builds as things go wrong and makes dice harder. <b>Nerve</b> (gold coins) pays for everything. It <b>resets every round</b>, so spend it. Nerve pays for cards, moves, and taking items out of your backpack.',
     target: '#heroine-panel',
   },
   {
@@ -39,7 +39,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'Your hand',
-    text: 'Your cards wait down here, ready to play. Getting hurt puts <b>Bleeding</b> cards in your hand, and they take up slots until you rest. Every marker on the map is explained under <b>Map key</b>, and you can hover any location for details.',
+    text: 'Your cards wait down here, ready to play. You start with <b>2 Walk cards</b>; moving always uses a move card. Getting hurt puts <b>Bleeding</b> cards in your hand, and they take up slots until you rest. Every marker on the map is explained under <b>Map key</b>, and you can hover any location for details.',
     target: '.actions',
   },
   {
@@ -50,7 +50,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'Someone needs you',
-    text: 'There is a survivor in <b>Parking Rows A</b> (the little figure). Moving is always available: click a glowing location. Rosa’s first move each round is <b>free</b>. Survivors left alone start to <b>panic</b> (the ! badge) and run off, so don’t make them wait.',
+    text: 'There is a survivor in <b>Parking Rows A</b> (the little figure). Click a glowing location to move. It uses your cheapest move card that reaches it, and Rosa’s first move each round costs no nerve. Survivors left alone start to <b>panic</b> (the ! badge) and run off, so don’t make them wait.',
     target: '[data-node=lotA]',
     done: (s) => s.heroine.loc === 'lotA' || s.saved > 0,
   },
@@ -62,7 +62,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'Get them out',
-    text: 'The <b>Ticket Booth</b> (green ring) is the exit. Walk your survivor there to save them. Saving people calms you and draws an Instinct card.',
+    text: 'The <b>Ticket Booth</b> (green ring) is the exit. Walk your survivor there to save them. Every rescue gives you <b>Resolve</b> (+1 fight die), an item, and an Instinct card. That’s how you get strong enough to kill him.',
     target: '[data-node=gate]',
     done: (s) => s.saved > 0,
   },
@@ -95,7 +95,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'You’re on your own now',
-    text: 'The clock at the top counts down to dawn. Stuck? Press <b>Hint</b> (H). Made a mistake? <b>Undo</b> (Z) works until you roll dice. This is <b>Matinee</b> difficulty, so take your time. Good luck.',
+    text: 'Find weapons, save people to build Resolve, then <b>hunt him down</b>. The clock at the top counts down to dawn, when he escapes. Items beyond 3 go in your <b>backpack</b>; readying one costs 1 nerve. Stuck? Press <b>Hint</b> (H). Made a mistake? <b>Undo</b> (Z) works until you roll dice. This is <b>Matinee</b> difficulty, so take your time. Good luck.',
     target: '.clock',
   },
 ];

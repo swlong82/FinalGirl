@@ -14,6 +14,7 @@ const G: Record<string, string> = {
   barricade: `<path ${S} d="M3 7h18v10H3zM7 7l4 10M13 7l4 10"/>`,
   alarm: `<circle ${S} cx="12" cy="13" r="8"/><path ${S} d="M12 9v4M12 16.5v.5M4 4l3 2M20 4l-3 2"/>`,
   person: `<circle ${S} cx="12" cy="6" r="3"/><path ${S} d="M6 21l1-8q5-3 10 0l1 8"/>`,
+  pack: `<path ${S} d="M6 8a6 6 0 0 1 12 0v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z"/><path ${S} d="M9 8V6a3 3 0 0 1 6 0v2M8 13h8v4H8z"/>`,
   key: `<circle ${S} cx="8" cy="12" r="4"/><path ${S} d="M12 12h9M17 12v3M20 12v2"/>`,
 };
 export const glyph = (name: string, cls = '') => `<svg class="glyph ${cls}" viewBox="0 0 24 24" aria-hidden="true">${G[name] ?? ''}</svg>`;

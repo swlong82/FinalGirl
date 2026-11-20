@@ -187,7 +187,9 @@ export interface ItemDef {
 export interface ActionCardDef {
   id: string;
   name: string;
-  base: 'search' | 'lead' | 'fight' | 'hide' | 'barricade' | 'rest' | 'effect' | 'junk';
+  base: 'move' | 'search' | 'lead' | 'fight' | 'hide' | 'barricade' | 'rest' | 'effect' | 'junk';
+  range?: number; // move cards: steps
+  sneak?: boolean; // move card ends hidden
   cost: number;
   dice?: number; // bonus dice
   auto?: boolean; // hide succeeds automatically
@@ -208,7 +210,7 @@ export interface InstinctDef {
 // ── Runtime state ────────────────────────────────────────────────────────────
 
 export type Phase = 'event' | 'action' | 'killer' | 'over';
-export type Outcome = 'slain' | 'survived' | 'died';
+export type Outcome = 'slain' | 'escaped' | 'died';
 
 export interface HeldItem {
   uid: number;
@@ -274,7 +276,8 @@ export interface GameState {
     maxHealth: number;
     horror: number;
     nerve: number;
-    items: HeldItem[];
+    items: HeldItem[]; // in hand: active
+    pack: HeldItem[]; // backpack: stored, inactive
     hand: HeldInstinct[];
     escorting: number;
     hidden: boolean;
@@ -316,7 +319,8 @@ export interface GameState {
   actionHand: HeldInstinct[];
   lineup: HeldInstinct[]; // face-up cards to draft from this round
   picksLeft: number;
-  panic: Record<NodeId, number>; // rounds a node's survivors have been left alone
+  panic: Record<NodeId, number>;
+  pendingFind?: number; // uid of an item just found with full hands: readying it is free // rounds a node's survivors have been left alone
   env: { tideHigh: boolean; dark: boolean; ringing?: NodeId; cold: number };
 
   currentEvent?: string;
@@ -331,6 +335,8 @@ export type Action =
   | { type: 'move'; to: NodeId }
   | { type: 'useItem'; uid: number }
   | { type: 'dropItem'; uid: number }
+  | { type: 'ready'; uid: number; swapOut?: number } // backpack → hand
+  | { type: 'stow'; uid: number } // hand → backpack (free)
   | { type: 'playInstinct'; uid: number }
   | { type: 'answer' }
   | { type: 'playCard'; uid: number }

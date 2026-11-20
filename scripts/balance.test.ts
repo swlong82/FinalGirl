@@ -13,7 +13,7 @@ it('balance report', () => {
   const byHeroine: Record<string, number[]> = {};
   const add = (m: Record<string, number[]>, k: string, o: string) => {
     m[k] ??= [0, 0, 0];
-    m[k][o === 'slain' ? 0 : o === 'survived' ? 1 : 2]++;
+    m[k][o === 'slain' ? 0 : o === 'escaped' ? 1 : 2]++;
   };
   for (const l of LOCATIONS)
     for (const k of KILLERS)
@@ -26,7 +26,7 @@ it('balance report', () => {
           add(byHeroine, h.id, s.outcome!);
         }
   const fmt = (m: Record<string, number[]>) =>
-    Object.fromEntries(Object.entries(m).map(([k, [a, b, d]]) => [k, { slain: pct(a, a + b + d), survived: pct(b, a + b + d), died: pct(d, a + b + d) }]));
+    Object.fromEntries(Object.entries(m).map(([k, [a, b, d]]) => [k, { slain: pct(a, a + b + d), escaped: pct(b, a + b + d), died: pct(d, a + b + d) }]));
   console.table(fmt(byLoc));
   console.table(fmt(byKiller));
   console.table(fmt(byHeroine));

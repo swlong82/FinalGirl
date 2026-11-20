@@ -63,6 +63,27 @@ export function botAction(c: Content, s: GameState): Action {
   const cold = rule === 'cold' && !c.heroine.traits.coldImmune ? s.env.cold : 0;
   const wounded = h.maxHealth - h.health;
 
+  // ── Backpack: keep the best tools in hand ──
+  {
+    const score = (id: string) => {
+      const d = itemDef(c, id);
+      if (d.use?.when === 'killerHere') return 6;
+      if (d.fightDice) return 3 + d.fightDice;
+      if (d.use && heals(d.use.effects) && wounded >= 2) return 5;
+      if (d.searchDice) return 2;
+      if (d.use && hasOp(d.use.effects, 'teleportHeroine') && h.escorting > 0) return 7;
+      return 1;
+    };
+    const best = h.pack.filter((p) => itemDef(c, p.id).kind !== 'lore' || itemDef(c, p.id).fightDice).sort((p, q) => score(q.id) - score(p.id))[0];
+    if (best) {
+      const worst = [...h.items].sort((p, q) => score(p.id) - score(q.id))[0];
+      const free = s.pendingFind === best.uid;
+      const gain = score(best.id) - (worst ? score(worst.id) : 0);
+      const a: Action = { type: 'ready', uid: best.uid, swapOut: h.items.length >= 3 ? worst?.uid : undefined };
+      if ((free ? gain > 0 : gain >= 3 && h.nerve >= 3) && check(c, s, a).ok) return a;
+    }
+  }
+
   // ── Items ──
   for (const it of h.items) {
     const d = itemDef(c, it.id);
@@ -95,7 +116,7 @@ export function botAction(c: Content, s: GameState): Action {
     if (hasOp(e, 'warm') && cold >= 1) return a;
     if (adds(e) && h.nerve <= 1 && (h.escorting > 0 || (s.victims[h.loc] ?? 0) > 0 || killerHere)) return a;
     if (modKey(e, 'searchDice') && (s.searches[h.loc] ?? 0) > 0 && h.nerve >= 1) return a;
-    if (hasOp(e, 'drawItem') && h.items.length < 4) return a;
+    if (hasOp(e, 'drawItem') && h.items.length + h.pack.length < 8) return a;
   }
 
   // ── Draft: take what this situation needs ──
@@ -104,14 +125,16 @@ export function botAction(c: Content, s: GameState): Action {
       const have = (b: string) => s.actionHand.filter((x) => actionDef(c, x.id).base === b).length;
       const victimsAround = Object.values(s.victims).some((n) => n > 0);
       switch (d.base) {
+        case 'move':
+          return 9 - have('move') * 3 + (d.range ?? 1) - (d.sneak && !killerNear ? 1 : 0);
         case 'fight':
-          return (killerNear || k.finale ? 9 : 4) - have('fight') * 3 + (d.dice ?? 0);
+          return (killerNear || k.finale || s.round >= s.dawnAt - 6 ? 10 : 5) - have('fight') * 3 + (d.dice ?? 0);
         case 'hide':
           return (killerNear ? 7 : 3) - have('hide') * 3 + (d.auto ? 2 : 0);
         case 'lead':
           return (victimsAround ? 8 : 1) - have('lead') * 4;
         case 'search':
-          return (h.items.length < 3 ? 6 : 2) - have('search') * 3 + (d.dice ?? 0) / 2;
+          return (h.items.length < 3 ? 6 : 3) - have('search') * 3 + (d.dice ?? 0) / 2;
         case 'rest':
           return (wounded > 0 || h.horror >= 3 || s.actionHand.some((x) => actionDef(c, x.id).junk) ? 7 : 1) - have('rest') * 4;
         case 'effect':
@@ -137,7 +160,7 @@ export function botAction(c: Content, s: GameState): Action {
     const dice = fightDice(c, s);
     const expectHit = dice * ((7 - 4) / 6) - k.armor;
     const theirHit = killerAttackDice(c, s) * 0.5;
-    const brave = k.finale || expectHit >= 1 || h.health > theirHit + 2;
+    const brave = k.finale || expectHit >= 0.5 || h.health > theirHit + 1 || s.round >= s.dawnAt - 4;
     if (brave && card('fight')) return card('fight')!;
     if (h.health <= 2 && !h.hidden && card('hide') && h.nerve <= 2) return card('hide')!;
     // flee toward exit if escorting, else away from him
@@ -169,7 +192,7 @@ export function botAction(c: Content, s: GameState): Action {
     if (a) return a;
   }
 
-  if (card('search') && h.items.length < 4 && !killerNear) return card('search')!;
+  if (card('search') && !killerNear) return card('search')!;
 
   const victim = nearest(c, s, (n) => (s.victims[n] ?? 0) > 0 && n !== k.loc);
   if (victim) {
@@ -177,7 +200,7 @@ export function botAction(c: Content, s: GameState): Action {
     if (a && (h.nerve >= 2 || !killerNear)) return a;
   }
 
-  if (card('search') && h.items.length < 5) return card('search')!;
+  if (card('search')) return card('search')!;
   if (!killerNear && card('rest') && (wounded > 0 || h.horror >= 2)) return card('rest')!;
   if (killerNear && !h.hidden && card('hide')) return card('hide')!;
   if (killerNear && card('barricade')) return card('barricade')!;
@@ -187,10 +210,13 @@ export function botAction(c: Content, s: GameState): Action {
     const inside = neighbors(c, h.loc).find((n) => !hasTag(c, n, 'outdoor') && ok({ type: 'move', to: n }));
     if (inside) return { type: 'move', to: inside };
   }
-  // In the finale, go hunting with weapons — or wait for him in cover.
-  if (k.finale && fightDice(c, s) >= 5) {
+  // The only win is killing him: once armed (or running out of night), go hunting.
+  const armed = fightDice(c, s) >= 4 || h.items.some((i) => itemDef(c, i.id).use?.when === 'killerHere');
+  const late = s.round >= s.dawnAt - 5;
+  const haveFight = s.actionHand.some((x) => actionDef(c, x.id).base === 'fight');
+  if ((armed || late || k.finale) && haveFight && h.health >= 2) {
     const a = stepToward(c, s, k.loc);
-    if (a && h.nerve >= 3) return a;
+    if (a && h.nerve >= 2) return a;
   }
   return { type: 'endTurn' };
 }

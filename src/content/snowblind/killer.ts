@@ -6,7 +6,7 @@ export const snowblind: KillerPack = {
   name: 'The Snowblind',
   epithet: 'Wes Corder, who came down off the mountain',
   art: 'snowblind',
-  health: 10,
+  health: 8,
   armor: 1,
   attackDice: 2,
   attackThreshold: 4,

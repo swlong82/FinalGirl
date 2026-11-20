@@ -5,7 +5,7 @@ export const projectionist: KillerPack = {
   id: 'the-projectionist',
   name: 'The Projectionist',
   epithet: 'Orrin Vale, who never left the booth',
-  health: 10,
+  health: 8,
   armor: 1,
   attackDice: 2,
   attackThreshold: 4,

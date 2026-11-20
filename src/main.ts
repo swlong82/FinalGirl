@@ -15,8 +15,10 @@ import {
   junkCount,
   handRoom,
   ACTION_HAND,
-  NERVE_CAP,
-  NOISE_EVERY,
+  HAND_SLOTS,
+  READY_COST,
+  resolve,
+  RESOLVE_CAP,
   PANIC_AT,
   hasTag,
   isFlooded,
@@ -394,21 +396,21 @@ let draftClosedRound = -1;
 
 function renderStats() {
   const stats = load<GameRecord[]>(STATS_KEY, []);
-  const wins = stats.filter((r) => r.outcome !== 'died').length;
+  const wins = stats.filter((r) => r.outcome === 'slain').length;
   const best = stats.reduce((m, r) => Math.max(m, r.score), 0);
   const byHeroine = HEROINES.map((h) => {
     const rs = stats.filter((r) => r.heroine === h.id);
-    const w = rs.filter((r) => r.outcome !== 'died').length;
+    const w = rs.filter((r) => r.outcome === 'slain').length;
     return `<tr><td>${esc(h.name)}</td><td>${rs.length}</td><td>${w}</td><td>${rs.length ? Math.round((w / rs.length) * 100) : 0}%</td><td>${rs.reduce((m, r) => Math.max(m, r.score), 0)}</td></tr>`;
   }).join('');
   const byKiller = KILLERS.map((k) => {
     const rs = stats.filter((r) => r.killer === k.id);
-    return `<tr><td>${esc(k.name)}</td><td>${rs.length}</td><td>${rs.filter((r) => r.outcome === 'slain').length}</td><td>${rs.filter((r) => r.outcome === 'survived').length}</td><td>${rs.filter((r) => r.outcome === 'died').length}</td></tr>`;
+    return `<tr><td>${esc(k.name)}</td><td>${rs.length}</td><td>${rs.filter((r) => r.outcome === 'slain').length}</td><td>${rs.filter((r) => r.outcome === 'escaped').length}</td><td>${rs.filter((r) => r.outcome === 'died').length}</td></tr>`;
   }).join('');
   const recent = stats.slice(-8).reverse().map((r) => `<tr><td>${new Date(r.at).toLocaleDateString()}</td><td>${esc(HEROINES.find((h) => h.id === r.heroine)?.name ?? r.heroine)}</td><td>${esc(KILLERS.find((k) => k.id === r.killer)?.name ?? r.killer)}</td><td>${esc(DIFFICULTY[r.difficulty]?.label ?? '')}</td><td>${r.outcome}</td><td>${r.score}</td></tr>`).join('');
   app.innerHTML = `<div class="screen">${backdrop()}
     <h2 class="section">Box Office</h2>
-    <div class="tagline">${stats.length} nights · ${wins} survived · best score ${best}</div>
+    <div class="tagline">${stats.length} nights · ${wins} killers stopped · best score ${best}</div>
     <div class="modal" style="max-height:none">
       ${stats.length ? `<h3>By heroine</h3><table><tr><th>Heroine</th><th>Played</th><th>Lived</th><th>Rate</th><th>Best</th></tr>${byHeroine}</table>
       <h3>By killer</h3><table><tr><th>Killer</th><th>Played</th><th>Slain</th><th>Survived</th><th>Died</th></tr>${byKiller}</table>
@@ -473,38 +475,44 @@ function updateGame() {
   // heroine panel
   const hearts = Array.from({ length: h.maxHealth }, (_, i) => `<svg class="heart ${i < h.health ? '' : 'empty'}" viewBox="0 0 24 22"><path d="M12 21 C-6 9 4 -4 12 5 C20 -4 30 9 12 21 Z"/></svg>`).join('');
   const meter = Array.from({ length: 6 }, (_, i) => `<i class="${i < h.horror ? 'on' : ''}"></i>`).join('');
-  const nerve = Array.from({ length: NERVE_CAP }, (_, i) => `<i class="${i < h.nerve ? 'on' : ''}"></i>`).join('');
-  const noiseLeft = NOISE_EVERY - (h.spentThisRound % NOISE_EVERY);
-  const noise = Array.from({ length: NOISE_EVERY }, (_, i) => `<i class="${i < h.spentThisRound % NOISE_EVERY ? 'on' : ''}"></i>`).join('');
-  const items = h.items.length
-    ? h.items
-        .map((it) => {
-          const d = itemDef(c, it.id);
-          const chk = check(c, s, { type: 'useItem', uid: it.uid });
-          return `<div class="item ${d.kind}" title="${esc(d.lore ?? d.text)}">
-            ${itemIcon(d)}<div class="grow"><div class="name">${esc(d.name)}${it.usesLeft !== undefined ? ` <span class="k">×${it.usesLeft}</span>` : ''}</div><div class="txt">${esc(d.text)}</div></div>
-            <div class="acts">${d.use ? `<button class="btn small" data-item="${it.uid}" ${chk.ok ? '' : `disabled title="${esc(chk.why ?? '')}"`}>${esc(d.use.label)}</button>` : ''}
-            <button class="btn small" data-drop="${it.uid}" title="Drop">✕</button></div>
-          </div>`;
-        })
-        .join('')
-    : '<div class="empty-note">Empty-handed. Search to find something.</div>';
+  const nerve = Array.from({ length: Math.max(h.nerve, tier.nerve) }, (_, i) => `<i class="${i < h.nerve ? 'on' : ''}"></i>`).join('');
+  const itemRow = (it: { uid: number; id: string; usesLeft?: number }, where: 'hand' | 'pack') => {
+    const d = itemDef(c, it.id);
+    const uses = it.usesLeft !== undefined ? ` <span class="k">×${it.usesLeft}</span>` : '';
+    let btns = '';
+    if (where === 'hand') {
+      const chk = check(c, s, { type: 'useItem', uid: it.uid });
+      if (d.use) btns += `<button class="btn small" data-item="${it.uid}" ${chk.ok ? '' : `disabled title="${esc(chk.why ?? '')}"`}>${esc(d.use.label)}</button>`;
+      btns += `<button class="btn small ghost" data-stow="${it.uid}" title="Put in backpack (free)">Stow</button>`;
+    } else if (d.kind !== 'lore' || d.fightDice) {
+      const full = h.items.length >= HAND_SLOTS;
+      const free = s.pendingFind === it.uid;
+      btns += `<button class="btn small" data-ready="${it.uid}" ${s.phase === 'action' ? '' : 'disabled'} title="${full ? 'Hands full: you will choose what to put away' : 'Take it out'}">Ready · ${free ? 'free' : `${READY_COST}◉`}</button>`;
+    }
+    return `<div class="item ${d.kind} ${where}" title="${esc(d.lore ?? d.text)}">${itemIcon(d)}<div class="grow"><div class="name">${esc(d.name)}${uses}</div><div class="txt">${esc(d.text)}</div></div><div class="acts">${btns}</div></div>`;
+  };
+  const slots = Array.from({ length: HAND_SLOTS }, (_, i) => (h.items[i] ? itemRow(h.items[i], 'hand') : '<div class="item slot-empty">Empty hand slot</div>')).join('');
+  const packRows = h.pack.map((it) => itemRow(it, 'pack')).join('');
+  const items = `<div class="items">${slots}</div>
+    <h4 class="pack-h">${glyph('pack')} Backpack <span class="h4-note">${h.pack.length} item${h.pack.length === 1 ? '' : 's'} · inactive until readied</span></h4>
+    <div class="items pack">${packRows || '<div class="empty-note">Nothing stored yet.</div>'}</div>`;
   document.getElementById('heroine-panel')!.innerHTML = `
     <div class="who">${heroinePortrait(c.heroine, { grim: h.horror / 6, hurt: 1 - h.health / h.maxHealth })}
       <div><h3>${esc(c.heroine.name)}</h3><div class="sub">${esc(c.heroine.title)}</div><div class="hearts" title="Health">${hearts}</div></div>
     </div>
     <h4>Horror</h4>
     <div class="meter" title="Horror lowers nerve and makes rolls harder">${meter}</div>
-    <div class="tierline"><b>${tier.name}</b><span>+${tier.nerve} nerve/round · dice ${tier.threshold}+</span></div>
-    <h4>Nerve <span class="h4-note">${h.nerve}/${NERVE_CAP} banked</span></h4>
-    <div class="nerve" title="Nerve carries over between rounds (max ${NERVE_CAP}). You gain +${tier.nerve} each round.">${nerve}</div>
-    <div class="noise" title="Every ${NOISE_EVERY} nerve you spend in one round makes noise: the killer takes a step toward you."><span>Noise</span><div class="noise-bar">${noise}</div><small>${noiseLeft} until he hears you</small></div>
+    <div class="tierline"><b>${tier.name}</b><span>${tier.nerve} nerve each round · dice ${tier.threshold}+</span></div>
+    <h4>Nerve <span class="h4-note">use it or lose it</span></h4>
+    <div class="nerve" title="Nerve resets every round. Spend it on cards, moves and readying items.">${nerve}</div>
+    <h4>Resolve <span class="h4-note">+${resolve(s)} fight dice</span></h4>
+    <div class="resolve" title="Each survivor you save adds +1 fight die (max ${RESOLVE_CAP}). Saving people is how you get strong enough to kill him.">${Array.from({ length: RESOLVE_CAP }, (_, i) => `<i class="${i < resolve(s) ? 'on' : ''}"></i>`).join('')}</div>
     <h4>Passive</h4>
     <div class="passive-box"><b>${esc(c.heroine.passive.name)}.</b> ${esc(c.heroine.passive.text)}</div>
     <h4>Escorting</h4>
     <div class="vics" style="height:22px">${h.escorting ? Array(h.escorting).fill(victimIcon()).join('') : '<span class="empty-note">No one with her.</span>'}</div>
-    <h4>Items (${h.items.length}/5)</h4>
-    <div class="items">${items}</div>`;
+    <h4>In hand <span class="h4-note">${h.items.length}/${HAND_SLOTS} · only these work</span></h4>
+    ${items}`;
 
   // killer panel
   const totalPhases = (c.killer.finale.phases?.length ?? 0) + 1;
@@ -735,6 +743,28 @@ function updateOverlay() {
       </div></div></div>`;
     return;
   }
+  const swapUid = s.pendingFind ?? swapFor ?? undefined;
+  const swapItem = swapUid !== undefined ? s.heroine.pack.find((x) => x.uid === swapUid) : undefined;
+  if (s.phase === 'action' && swapItem) {
+    const d = itemDef(c, swapItem.id);
+    const found = s.pendingFind === swapItem.uid;
+    const cost = found ? 0 : READY_COST;
+    const card = (id: string, extra = '') => {
+      const x = itemDef(c, id);
+      return `<div class="itemcard ${x.kind} ${extra}">${itemIcon(x)}<b>${esc(x.name)}</b><span>${esc(x.text)}</span></div>`;
+    };
+    root.innerHTML = `<div class="overlay"><div class="swap">
+      <div class="kind">${found ? 'Found it!' : 'Swap from the backpack'} · ${cost ? `${cost} nerve` : 'free swap'}</div>
+      <h2>${found ? 'Your hands are full' : 'Make room'}</h2>
+      <div class="swap-new">${card(swapItem.id, 'new')}</div>
+      <p>${found ? `Take the <b>${esc(d.name)}</b> into your hands now (free), putting one of these in the backpack, or keep it stored. Readying it later costs ${READY_COST} nerve.` : 'Choose what goes into the backpack:'}</p>
+      <div class="swap-row">${s.heroine.items
+        .map((it) => `<button class="swap-opt" data-swap="${swapItem.uid}" data-out="${it.uid}" ${check(c, s, { type: 'ready', uid: swapItem.uid, swapOut: it.uid }).ok ? '' : 'disabled'}>${card(it.id)}<small>Put this away</small></button>`)
+        .join('')}</div>
+      <button class="btn" data-go="keepStored">Keep ${esc(d.name)} in the backpack</button>
+    </div></div>`;
+    return;
+  }
   if (s.phase === 'action' && s.lineup.length && s.picksLeft > 0 && handRoom(s) > 0 && draftClosedRound !== s.round) {
     const cardHtml = (x: { uid: number; id: string }, take: boolean) => {
       const d = actionDef(c, x.id);
@@ -775,11 +805,11 @@ function updateOverlay() {
   }
   if (s.phase === 'over') {
     const r = rating(s);
-    const title = s.outcome === 'slain' ? 'THE END' : s.outcome === 'survived' ? 'DAWN' : 'CUT TO BLACK';
+    const title = s.outcome === 'slain' ? 'THE END' : s.outcome === 'escaped' ? 'HE GOT AWAY' : 'CUT TO BLACK';
     const sub =
       s.outcome === 'slain'
         ? `${c.heroine.name} stands over what is left of ${c.killer.name}. The projector winds down to silence.`
-        : s.outcome === 'survived'
+        : s.outcome === 'escaped'
           ? `Sunlight finds ${c.heroine.name} at the edge of the lot. ${c.killer.name} is gone — but the booth door is open.`
           : `${c.heroine.name} does not make it to the credits.`;
     const lore = c.killer.items.filter((i) => s.foundLore.includes(i.id));
@@ -809,6 +839,7 @@ function act(a: Action) {
     if (!confirmEnd()) return;
   }
   if (a.type === 'endTurn') killerLogStart = game.log.length;
+  swapFor = null;
   const prev = game;
   const next = dispatch(content, game, a);
   if (next === game) return;
@@ -827,6 +858,14 @@ function confirmEnd(): boolean {
   endWarned = game!.round;
   toast(`You still have ${game!.heroine.nerve} nerve. Press End Turn again to let him move.`);
   return false;
+}
+
+let swapFor: number | null = null;
+function readyItem(uid: number) {
+  if (!game) return;
+  if (game.heroine.items.length < HAND_SLOTS) return act({ type: 'ready', uid });
+  swapFor = uid;
+  updateOverlay();
 }
 
 function showMapKey() {
@@ -1111,26 +1150,25 @@ function modal(html: string) {
 function showRules() {
   modal(`<h2>How to Play</h2>
   <p><button class="btn small primary" data-go="tutorial">▶ Play the guided first night</button></p>
-  <p>You are the last one who can stop it. Each <b>round</b> has three beats:</p>
+  <p><b>Goal: kill the killer before dawn.</b> You are the last one who can stop it. Each <b>round</b> has three beats:</p>
   <h3>1 · Event</h3><p>Draw an event card: new survivors stumble in, the fog rolls, or the killer makes his move.</p>
   <h3>2 · Your actions</h3>
-  <p><b>Nerve</b> pays for everything. You gain nerve each round (+3, or +2 when Breaking) and <b>unspent nerve carries over</b>, up to 8. Saving up for a bad round is often the right call.</p>
-  <p><b>Noise:</b> every ${NOISE_EVERY} nerve you spend in one round makes noise, and the killer takes a step toward you.</p>
-  <p><b>Moving</b> is always available: click a glowing location (1 nerve, 2 to flee the killer, +1 when escorting 3 or more). Everything else comes from your <b>hand of action cards</b>. Each round 6 cards are dealt face up as <b>the lineup</b>: take up to 3 for free (hand max ${ACTION_HAND}), then pay nerve to play them. Cards you don't take are gone at the end of the round.</p>
+  <p><b>Nerve</b> pays for everything and <b>resets every round</b> (Steady 5, Uneasy 4, Terrified 4, Breaking 3). Spend it or lose it.</p>
+  <p>Your actions are <b>cards</b>. Each round 6 are dealt face up as <b>the lineup</b>: take up to 3 for free (hand max ${ACTION_HAND}), then pay nerve to play them. You start the night with 2 Walk cards.</p>
   <table><tr><th>Card</th><th>Cost</th><th>What it does</th></tr>
+  <tr><td>Walk / Run / Slip Away</td><td>1 / 2 / 1</td><td>Move 1, up to 2, or 1 step and hide. Click a glowing location; the cheapest card that reaches it is used. +1 to flee his room, +1 into flooding, +1 with 3+ in tow.</td></tr>
   <tr><td>Search / Ransack</td><td>1 / 2</td><td>Roll dice (Ransack +2); each success finds an item (max 2).</td></tr>
-  <tr><td>Lead</td><td>1</td><td>Survivors here follow you. Bring them to the exit to save them.</td></tr>
-  <tr><td>Fight / Desperate Swing</td><td>2 / 3</td><td>Roll 3 dice + best weapon (+2 for Swing). Damage = successes − armor.</td></tr>
+  <tr><td>Lead</td><td>1</td><td>Survivors here follow you. Bring them to the exit.</td></tr>
+  <tr><td>Fight / Desperate Swing</td><td>2 / 3</td><td>Roll 3 dice + best weapon in hand + Resolve (+2 for Swing). Damage = successes − armor.</td></tr>
   <tr><td>Hide / Hold Your Breath</td><td>1 / 2</td><td>Roll to hide, or hide automatically. He may still search the room.</td></tr>
   <tr><td>Barricade</td><td>2</td><td>He must break it before entering this location.</td></tr>
-  <tr><td>Catch Your Breath</td><td>2</td><td>Heal or calm, and clear a Bleeding card.</td></tr>
-  <tr><td>Sprint</td><td>1</td><td>Your next 2 moves are free.</td></tr></table>
-  <p><b>Bleeding</b> cards go straight into your hand when you're hit and take up a slot until you rest or heal. <b>Panic</b> cards appear at high horror; pay 1 nerve to shake one off.</p>
-  <p><b>Survivors panic</b> when left alone (the ! badge). After ${PANIC_AT} rounds without you, one may bolt to a nearby location, possibly straight into the killer.</p>
-  <p><b>Items</b> are used for free. <b>Instinct cards</b> are played for free; you draw one each round and when you save survivors.</p>
+  <tr><td>Catch Your Breath</td><td>2</td><td>Heal or calm, and clear a Bleeding card.</td></tr></table>
+  <p><b>Saving survivors</b> is how you get strong enough to win: each one gives <b>Resolve</b> (+1 fight die, max ${RESOLVE_CAP}), hands you an item, and gives you an Instinct card.</p>
+  <p><b>Items:</b> you hold ${HAND_SLOTS} in hand, and only those work. Everything else goes in your <b>backpack</b> (unlimited). Readying an item from the backpack costs ${READY_COST} nerve, except right when you find it, when the swap is free.</p>
+  <p><b>Bleeding</b> cards go into your hand when you're hit and take up a slot until you rest or heal. <b>Panic</b> cards appear at high horror; pay 1 nerve to shake one off. <b>Survivors panic</b> when left alone; after ${PANIC_AT} rounds one may bolt.</p>
   <h3>3 · The killer</h3><p>If he's with you and you're not hidden, he <b>attacks</b>. Otherwise, if survivors are with him, he <b>kills one</b> (bloodlust +2). Otherwise he hunts toward the nearest prey.</p>
   <h3>Horror</h3><p>Fear makes dice harder and slows your nerve. Steady and Uneasy: +3 nerve, 4+. Terrified: +3, 5+. Breaking: +2, 5+. Past the top, terror becomes wounds.</p>
-  <h3>The Finale</h3><p>At high bloodlust, if you "kill" him early, or in the last 3 rounds, the Finale begins: he comes for you. Defeat him in the Finale to win outright — or survive until <b>dawn</b>.</p>
+  <h3>Winning</h3><p><b>The only win is killing him.</b> At high bloodlust, if you "kill" him early (he gets back up), or in the last 3 rounds, the Finale begins and he comes for you. Finish every Finale phase before <b>dawn</b>, or he gets away and you lose.</p>
   <h3>Weakness</h3><p>Some items are pieces of the killer's past. Finding them strips his armor.</p>
   <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p><h3>Terror</h3><p>Every 4 bloodlust, the killer reveals a Terror card: a permanent escalation.</p><h3>Keys</h3><p>Hover a location for details · Map key button explains every marker · 1–5 play cards · A answer · H hint · Z undo · E end turn · Space continue · R rules</p>`);
 }
@@ -1226,6 +1264,12 @@ app.addEventListener('click', (e) => {
   if (drop) return act({ type: 'dropItem', uid: +drop });
   const draftUid = t.closest<HTMLElement>('[data-draft]')?.dataset.draft;
   if (draftUid) return act({ type: 'draft', uid: +draftUid });
+  const stowUid = t.closest<HTMLElement>('[data-stow]')?.dataset.stow;
+  if (stowUid) return act({ type: 'stow', uid: +stowUid });
+  const readyUid = t.closest<HTMLElement>('[data-ready]')?.dataset.ready;
+  if (readyUid) return readyItem(+readyUid);
+  const swapBtn = t.closest<HTMLElement>('[data-swap]');
+  if (swapBtn) return act({ type: 'ready', uid: +swapBtn.dataset.swap!, swapOut: swapBtn.dataset.out ? +swapBtn.dataset.out : undefined });
   const cardUid = t.closest<HTMLElement>('[data-card]')?.dataset.card;
   if (cardUid) return act({ type: 'playCard', uid: +cardUid });
   const ins = t.closest<HTMLElement>('[data-instinct]')?.dataset.instinct;
@@ -1253,6 +1297,10 @@ function navigate(go: string) {
       return continueGame();
     case 'undo':
       return undo();
+    case 'keepStored':
+      swapFor = null;
+      if (game) game.pendingFind = undefined;
+      return updateOverlay();
     case 'closeDraft':
       if (game) draftClosedRound = game.round;
       return updateOverlay();

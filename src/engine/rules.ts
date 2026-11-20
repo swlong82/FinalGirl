@@ -19,31 +19,29 @@ import type {
 // ── Tunables ────────────────────────────────────────────────────────────────
 export const COST = { move: 1, flee: 2, search: 1, lead: 1, fight: 2, hide: 1, barricade: 2, rest: 2 };
 export const BASE_DICE = { search: 2, fight: 3, hide: 2, rest: 2 };
-export const MAX_ITEMS = 5;
+export const HAND_SLOTS = 3; // items in hand; the backpack is unlimited
+export const READY_COST = 1; // nerve to take an item out of the backpack
 export const MAX_HAND = 4;
 export const MAX_HORROR = 6;
 export const DEFAULT_ESCORT = 3;
 export const VICTIM_POOL = 12;
-export const DAWN_ROUND = 13;
-export const NERVE_CAP = 8;
-export const NERVE_START = 3;
+export const DAWN_ROUND = 14;
 export const ACTION_HAND = 5; // hand cap for drafting
 export const LINEUP_SIZE = 6;
 export const PICKS = 3;
-export const NOISE_EVERY = 6;
 export const PANIC_AT = 4;
 
 export interface Tier {
   name: string;
-  nerve: number; // nerve gained per round (banked, up to NERVE_CAP)
+  nerve: number; // nerve each round (resets; unspent nerve is lost)
   threshold: number;
 }
 
 export function horrorTier(h: number): Tier {
-  if (h <= 1) return { name: 'Steady', nerve: 3, threshold: 4 };
-  if (h <= 3) return { name: 'Uneasy', nerve: 3, threshold: 4 };
-  if (h <= 5) return { name: 'Terrified', nerve: 3, threshold: 5 };
-  return { name: 'Breaking', nerve: 2, threshold: 5 };
+  if (h <= 1) return { name: 'Steady', nerve: 5, threshold: 4 };
+  if (h <= 3) return { name: 'Uneasy', nerve: 4, threshold: 4 };
+  if (h <= 5) return { name: 'Terrified', nerve: 4, threshold: 5 };
+  return { name: 'Breaking', nerve: 3, threshold: 5 };
 }
 
 export function actionDef(c: Content, id: string): ActionCardDef {
@@ -142,8 +140,9 @@ export function newGame(c: Content, seed: number, difficulty: Difficulty = 'stan
       health: c.heroine.health,
       maxHealth: c.heroine.health,
       horror: 0,
-      nerve: NERVE_START,
+      nerve: 0,
       items: [],
+      pack: [],
       hand: [],
       escorting: 0,
       hidden: false,
@@ -194,6 +193,12 @@ export function newGame(c: Content, seed: number, difficulty: Difficulty = 'stan
   s.instinctDeck = shuffle(s, expand(allInstincts(c)));
   s.terrorDeck = shuffle(s, expand(c.killer.terror));
   s.actionDeck = shuffle(s, expand(c.actions.filter((a) => !a.junk)));
+  // Starter kit: two Walk cards in hand so the first round is never stranded.
+  for (let i = 0; i < 2; i++) {
+    const j = s.actionDeck.indexOf('ac-walk');
+    if (j >= 0) s.actionDeck.splice(j, 1);
+    s.actionHand.push({ uid: s.uid++, id: 'ac-walk' });
+  }
   for (const at of c.location.setupVictims) placeVictims(c, s, at, 1);
   drawInstinct(s, 2);
   log(s, `The feature begins. ${c.heroine.name} arrives at ${nodeName(c, s.heroine.loc)}.`, 'info');
@@ -248,7 +253,7 @@ export function dealLineup(c: Content, s: GameState) {
   }
   // Never a dead lineup: guarantee at least one Lead and one way to deal with him.
   const has = (base: string) => s.lineup.some((x) => actionDef(c, x.id).base === base) || s.actionHand.some((x) => actionDef(c, x.id).base === base);
-  for (const [need, alt] of [['lead', 'lead'], ['hide', 'fight']] as const) {
+  for (const [need, alt] of [['move', 'move'], ['lead', 'lead'], ['hide', 'fight']] as const) {
     if (has(need) || has(alt) || !s.lineup.length) continue;
     const i = s.actionDeck.findIndex((id) => actionDef(c, id).base === need);
     if (i < 0) continue;
@@ -283,11 +288,13 @@ export function handRoom(s: GameState) {
 
 function gainItem(c: Content, s: GameState, id: string) {
   const d = itemDef(c, id);
-  if (s.heroine.items.length >= MAX_ITEMS) {
-    log(s, `Hands full — ${d.name} left behind.`, 'info');
-    return;
+  const it = { uid: s.uid++, id, usesLeft: d.uses };
+  if (d.kind === 'lore') s.heroine.pack.push(it); // lore works the moment it's found
+  else if (s.heroine.items.length < HAND_SLOTS) s.heroine.items.push(it);
+  else {
+    s.heroine.pack.push(it);
+    s.pendingFind = it.uid;
   }
-  s.heroine.items.push({ uid: s.uid++, id, usesLeft: d.uses });
   log(s, `Found: ${d.name}.`, 'good');
   s.fx.push({ t: 'item' });
   if (d.lore && !s.foundLore.includes(d.id)) s.foundLore.push(d.id);
@@ -361,8 +368,8 @@ function endGame(c: Content, s: GameState, o: GameState['outcome']) {
     log(s, `${c.killer.name} is finished. The reel runs out.`, 'good');
     s.fx.push({ t: 'win' });
   } else {
-    log(s, `Dawn breaks over ${c.location.name}. ${c.killer.name} is gone… for now.`, 'good');
-    s.fx.push({ t: 'win' });
+    log(s, `Dawn breaks over ${c.location.name}. ${c.killer.name} is gone, and he will kill again.`, 'bad');
+    s.fx.push({ t: 'lose' });
   }
 }
 
@@ -425,7 +432,7 @@ function damageKiller(c: Content, s: GameState, n: number, ignoreArmor = false) 
   if (k.health <= 0) {
     if (!k.finale) {
       k.risen = true;
-      k.health = Math.ceil(k.maxHealth / 2);
+      k.health = Math.min(4, k.maxHealth);
       log(s, `${c.killer.name} collapses… and then, slowly, sits up.`, 'killer');
       triggerFinale(c, s, 'risen');
     } else {
@@ -457,6 +464,14 @@ function saveEscorted(c: Content, s: GameState) {
   s.fx.push({ t: 'saved', n });
   addHorror(c, s, -(c.heroine.traits.saveHorror ?? 1) * n);
   drawInstinct(s, 1 + (c.heroine.traits.saveDraw ?? 0));
+  // Survivors pay you back: each one presses something useful into your hands.
+  for (let i = 0; i < n; i++) {
+    const id = s.itemDeck.pop();
+    if (id) {
+      log(s, 'A survivor hands her something on the way out.', 'good');
+      gainItem(c, s, id);
+    }
+  }
 }
 
 function checkCond(c: Content, s: GameState, cond: Condition): boolean {
@@ -625,7 +640,7 @@ function stepAwayFrom(c: Content, s: GameState, at: NodeId): NodeId {
 // ── Round flow ──────────────────────────────────────────────────────────────
 function startRound(c: Content, s: GameState) {
   if (s.round > s.dawnAt) {
-    endGame(c, s, 'survived');
+    endGame(c, s, 'escaped');
     return;
   }
   if (!s.killer.finale && s.round >= s.dawnAt - 3) triggerFinale(c, s, 'clock');
@@ -734,15 +749,6 @@ function ruleRoundEnd(c: Content, s: GameState) {
   }
 }
 
-/** Spending a lot of nerve in one round makes noise: he takes a step toward her. */
-function makeNoise(c: Content, s: GameState) {
-  const k = s.killer;
-  const h = s.heroine;
-  if (k.stunned > 0 || k.loc === h.loc || s.outcome) return;
-  log(s, `Too loud. ${c.killer.name} hears her.`, 'killer');
-  applyEffect(c, s, { op: 'killerMove', toward: 'heroine', steps: 1 });
-}
-
 /** Survivors left alone get more frightened each round; at PANIC_AT one of them bolts. */
 function survivorClock(c: Content, s: GameState) {
   const h = s.heroine;
@@ -813,13 +819,41 @@ function afford(s: GameState, cost: number): Check {
   return s.heroine.nerve >= cost ? { ok: true, cost } : { ok: false, why: `Needs ${cost} nerve`, cost };
 }
 
-export function moveCost(c: Content, s: GameState, to?: NodeId): number {
+/** Extra nerve a move costs, on top of the card: fleeing, flooding, a big group. */
+export function moveExtra(c: Content, s: GameState, to?: NodeId): number {
   const h = s.heroine;
-  const flood = (to && isFlooded(c, s, to) ? 1 : 0) + (h.escorting >= 3 ? 1 : 0);
-  if (h.freeMoves > 0) return flood;
-  if (c.heroine.traits.freeFirstMove && h.movedThisRound === 0) return flood;
-  const fleeing = s.killer.loc === h.loc && s.killer.stunned === 0;
-  return (fleeing ? COST.flee : COST.move) + flood;
+  const fleeing = s.killer.loc === h.loc && s.killer.stunned === 0 ? 1 : 0;
+  return fleeing + (to && isFlooded(c, s, to) ? 1 : 0) + (h.escorting >= 3 ? 1 : 0);
+}
+
+export interface MovePlan {
+  uid?: number; // card used (undefined = free step)
+  cost: number;
+}
+
+/** How she would reach `to` right now: a free step if she has one, else the cheapest move card in range. */
+export function planMove(c: Content, s: GameState, to: NodeId): MovePlan | null {
+  const h = s.heroine;
+  const d = distances(c, h.loc)[to];
+  if (d === undefined || d === 0) return null;
+  const extra = moveExtra(c, s, to);
+  if (d === 1 && h.freeMoves > 0) return { cost: extra };
+  if (d === 1 && c.heroine.traits.freeFirstMove && h.movedThisRound === 0) {
+    const walk = s.actionHand.find((x) => actionDef(c, x.id).base === 'move');
+    if (walk) return { uid: walk.uid, cost: extra };
+  }
+  const opts = s.actionHand
+    .map((x) => ({ x, def: actionDef(c, x.id) }))
+    .filter(({ def }) => def.base === 'move' && (def.range ?? 1) >= d)
+    .sort((a, b) => a.def.cost - b.def.cost || Number(!!b.def.sneak) - Number(!!a.def.sneak));
+  if (!opts.length) return null;
+  return { uid: opts[0].x.uid, cost: opts[0].def.cost + extra };
+}
+
+/** Back-compat for UI hints: cost of the cheapest way to step to a neighbor. */
+export function moveCost(c: Content, s: GameState, to?: NodeId): number {
+  if (!to) return 1 + moveExtra(c, s);
+  return planMove(c, s, to)?.cost ?? 99;
 }
 
 export function cardCost(c: Content, d: ActionCardDef): number {
@@ -832,6 +866,8 @@ export function baseCheck(c: Content, s: GameState, d: ActionCardDef): { ok: boo
   const h = s.heroine;
   const killerHere = s.killer.loc === h.loc;
   switch (d.base) {
+    case 'move':
+      return { ok: false, why: 'Click a glowing location on the map to move with this card' };
     case 'search':
       if ((s.searches[h.loc] ?? 0) <= 0) return { ok: false, why: 'Nothing left to find here' };
       if (!s.itemDeck.length) return { ok: false, why: 'Nothing left anywhere' };
@@ -869,9 +905,11 @@ export function check(c: Content, s: GameState, a: Action): Check {
       return { ok: s.phase === 'event', cost: 0 };
     case 'resolveKiller':
       return { ok: s.phase === 'killer', cost: 0 };
-    case 'move':
-      if (!neighbors(c, h.loc).includes(a.to)) return { ok: false, why: 'Not adjacent', cost: 0 };
-      return afford(s, moveCost(c, s, a.to));
+    case 'move': {
+      const plan = planMove(c, s, a.to);
+      if (!plan) return { ok: false, why: 'You need a move card that reaches there', cost: 0 };
+      return afford(s, plan.cost);
+    }
     case 'answer':
       if (s.env.ringing !== h.loc) return { ok: false, why: 'No phone ringing here', cost: 1 };
       return afford(s, c.heroine.traits.freeAnswer ? 0 : 1);
@@ -902,7 +940,14 @@ export function check(c: Content, s: GameState, a: Action): Check {
       return { ok: true, cost: 0 };
     }
     case 'dropItem':
+      return { ok: h.items.some((i) => i.uid === a.uid) || h.pack.some((i) => i.uid === a.uid), cost: 0 };
+    case 'stow':
       return { ok: h.items.some((i) => i.uid === a.uid), cost: 0 };
+    case 'ready': {
+      if (!h.pack.some((i) => i.uid === a.uid)) return { ok: false, why: 'Not in the backpack', cost: 0 };
+      if (h.items.length >= HAND_SLOTS && !h.items.some((i) => i.uid === a.swapOut)) return { ok: false, why: `Hands full: choose an item to put away`, cost: 0 };
+      return afford(s, s.pendingFind === a.uid ? 0 : READY_COST);
+    }
     case 'playInstinct':
       return { ok: h.hand.some((i) => i.uid === a.uid), cost: 0 };
     case 'endTurn':
@@ -913,7 +958,12 @@ export function check(c: Content, s: GameState, a: Action): Check {
 export function fightDice(c: Content, s: GameState) {
   const weapons = s.heroine.items.map((i) => itemDef(c, i.id)).filter((d) => d.fightDice);
   const best = Math.max(0, ...weapons.map((w) => w.fightDice ?? 0));
-  return BASE_DICE.fight + best + (c.heroine.traits.fightDice ?? 0) + (s.mods.fightDice ?? 0);
+  return BASE_DICE.fight + best + resolve(s) + (c.heroine.traits.fightDice ?? 0) + (s.mods.fightDice ?? 0);
+}
+/** Resolve: each survivor she has saved steadies her hands (+1 fight die, max 3). */
+export const RESOLVE_CAP = 3;
+export function resolve(s: GameState) {
+  return Math.min(RESOLVE_CAP, s.saved);
 }
 export function searchDice(c: Content, s: GameState) {
   const tools = s.heroine.items.map((i) => itemDef(c, i.id));
@@ -930,6 +980,7 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
   if (!chk.ok) return prev;
   const s: GameState = structuredClone(prev);
   s.fx = [];
+  if (a.type !== 'ready' && a.type !== 'stow') s.pendingFind = undefined;
   const h = s.heroine;
   const k = s.killer;
   const spend = (n: number) => {
@@ -937,8 +988,7 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
     const before = h.spentThisRound;
     h.nerve -= n;
     h.spentThisRound += n;
-    const marks = Math.floor(h.spentThisRound / NOISE_EVERY) - Math.floor(before / NOISE_EVERY);
-    for (let i = 0; i < marks; i++) makeNoise(c, s);
+    void before;
   };
   const breakCover = () => (h.hidden = false);
 
@@ -947,8 +997,7 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       const ev = eventDef(c, s.currentEvent!);
       log(s, `◆ ${ev.name}`, ev.tone === 'calm' ? 'info' : 'killer');
       s.phase = 'action';
-      const gain = Math.max(1, horrorTier(h.horror).nerve + (s.mods.nerve ?? 0));
-      h.nerve = Math.min(NERVE_CAP, h.nerve + gain);
+      h.nerve = Math.max(1, horrorTier(h.horror).nerve + (s.mods.nerve ?? 0));
       dealLineup(c, s);
       applyEffects(c, s, ev.effects);
       s.eventDiscard.push(ev.id);
@@ -964,9 +1013,15 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       break;
     }
     case 'move': {
-      const cost = moveCost(c, s, a.to);
-      if (h.freeMoves > 0 && cost <= (isFlooded(c, s, a.to) ? 1 : 0)) h.freeMoves--;
-      spend(cost);
+      const plan = planMove(c, s, a.to)!;
+      let sneak = false;
+      if (plan.uid !== undefined) {
+        const i = s.actionHand.findIndex((x) => x.uid === plan.uid);
+        const card = s.actionHand.splice(i, 1)[0];
+        s.actionDiscard.push(card.id);
+        sneak = !!actionDef(c, card.id).sneak;
+      } else h.freeMoves--;
+      spend(plan.cost);
       breakCover();
       const from = h.loc;
       h.loc = a.to;
@@ -974,7 +1029,12 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       s.fx.push({ t: 'move' });
       log(s, `${from === k.loc ? 'Fled' : 'Moved'} to ${nodeName(c, a.to)}${h.escorting ? ` with ${h.escorting} in tow` : ''}.`);
       saveEscorted(c, s);
-      if (k.loc === h.loc) {
+      if (sneak) {
+        h.hidden = true;
+        s.fx.push({ t: 'hide' });
+        log(s, 'She slips in unseen.', 'good');
+      }
+      if (k.loc === h.loc && !h.hidden) {
         s.fx.push({ t: 'killerAppears' });
         log(s, `${c.killer.name} is HERE.`, 'killer');
         addHorror(c, s, 1);
@@ -1095,7 +1155,29 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
     }
     case 'dropItem':
       h.items = h.items.filter((x) => x.uid !== a.uid);
+      h.pack = h.pack.filter((x) => x.uid !== a.uid);
       break;
+    case 'stow': {
+      const it = h.items.find((x) => x.uid === a.uid)!;
+      h.items = h.items.filter((x) => x.uid !== a.uid);
+      h.pack.push(it);
+      log(s, `Put ${itemDef(c, it.id).name} in the backpack.`);
+      break;
+    }
+    case 'ready': {
+      const free = s.pendingFind === a.uid;
+      spend(free ? 0 : READY_COST);
+      const it = h.pack.find((x) => x.uid === a.uid)!;
+      h.pack = h.pack.filter((x) => x.uid !== a.uid);
+      if (a.swapOut !== undefined && h.items.length >= HAND_SLOTS) {
+        const out = h.items.find((x) => x.uid === a.swapOut)!;
+        h.items = h.items.filter((x) => x.uid !== a.swapOut);
+        h.pack.push(out);
+        log(s, `Swapped ${itemDef(c, out.id).name} into the backpack for ${itemDef(c, it.id).name}.`);
+      } else log(s, `Took ${itemDef(c, it.id).name} out of the backpack.`);
+      h.items.push(it);
+      break;
+    }
     case 'playInstinct': {
       const card = h.hand.find((i) => i.uid === a.uid)!;
       const d = instinctDef(c, card.id);
@@ -1206,15 +1288,16 @@ function killerAttack(c: Content, s: GameState) {
 
 // ── Scoring ─────────────────────────────────────────────────────────────────
 export function score(s: GameState) {
-  const base = s.outcome === 'slain' ? 100 : s.outcome === 'survived' ? 50 : 0;
-  return Math.max(0, base + s.saved * 15 - s.slain * 5 + s.heroine.health * 5);
+  if (s.outcome !== 'slain') return Math.max(0, s.saved * 10 - s.slain * 5);
+  return Math.max(0, 100 + s.saved * 15 - s.slain * 5 + s.heroine.health * 5 + Math.max(0, s.dawnAt - s.round) * 5);
 }
 
 export function rating(s: GameState): { stars: number; blurb: string } {
   const sc = score(s);
   if (s.outcome === 'died') return { stars: 1, blurb: 'Straight to video.' };
-  if (sc >= 190) return { stars: 5, blurb: 'A midnight-movie legend.' };
-  if (sc >= 150) return { stars: 4, blurb: 'Cult classic.' };
-  if (sc >= 100) return { stars: 3, blurb: 'Solid double feature.' };
-  return { stars: 2, blurb: 'She made it. Barely.' };
+  if (s.outcome === 'escaped') return { stars: 1, blurb: 'He walked out of the last reel. Sequel pending.' };
+  if (sc >= 200) return { stars: 5, blurb: 'A midnight-movie legend.' };
+  if (sc >= 165) return { stars: 4, blurb: 'Cult classic.' };
+  if (sc >= 130) return { stars: 3, blurb: 'Solid double feature.' };
+  return { stars: 2, blurb: 'She got him. Barely.' };
 }
