@@ -2,6 +2,12 @@
 
 An original, solo slasher survival game for the browser.
 
+### ▶ [Play now: swlong82.github.io/FinalGirl](https://swlong82.github.io/FinalGirl/)
+
+[![Deploy to GitHub Pages](https://github.com/swlong82/FinalGirl/actions/workflows/pages.yml/badge.svg)](https://github.com/swlong82/FinalGirl/actions/workflows/pages.yml)
+
+Runs in any modern browser on desktop or mobile, with no install. Headphones recommended.
+
 > Route 9, autumn 1984. Tonight is the Holloway Drive‑In's farewell double feature, and three minutes into the first reel, the film skips.
 
 - **Feature One: Last Show at the Holloway**. Killer: *The Projectionist*. Location: *The Holloway Drive‑In*.
@@ -40,7 +46,7 @@ npm run build
 ## Deploy (GitHub Pages)
 
 1. Repo **Settings → Pages → Source: GitHub Actions**.
-2. Push to `main`. `.github/workflows/pages.yml` tests, builds and deploys `dist/`.
+2. Push to `main`. `.github/workflows/pages.yml` tests, builds and deploys `dist/` to https://swlong82.github.io/FinalGirl/.
 
 The build uses a relative base path, so `dist/` also works on any static host.
 
