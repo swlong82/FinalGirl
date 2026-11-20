@@ -1,0 +1,850 @@
+import { nextRand, pick, rollD6, shuffle } from './rng';
+import type {
+  Action,
+  Condition,
+  Content,
+  DiceRoll,
+  Effect,
+  GameState,
+  ItemDef,
+  InstinctDef,
+  EventDef,
+  LogEntry,
+  NodeId,
+} from './types';
+
+// ── Tunables ────────────────────────────────────────────────────────────────
+export const COST = { move: 1, flee: 2, search: 1, lead: 1, fight: 2, hide: 1, barricade: 2, rest: 2 };
+export const BASE_DICE = { search: 2, fight: 3, hide: 2, rest: 2 };
+export const MAX_ITEMS = 5;
+export const MAX_HAND = 4;
+export const MAX_HORROR = 6;
+export const DEFAULT_ESCORT = 3;
+export const VICTIM_POOL = 12;
+export const DAWN_ROUND = 13;
+
+export interface Tier {
+  name: string;
+  nerve: number;
+  threshold: number;
+}
+
+export function horrorTier(h: number): Tier {
+  if (h <= 1) return { name: 'Steady', nerve: 5, threshold: 4 };
+  if (h <= 3) return { name: 'Uneasy', nerve: 4, threshold: 4 };
+  if (h <= 5) return { name: 'Terrified', nerve: 4, threshold: 5 };
+  return { name: 'Breaking', nerve: 3, threshold: 5 };
+}
+
+// ── Lookups ─────────────────────────────────────────────────────────────────
+export function allItems(c: Content): ItemDef[] {
+  return [...c.location.items, ...c.killer.items];
+}
+export function itemDef(c: Content, id: string): ItemDef {
+  const d = allItems(c).find((i) => i.id === id);
+  if (!d) throw new Error(`Unknown item ${id}`);
+  return d;
+}
+export function allInstincts(c: Content): InstinctDef[] {
+  return [...c.instincts, c.heroine.signature];
+}
+export function instinctDef(c: Content, id: string): InstinctDef {
+  const d = allInstincts(c).find((i) => i.id === id);
+  if (!d) throw new Error(`Unknown instinct ${id}`);
+  return d;
+}
+export function allEvents(c: Content): EventDef[] {
+  return [...c.location.events, ...c.killer.events];
+}
+export function eventDef(c: Content, id: string): EventDef {
+  const d = allEvents(c).find((e) => e.id === id);
+  if (!d) throw new Error(`Unknown event ${id}`);
+  return d;
+}
+export function nodeName(c: Content, id: NodeId): string {
+  return c.location.nodes.find((n) => n.id === id)?.name ?? id;
+}
+
+export function neighbors(c: Content, id: NodeId): NodeId[] {
+  const out: NodeId[] = [];
+  for (const [a, b] of c.location.edges) {
+    if (a === id) out.push(b);
+    else if (b === id) out.push(a);
+  }
+  return out;
+}
+
+/** BFS distances from a node. */
+export function distances(c: Content, from: NodeId): Record<NodeId, number> {
+  const d: Record<NodeId, number> = { [from]: 0 };
+  const q = [from];
+  while (q.length) {
+    const cur = q.shift()!;
+    for (const n of neighbors(c, cur)) {
+      if (d[n] === undefined) {
+        d[n] = d[cur] + 1;
+        q.push(n);
+      }
+    }
+  }
+  return d;
+}
+
+/** Next step on a shortest path from → to. */
+export function stepToward(c: Content, from: NodeId, to: NodeId): NodeId {
+  if (from === to) return from;
+  const d = distances(c, to);
+  const opts = neighbors(c, from).filter((n) => d[n] !== undefined && d[n] < d[from]);
+  return opts.sort()[0] ?? from;
+}
+
+// ── Setup ───────────────────────────────────────────────────────────────────
+function expand<T extends { id: string; copies?: number }>(defs: T[]): string[] {
+  return defs.flatMap((d) => Array(d.copies ?? 1).fill(d.id));
+}
+
+export function newGame(c: Content, seed: number): GameState {
+  const s: GameState = {
+    version: 1,
+    seed,
+    rng: seed >>> 0,
+    uid: 1,
+    packs: { location: c.location.id, killer: c.killer.id, heroine: c.heroine.id },
+    round: 1,
+    dawnAt: DAWN_ROUND,
+    phase: 'event',
+    heroine: {
+      loc: c.location.heroineStart,
+      health: c.heroine.health,
+      maxHealth: c.heroine.health,
+      horror: 0,
+      nerve: 0,
+      items: [],
+      hand: [],
+      escorting: 0,
+      hidden: false,
+      movedThisRound: 0,
+      horrorTakenThisRound: 0,
+      freeMoves: 0,
+    },
+    killer: {
+      loc: c.location.lair,
+      health: c.killer.health,
+      maxHealth: c.killer.health,
+      armor: c.killer.armor,
+      bloodlust: 0,
+      stunned: 0,
+      finale: false,
+      frenzy: false,
+      risen: false,
+    },
+    victims: Object.fromEntries(c.location.nodes.map((n) => [n.id, 0])),
+    searches: Object.fromEntries(c.location.nodes.map((n) => [n.id, n.searches])),
+    barricades: Object.fromEntries(c.location.nodes.map((n) => [n.id, 0])),
+    saved: 0,
+    slain: 0,
+    victimPool: VICTIM_POOL,
+    mods: {},
+    eventDeck: [],
+    eventDiscard: [],
+    itemDeck: [],
+    instinctDeck: [],
+    instinctDiscard: [],
+    foundLore: [],
+    log: [],
+    fx: [],
+  };
+  s.eventDeck = shuffle(s, expand(allEvents(c)));
+  s.itemDeck = shuffle(s, expand(allItems(c)));
+  s.instinctDeck = shuffle(s, expand(allInstincts(c)));
+  for (const at of c.location.setupVictims) placeVictims(c, s, at, 1);
+  drawInstinct(s, 2);
+  log(s, `The feature begins. ${c.heroine.name} arrives at ${nodeName(c, s.heroine.loc)}.`, 'info');
+  startRound(c, s);
+  return s;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function log(s: GameState, text: string, tone?: LogEntry['tone']) {
+  s.log.push({ round: s.round, text, tone });
+  if (s.log.length > 200) s.log.splice(0, s.log.length - 200);
+}
+
+function placeVictims(c: Content, s: GameState, at: NodeId, n: number): number {
+  const k = Math.min(n, s.victimPool);
+  if (k <= 0) return 0;
+  s.victimPool -= k;
+  s.victims[at] = (s.victims[at] ?? 0) + k;
+  log(s, `${k === 1 ? 'A survivor' : `${k} survivors`} stumble into ${nodeName(c, at)}.`, 'info');
+  return k;
+}
+
+function drawInstinct(s: GameState, n: number) {
+  for (let i = 0; i < n && s.heroine.hand.length < MAX_HAND; i++) {
+    if (!s.instinctDeck.length) {
+      s.instinctDeck = shuffle(s, s.instinctDiscard);
+      s.instinctDiscard = [];
+    }
+    const id = s.instinctDeck.pop();
+    if (!id) return;
+    s.heroine.hand.push({ uid: s.uid++, id });
+  }
+}
+
+function gainItem(c: Content, s: GameState, id: string) {
+  const d = itemDef(c, id);
+  if (s.heroine.items.length >= MAX_ITEMS) {
+    log(s, `Hands full — ${d.name} left behind.`, 'info');
+    return;
+  }
+  s.heroine.items.push({ uid: s.uid++, id, usesLeft: d.uses });
+  log(s, `Found: ${d.name}.`, 'good');
+  s.fx.push({ t: 'item' });
+  if (d.lore && !s.foundLore.includes(d.id)) s.foundLore.push(d.id);
+  if (d.onGain) applyEffects(c, s, d.onGain);
+}
+
+export function canAct(s: GameState) {
+  return s.phase === 'action' && !s.outcome;
+}
+
+export function rollDice(s: GameState, label: string, n: number, threshold: number): DiceRoll {
+  n = Math.max(1, n);
+  let dice = Array.from({ length: n }, () => rollD6(s));
+  let rerolled = false;
+  if ((s.mods.rerollNext ?? 0) > 0) {
+    s.mods.rerollNext = (s.mods.rerollNext ?? 1) - 1;
+    dice = dice.map((d) => (d >= threshold ? d : rollD6(s)));
+    rerolled = true;
+  }
+  const successes = dice.filter((d) => d >= threshold).length;
+  const roll = { id: s.uid++, label, dice, threshold, successes, rerolled };
+  s.lastRoll = roll;
+  s.fx.push({ t: 'dice' });
+  return roll;
+}
+
+export function addHorror(c: Content, s: GameState, n: number) {
+  const h = s.heroine;
+  if (n > 0 && c.heroine.traits.ignoreFirstHorror && h.horrorTakenThisRound === 0) {
+    h.horrorTakenThisRound++;
+    n -= 1;
+    log(s, `${c.heroine.name} steadies herself — she's seen this movie before.`, 'good');
+    if (n <= 0) return;
+  }
+  if (n > 0) h.horrorTakenThisRound++;
+  const before = h.horror;
+  const raw = h.horror + n;
+  h.horror = Math.max(0, Math.min(MAX_HORROR, raw));
+  if (h.horror !== before) s.fx.push({ t: 'horror', n: h.horror - before });
+  if (raw > MAX_HORROR) {
+    log(s, 'Terror overwhelms her body.', 'bad');
+    wound(c, s, raw - MAX_HORROR);
+  }
+}
+
+export function wound(c: Content, s: GameState, n: number) {
+  if (n <= 0) return;
+  s.heroine.health -= n;
+  s.fx.push({ t: 'wound', n });
+  if (s.heroine.health <= 0) {
+    s.heroine.health = 0;
+    endGame(c, s, 'died');
+  }
+}
+
+function endGame(c: Content, s: GameState, o: GameState['outcome']) {
+  if (s.outcome) return;
+  s.outcome = o;
+  s.phase = 'over';
+  if (o === 'died') {
+    log(s, `${c.heroine.name} has fallen. The credits roll in silence.`, 'bad');
+    s.fx.push({ t: 'lose' });
+  } else if (o === 'slain') {
+    log(s, `${c.killer.name} is finished. The reel runs out.`, 'good');
+    s.fx.push({ t: 'win' });
+  } else {
+    log(s, `Dawn breaks over ${c.location.name}. ${c.killer.name} is gone… for now.`, 'good');
+    s.fx.push({ t: 'win' });
+  }
+}
+
+export function killerAttackDice(c: Content, s: GameState) {
+  return (s.killer.finale ? c.killer.finale.attackDice : c.killer.attackDice) + (s.mods.killerAttackDice ?? 0);
+}
+export function killerSpeed(c: Content, s: GameState) {
+  return c.killer.speed + (s.killer.frenzy ? 1 : 0);
+}
+
+function addBloodlust(c: Content, s: GameState, n: number) {
+  const k = s.killer;
+  k.bloodlust = Math.max(0, Math.min(c.killer.bloodlustMax, k.bloodlust + n));
+  if (!k.frenzy && k.bloodlust >= c.killer.frenzyAt) {
+    k.frenzy = true;
+    log(s, `${c.killer.name} enters a FRENZY. He moves faster now.`, 'killer');
+  }
+  if (!k.finale && k.bloodlust >= c.killer.finaleAt) triggerFinale(c, s, 'bloodlust');
+}
+
+export function triggerFinale(c: Content, s: GameState, why: 'bloodlust' | 'clock' | 'risen') {
+  const k = s.killer;
+  if (k.finale) return;
+  k.finale = true;
+  k.armor = Math.max(0, c.killer.finale.armor - weaknessFound(c, s));
+  const reason =
+    why === 'risen' ? 'He gets back up.' : why === 'clock' ? 'The last reel begins.' : 'His hunger is sated — now he wants her.';
+  log(s, `FINALE — ${c.killer.finale.name}. ${reason}`, 'killer');
+  s.fx.push({ t: 'finale' });
+  applyEffects(c, s, c.killer.finale.effects);
+}
+
+export function weaknessFound(c: Content, s: GameState) {
+  return c.killer.items.filter((i) => i.kind === 'lore' && s.foundLore.includes(i.id)).length;
+}
+
+function damageKiller(c: Content, s: GameState, n: number, ignoreArmor = false) {
+  const k = s.killer;
+  const dmg = Math.max(0, n - (ignoreArmor ? 0 : k.armor));
+  if (n > 0 && dmg === 0) log(s, `The blow glances off. ${c.killer.name} barely flinches.`, 'bad');
+  if (dmg <= 0) return 0;
+  k.health -= dmg;
+  s.fx.push({ t: 'hit', n: dmg });
+  log(s, `${c.killer.name} takes ${dmg} damage.`, 'good');
+  if (k.health <= 0) {
+    if (!k.finale) {
+      k.risen = true;
+      k.health = Math.ceil(k.maxHealth / 2);
+      log(s, `${c.killer.name} collapses… and then, slowly, sits up.`, 'killer');
+      triggerFinale(c, s, 'risen');
+    } else {
+      k.health = 0;
+      endGame(c, s, 'slain');
+    }
+  }
+  return dmg;
+}
+
+function saveEscorted(c: Content, s: GameState) {
+  const h = s.heroine;
+  if (h.loc !== c.location.exit || h.escorting <= 0) return;
+  const n = h.escorting;
+  h.escorting = 0;
+  s.saved += n;
+  log(s, `${n === 1 ? 'A survivor flees' : `${n} survivors flee`} down the highway. Saved!`, 'good');
+  s.fx.push({ t: 'saved', n });
+  addHorror(c, s, -(c.heroine.traits.saveHorror ?? 1) * n);
+  drawInstinct(s, 1);
+}
+
+function checkCond(c: Content, s: GameState, cond: Condition): boolean {
+  const h = s.heroine;
+  switch (cond.c) {
+    case 'killerHere':
+      return s.killer.loc === h.loc;
+    case 'killerAdjacent':
+      return neighbors(c, h.loc).includes(s.killer.loc);
+    case 'heroineAt':
+      return h.loc === cond.node;
+    case 'alone':
+      return h.escorting === 0 && (s.victims[h.loc] ?? 0) === 0;
+    case 'escorting':
+      return h.escorting > 0;
+    case 'finale':
+      return s.killer.finale;
+    case 'horrorAtLeast':
+      return h.horror >= cond.n;
+  }
+}
+
+function moveKiller(c: Content, s: GameState, to: NodeId) {
+  if (to === s.killer.loc) return true;
+  if ((s.barricades[to] ?? 0) > 0) {
+    s.barricades[to]--;
+    log(s, `${c.killer.name} batters the barricade at ${nodeName(c, to)}.`, 'killer');
+    return false;
+  }
+  s.killer.loc = to;
+  return true;
+}
+
+export function applyEffects(c: Content, s: GameState, effects: Effect[]) {
+  for (const e of effects) {
+    if (s.outcome) return;
+    applyEffect(c, s, e);
+  }
+}
+
+function applyEffect(c: Content, s: GameState, e: Effect) {
+  const h = s.heroine;
+  const k = s.killer;
+  switch (e.op) {
+    case 'spawn': {
+      let at = e.at;
+      if (at === 'random') {
+        const opts = c.location.nodes.map((n) => n.id).filter((id) => id !== k.loc && id !== c.location.exit);
+        at = pick(s, opts);
+      } else if (at === 'farFromKiller') {
+        const d = distances(c, k.loc);
+        at = c.location.nodes
+          .map((n) => n.id)
+          .filter((id) => id !== c.location.exit)
+          .sort((a, b) => (d[b] ?? 0) - (d[a] ?? 0))[0];
+      }
+      if (at === k.loc) at = stepAwayFrom(c, s, at);
+      placeVictims(c, s, at, e.n);
+      break;
+    }
+    case 'horror':
+      addHorror(c, s, e.n);
+      break;
+    case 'heal': {
+      const before = h.health;
+      h.health = Math.min(h.maxHealth, h.health + e.n);
+      if (h.health > before) log(s, `Recovered ${h.health - before} health.`, 'good');
+      break;
+    }
+    case 'wound':
+      wound(c, s, e.n);
+      break;
+    case 'nerve':
+      h.nerve += e.n;
+      break;
+    case 'bloodlust':
+      addBloodlust(c, s, e.n);
+      break;
+    case 'killerHeal':
+      k.health = Math.min(k.maxHealth, k.health + e.n);
+      break;
+    case 'killerDamage':
+      damageKiller(c, s, e.n, e.ignoreArmor);
+      break;
+    case 'killerStun':
+      k.stunned += e.n;
+      s.fx.push({ t: 'stun' });
+      log(s, `${c.killer.name} is stunned.`, 'good');
+      break;
+    case 'killerMove': {
+      for (let i = 0; i < e.steps; i++) {
+        const target = e.toward === 'heroine' ? h.loc : e.toward;
+        if (!moveKiller(c, s, stepToward(c, k.loc, target))) break;
+      }
+      if (k.loc === h.loc) s.fx.push({ t: 'killerAppears' });
+      break;
+    }
+    case 'killerTeleport': {
+      let to = e.to;
+      if (to === 'lair') to = c.location.lair;
+      else if (to === 'heroine') to = h.loc;
+      else if (to === 'random') to = pick(s, c.location.nodes.map((n) => n.id).filter((id) => id !== c.location.exit));
+      k.loc = to;
+      log(s, `${c.killer.name} vanishes… and is now at ${nodeName(c, to)}.`, 'killer');
+      if (k.loc === h.loc) s.fx.push({ t: 'killerAppears' });
+      break;
+    }
+    case 'killerArmor':
+      k.armor = Math.max(0, k.armor + e.n);
+      break;
+    case 'clock':
+      s.dawnAt = Math.max(s.round, s.dawnAt - e.n);
+      break;
+    case 'mod':
+      s.mods[e.key] = (s.mods[e.key] ?? 0) + e.n;
+      if (e.key === 'nerve') h.nerve += e.n;
+      break;
+    case 'freeMove':
+      h.freeMoves++;
+      break;
+    case 'drawItem':
+      for (let i = 0; i < e.n; i++) {
+        const id = s.itemDeck.pop();
+        if (id) gainItem(c, s, id);
+      }
+      break;
+    case 'drawInstinct':
+      drawInstinct(s, e.n);
+      break;
+    case 'barricade': {
+      const at = e.at === 'here' ? h.loc : e.at;
+      s.barricades[at] = (s.barricades[at] ?? 0) + e.strength;
+      log(s, `Barricade raised at ${nodeName(c, at)}.`, 'good');
+      break;
+    }
+    case 'teleportHeroine':
+      h.loc = e.to;
+      s.fx.push({ t: 'move' });
+      saveEscorted(c, s);
+      break;
+    case 'saveEscorted':
+      saveEscorted(c, s);
+      break;
+    case 'if':
+      applyEffects(c, s, checkCond(c, s, e.cond) ? e.then : e.else ?? []);
+      break;
+    case 'log':
+      log(s, e.text, 'info');
+      break;
+  }
+}
+
+function stepAwayFrom(c: Content, s: GameState, at: NodeId): NodeId {
+  const opts = neighbors(c, at).filter((n) => n !== c.location.exit);
+  return opts.length ? pick(s, opts) : at;
+}
+
+// ── Round flow ──────────────────────────────────────────────────────────────
+function startRound(c: Content, s: GameState) {
+  if (s.round > s.dawnAt) {
+    endGame(c, s, 'survived');
+    return;
+  }
+  if (!s.killer.finale && s.round >= s.dawnAt - 3) triggerFinale(c, s, 'clock');
+  if (s.outcome) return;
+  if (!s.eventDeck.length) {
+    s.eventDeck = shuffle(s, s.eventDiscard);
+    s.eventDiscard = [];
+  }
+  const id = s.eventDeck.pop()!;
+  s.currentEvent = id;
+  s.phase = 'event';
+  s.fx.push({ t: 'card' });
+}
+
+function endRound(c: Content, s: GameState) {
+  const h = s.heroine;
+  s.mods = {};
+  h.hidden = false;
+  h.movedThisRound = 0;
+  h.horrorTakenThisRound = 0;
+  h.freeMoves = 0;
+  s.round++;
+  drawInstinct(s, 1);
+  // A quiet board breeds new trouble.
+  const onBoard = Object.values(s.victims).reduce((a, b) => a + b, 0);
+  if (onBoard === 0 && s.victimPool > 0 && nextRand(s) < 0.6) applyEffect(c, s, { op: 'spawn', at: 'farFromKiller', n: 1 });
+  startRound(c, s);
+}
+
+// ── Action legality (also used by the UI) ───────────────────────────────────
+export interface Check {
+  ok: boolean;
+  why?: string;
+  cost: number;
+}
+
+function afford(s: GameState, cost: number): Check {
+  return s.heroine.nerve >= cost ? { ok: true, cost } : { ok: false, why: `Needs ${cost} nerve`, cost };
+}
+
+export function moveCost(c: Content, s: GameState): number {
+  const h = s.heroine;
+  if (h.freeMoves > 0) return 0;
+  if (c.heroine.traits.freeFirstMove && h.movedThisRound === 0) return 0;
+  const fleeing = s.killer.loc === h.loc && s.killer.stunned === 0;
+  return fleeing ? COST.flee : COST.move;
+}
+
+export function check(c: Content, s: GameState, a: Action): Check {
+  if (!canAct(s) && a.type !== 'resolveEvent' && a.type !== 'resolveKiller') return { ok: false, why: 'Not now', cost: 0 };
+  const h = s.heroine;
+  const killerHere = s.killer.loc === h.loc;
+  switch (a.type) {
+    case 'resolveEvent':
+      return { ok: s.phase === 'event', cost: 0 };
+    case 'resolveKiller':
+      return { ok: s.phase === 'killer', cost: 0 };
+    case 'move':
+      if (!neighbors(c, h.loc).includes(a.to)) return { ok: false, why: 'Not adjacent', cost: 0 };
+      return afford(s, moveCost(c, s));
+    case 'search':
+      if ((s.searches[h.loc] ?? 0) <= 0) return { ok: false, why: 'Nothing left to find here', cost: COST.search };
+      if (!s.itemDeck.length) return { ok: false, why: 'Nothing left anywhere', cost: COST.search };
+      return afford(s, COST.search);
+    case 'lead': {
+      const cap = c.heroine.traits.escortCap ?? DEFAULT_ESCORT;
+      if ((s.victims[h.loc] ?? 0) <= 0) return { ok: false, why: 'No survivors here', cost: COST.lead };
+      if (h.escorting >= cap) return { ok: false, why: `Can escort ${cap} at most`, cost: COST.lead };
+      return afford(s, COST.lead);
+    }
+    case 'fight':
+      if (!killerHere) return { ok: false, why: 'The killer is not here', cost: COST.fight };
+      return afford(s, COST.fight);
+    case 'hide':
+      if (h.hidden) return { ok: false, why: 'Already hidden', cost: COST.hide };
+      return afford(s, COST.hide);
+    case 'barricade': {
+      const cost = c.heroine.traits.barricadeCost ?? COST.barricade;
+      if (killerHere) return { ok: false, why: 'Not with the killer in the room', cost };
+      if (h.loc === c.location.exit) return { ok: false, why: 'Cannot barricade the exit', cost };
+      return afford(s, cost);
+    }
+    case 'rest':
+      if (killerHere) return { ok: false, why: 'Not with the killer in the room', cost: COST.rest };
+      if (h.health >= h.maxHealth && h.horror === 0) return { ok: false, why: 'Nothing to recover', cost: COST.rest };
+      return afford(s, COST.rest);
+    case 'useItem': {
+      const it = h.items.find((i) => i.uid === a.uid);
+      if (!it) return { ok: false, why: 'No such item', cost: 0 };
+      const d = itemDef(c, it.id);
+      if (!d.use) return { ok: false, why: d.kind === 'weapon' ? 'Used automatically when you fight' : 'Passive', cost: 0 };
+      if (d.use.when === 'killerHere' && !killerHere) return { ok: false, why: 'The killer must be here', cost: 0 };
+      if (d.use.when === 'atNode' && h.loc !== d.use.node)
+        return { ok: false, why: `Only at ${nodeName(c, d.use.node!)}`, cost: 0 };
+      return { ok: true, cost: 0 };
+    }
+    case 'dropItem':
+      return { ok: h.items.some((i) => i.uid === a.uid), cost: 0 };
+    case 'playInstinct':
+      return { ok: h.hand.some((i) => i.uid === a.uid), cost: 0 };
+    case 'endTurn':
+      return { ok: true, cost: 0 };
+  }
+}
+
+export function fightDice(c: Content, s: GameState) {
+  const weapons = s.heroine.items.map((i) => itemDef(c, i.id)).filter((d) => d.fightDice);
+  const best = Math.max(0, ...weapons.map((w) => w.fightDice ?? 0));
+  return BASE_DICE.fight + best + (c.heroine.traits.fightDice ?? 0) + (s.mods.fightDice ?? 0);
+}
+export function searchDice(c: Content, s: GameState) {
+  const tools = s.heroine.items.map((i) => itemDef(c, i.id));
+  const bonus = Math.max(0, ...tools.map((t) => t.searchDice ?? 0));
+  return BASE_DICE.search + bonus + (c.heroine.traits.searchDice ?? 0) + (s.mods.searchDice ?? 0);
+}
+export function threshold(s: GameState) {
+  return horrorTier(s.heroine.horror).threshold;
+}
+
+// ── Reducer ─────────────────────────────────────────────────────────────────
+export function dispatch(c: Content, prev: GameState, a: Action): GameState {
+  const chk = check(c, prev, a);
+  if (!chk.ok) return prev;
+  const s: GameState = structuredClone(prev);
+  s.fx = [];
+  const h = s.heroine;
+  const k = s.killer;
+  const spend = (n: number) => (h.nerve -= n);
+  const breakCover = () => (h.hidden = false);
+
+  switch (a.type) {
+    case 'resolveEvent': {
+      const ev = eventDef(c, s.currentEvent!);
+      log(s, `◆ ${ev.name}`, ev.tone === 'calm' ? 'info' : 'killer');
+      s.phase = 'action';
+      h.nerve = horrorTier(h.horror).nerve;
+      applyEffects(c, s, ev.effects);
+      s.eventDiscard.push(ev.id);
+      s.currentEvent = undefined;
+      break;
+    }
+    case 'move': {
+      const cost = moveCost(c, s);
+      if (h.freeMoves > 0 && cost === 0) h.freeMoves--;
+      spend(cost);
+      breakCover();
+      const from = h.loc;
+      h.loc = a.to;
+      h.movedThisRound++;
+      s.fx.push({ t: 'move' });
+      log(s, `${from === k.loc ? 'Fled' : 'Moved'} to ${nodeName(c, a.to)}${h.escorting ? ` with ${h.escorting} in tow` : ''}.`);
+      saveEscorted(c, s);
+      if (k.loc === h.loc) {
+        s.fx.push({ t: 'killerAppears' });
+        log(s, `${c.killer.name} is HERE.`, 'killer');
+        addHorror(c, s, 1);
+      }
+      break;
+    }
+    case 'search': {
+      spend(COST.search);
+      breakCover();
+      s.searches[h.loc]--;
+      const thr = threshold(s) + (s.mods.searchThreshold ?? 0);
+      const r = rollDice(s, 'Search', searchDice(c, s), Math.min(6, thr));
+      if (r.successes === 0) log(s, 'Searched… nothing useful.');
+      else applyEffect(c, s, { op: 'drawItem', n: Math.min(2, r.successes) });
+      break;
+    }
+    case 'lead': {
+      spend(COST.lead);
+      breakCover();
+      const cap = c.heroine.traits.escortCap ?? DEFAULT_ESCORT;
+      const n = Math.min(s.victims[h.loc], cap - h.escorting);
+      s.victims[h.loc] -= n;
+      h.escorting += n;
+      log(s, `"Stay close to me." ${n} survivor${n > 1 ? 's' : ''} follow${n > 1 ? '' : 's'} her.`, 'good');
+      break;
+    }
+    case 'fight': {
+      spend(COST.fight);
+      breakCover();
+      const r = rollDice(s, 'Fight', fightDice(c, s), threshold(s));
+      // Consume a limited-use weapon (the best one) on each attack.
+      const held = h.items
+        .map((i) => ({ i, d: itemDef(c, i.id) }))
+        .filter((x) => x.d.fightDice)
+        .sort((x, y) => (y.d.fightDice ?? 0) - (x.d.fightDice ?? 0))[0];
+      if (held && held.i.usesLeft !== undefined) {
+        held.i.usesLeft--;
+        if (held.i.usesLeft <= 0) {
+          h.items = h.items.filter((x) => x.uid !== held.i.uid);
+          log(s, `${held.d.name} is spent.`);
+        }
+      }
+      s.mods.fightDice = 0;
+      if (r.successes === 0) log(s, 'She swings wild — and misses.', 'bad');
+      damageKiller(c, s, r.successes);
+      break;
+    }
+    case 'hide': {
+      spend(COST.hide);
+      const auto = (s.mods.hideAuto ?? 0) > 0;
+      const r = auto ? null : rollDice(s, 'Hide', BASE_DICE.hide + (c.heroine.traits.hideDice ?? 0), threshold(s));
+      if (auto || (r && r.successes > 0)) {
+        h.hidden = true;
+        s.fx.push({ t: 'hide' });
+        log(s, 'She slips into the shadows. Hidden.', 'good');
+      } else log(s, 'No cover — still exposed.', 'bad');
+      break;
+    }
+    case 'barricade': {
+      const cost = c.heroine.traits.barricadeCost ?? COST.barricade;
+      spend(cost);
+      breakCover();
+      applyEffect(c, s, { op: 'barricade', at: 'here', strength: c.heroine.traits.barricadeStrength ?? 1 });
+      break;
+    }
+    case 'rest': {
+      spend(COST.rest);
+      breakCover();
+      const r = rollDice(s, 'Rest', BASE_DICE.rest, threshold(s));
+      for (let i = 0; i < r.successes; i++) {
+        if (h.health < h.maxHealth) h.health++;
+        else addHorror(c, s, -1);
+      }
+      log(s, r.successes ? `Catches her breath (${r.successes}).` : 'Too wired to rest.', r.successes ? 'good' : 'bad');
+      break;
+    }
+    case 'useItem': {
+      const it = h.items.find((i) => i.uid === a.uid)!;
+      const d = itemDef(c, it.id);
+      log(s, `Used ${d.name}.`, 'good');
+      if (it.usesLeft !== undefined) {
+        it.usesLeft--;
+        if (it.usesLeft <= 0) h.items = h.items.filter((x) => x.uid !== it.uid);
+      }
+      applyEffects(c, s, d.use!.effects);
+      break;
+    }
+    case 'dropItem':
+      h.items = h.items.filter((x) => x.uid !== a.uid);
+      break;
+    case 'playInstinct': {
+      const card = h.hand.find((i) => i.uid === a.uid)!;
+      const d = instinctDef(c, card.id);
+      h.hand = h.hand.filter((x) => x.uid !== a.uid);
+      s.instinctDiscard.push(card.id);
+      log(s, `Instinct: ${d.name}.`, 'good');
+      applyEffects(c, s, d.effects);
+      break;
+    }
+    case 'endTurn':
+      s.phase = 'killer';
+      killerTurn(c, s);
+      break;
+    case 'resolveKiller':
+      endRound(c, s);
+      break;
+  }
+  return s;
+}
+
+// ── Killer AI ───────────────────────────────────────────────────────────────
+export function killerTarget(c: Content, s: GameState): NodeId {
+  const k = s.killer;
+  if (k.lured) return k.lured;
+  const d = distances(c, k.loc);
+  const cands: { id: NodeId; dist: number; pri: number }[] = [];
+  for (const [id, n] of Object.entries(s.victims)) if (n > 0) cands.push({ id, dist: d[id] ?? 99, pri: 1 });
+  if (!s.heroine.hidden || k.finale) cands.push({ id: s.heroine.loc, dist: d[s.heroine.loc] ?? 99, pri: k.finale ? -5 : 0 });
+  if (!cands.length) return k.loc;
+  cands.sort((a, b) => a.dist + a.pri * 0.1 - (b.dist + b.pri * 0.1));
+  return cands[0].id;
+}
+
+function killerTurn(c: Content, s: GameState) {
+  const k = s.killer;
+  const h = s.heroine;
+  const name = c.killer.name;
+  if (k.stunned > 0) {
+    k.stunned--;
+    log(s, `${name} staggers, dazed. He loses his turn.`, 'good');
+    return;
+  }
+  const exposed = !h.hidden;
+  if (k.loc === h.loc && exposed) {
+    killerAttack(c, s);
+    return;
+  }
+  if ((s.victims[k.loc] ?? 0) > 0) {
+    const n = Math.min(s.victims[k.loc], k.frenzy ? 2 : 1);
+    s.victims[k.loc] -= n;
+    s.slain += n;
+    log(s, `${name} butchers ${n === 1 ? 'a survivor' : `${n} survivors`} at ${nodeName(c, k.loc)}.`, 'killer');
+    s.fx.push({ t: 'victimSlain', at: k.loc });
+    if (k.loc === h.loc || neighbors(c, h.loc).includes(k.loc)) addHorror(c, s, 1);
+    addBloodlust(c, s, 2 * n);
+    return;
+  }
+  if (k.loc === h.loc && h.hidden) {
+    log(s, `${name} stands inches away… and passes her by.`, 'info');
+  }
+  const target = killerTarget(c, s);
+  k.lured = undefined;
+  const speed = killerSpeed(c, s);
+  for (let i = 0; i < speed && k.loc !== target; i++) {
+    if (!moveKiller(c, s, stepToward(c, k.loc, target))) break;
+    if (k.loc === h.loc || (s.victims[k.loc] ?? 0) > 0) break;
+  }
+  log(s, `${name} prowls to ${nodeName(c, k.loc)}.`, 'killer');
+  if (k.loc === h.loc && !h.hidden) {
+    s.fx.push({ t: 'killerAppears' });
+    log(s, `He's found her.`, 'killer');
+    addHorror(c, s, 1);
+  }
+}
+
+function killerAttack(c: Content, s: GameState) {
+  const h = s.heroine;
+  const r = rollDice(s, `${c.killer.name} attacks`, killerAttackDice(c, s), c.killer.attackThreshold);
+  const hits = Math.max(0, r.successes - (s.mods.brace ?? 0));
+  if (hits === 0) {
+    log(s, `${c.killer.name} lunges — she twists away!`, 'good');
+    return;
+  }
+  log(s, `${c.killer.name} strikes: ${hits} wound${hits > 1 ? 's' : ''}.`, 'bad');
+  wound(c, s, hits);
+  if (s.outcome) return;
+  addHorror(c, s, 1);
+  if (hits >= 2 && h.escorting > 0) {
+    h.escorting--;
+    s.slain++;
+    log(s, 'In the chaos, one of her survivors is cut down.', 'killer');
+    s.fx.push({ t: 'victimSlain', at: h.loc });
+    addBloodlust(c, s, 2);
+  }
+}
+
+// ── Scoring ─────────────────────────────────────────────────────────────────
+export function score(s: GameState) {
+  const base = s.outcome === 'slain' ? 100 : s.outcome === 'survived' ? 50 : 0;
+  return base + s.saved * 15 - s.slain * 5 + s.heroine.health * 5;
+}
+
+export function rating(s: GameState): { stars: number; blurb: string } {
+  const sc = score(s);
+  if (s.outcome === 'died') return { stars: 1, blurb: 'Straight to video.' };
+  if (sc >= 190) return { stars: 5, blurb: 'A midnight-movie legend.' };
+  if (sc >= 150) return { stars: 4, blurb: 'Cult classic.' };
+  if (sc >= 100) return { stars: 3, blurb: 'Solid double feature.' };
+  return { stars: 2, blurb: 'She made it. Barely.' };
+}
