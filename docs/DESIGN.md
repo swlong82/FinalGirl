@@ -67,7 +67,34 @@ Six 0‑cost starters (Walk, Hurry, Look Around, Shove, Steady Yourself, Duck) b
 ### Survivors, rescue and panic
 - When you leave a location, up to 2 survivors there follow you (Tess: 3). They never follow you into his location.
 - Standing on an **exit** at any point of your Action phase (passing through counts) rescues every survivor with you. Each rescue fills your next **rescue slot** and pays its reward (heal, nerve, calm, an item, or Resolve: +1 attack die for the night). With every slot full your **ability** unlocks (once per turn); further rescues pay the repeat reward.
-- His attacks hit survivors in his location before you, one per attack. Each kill: +1 bloodlust, and survivors left in his location panic at the end of the turn.
+- His attacks hit survivors in his location before you, one per attack. Each kill: +1 bloodlust, and survivors left in any enemy's location panic at the end of the turn.
+- **Panic tables** are written into every location (all 58): face 1 freezes (faces 1–2 in a couple of rooms per map where people hide), and the other faces lean toward neighbors that are closer to an exit. They can be hand-tuned per location in the pack.
+
+### Named survivors (special NPCs)
+Each location has one named survivor, brought in by one of its Terror cards. They follow every survivor rule (follow you, count toward the limit of 2, panic, get rescued, get killed) except one printed exception:
+
+| Location | Named survivor | Exception | Rescued | Killed |
+|---|---|---|---|---|
+| Holloway Drive‑In | Mr. Pruitt, the Night Usher | walks 1 toward the nearest exit every Upkeep | +2 nerve, horror −1 | horror +2 |
+| Gullhaven Tide Cabins | Old Man Gilley | heavy: counts as 2 when following | heal 1, +1 nerve | bloodlust +1 more |
+| Saint Agatha's | Father Ruiz | never panics | horror −2 | horror +2 |
+| Kettle Peak Lodge | Marty, the Bartender | loud: the killer's next target is his noise | heal 2 | horror +1 |
+| KXRL Hilltop | Old Herb, the Engineer | wanders to a neighbor every Upkeep | the killer is stunned, +1 nerve | horror +1, bloodlust +1 more |
+
+A rescued named survivor fills a rescue slot *and* pays their own reward. Named survivors follow you before the crowd does.
+
+### Minions (subordinate enemies)
+Two killers bring help. Minions have their own health, move, attack and target rule, a token limit (extra spawns are ignored), and act before or after the killer in the Killer phase. When an effect makes "the enemies" act and says nothing else, minions go first.
+
+| Killer | Minions | Stats | Targets | Order |
+|---|---|---|---|---|
+| The Tidewife | The Drowned (bloodlust 3, *Out of the Shallows*) | 1 health, move 1, attack 1, max 2 | closest survivor | before her |
+| The Anesthetist | Sleepwalkers (bloodlust 3, *Sleepwalking*) | 1 health, move 1, attack 1, max 2 | whoever is closest | after him |
+
+- With the killer **and** minions in reach, an attack must choose: him, or the minions. Never both.
+- Against minions, the damage (plus a weapon, not lore) is split between all minions in your location; leftover damage is lost.
+- Survivors will follow you into a location with minions, just not one with the killer. Minion kills feed bloodlust and trigger panic like his.
+- Minion attacks on you can be answered with reactions; Counter hits whoever is attacking.
 
 ### The killer
 - **Behavior** (data): `target` (closest survivor, you, or whoever is closest), `hunt` (move his Movement Value along a shortest path; stops on arrival), `attack` (n separate attacks). Ties go to the group with the most survivors, then to the tie‑break policy.
@@ -79,7 +106,16 @@ Six 0‑cost starters (Walk, Hurry, Look Around, Shove, Steady Yourself, Duck) b
 Two hand slots; two‑handed items fill both. The backpack holds anything, but items that need hands don't work from it. Rearranging is allowed only when you gain an item and during Upkeep. Each search location has its own face‑up item pile (4 cards; his lore is always dealt in); searching draws and keeps per the card, and the rest go back on top face up. Weapons add damage to an attack that deals at least 1; ranged weapons let attack cards reach him 1 location away.
 
 ### Tie‑break policy
-When the rules leave a genuine tie, the policy chosen in Settings decides and the Script logs it: **Player‑adverse** (default; he picks what's worst for you) or **Unpredictable** (a seeded coin flip, still replayable).
+When the rules leave a genuine tie (equally close targets with as many survivors, equally short routes, or a named survivor standing with the crowd when he attacks), the policy chosen in Settings decides and the Script logs it:
+
+| Policy | Target tie | Route tie | Who dies first |
+|---|---|---|---|
+| **Player‑adverse** (default) | her, else the group nearest her | the step nearest her | the named survivor |
+| **Most plausible** | whoever he was already chasing, else the one nearest his lair | the step nearest his lair | the crowd |
+| **Comedic** | the group farthest from her (he wanders off) | the step farthest from her | the named survivor, obviously |
+| **Unpredictable** | seeded coin flip | seeded coin flip | seeded coin flip |
+
+Comedic ties also log a pratfall ("He walks face‑first into a hanging sign, recovers, and pretends that was the plan.").
 
 ### Location rules (one per location)
 | Location | Rule | Effect |
@@ -110,14 +146,14 @@ Bot results on Midnight Show (a careful human should beat these):
 
 | Location | Killed him | Turns | Reached Finale |
 |---|---|---|---|
-| Holloway Drive‑In | 62% | 10.2 | 41% |
-| Gullhaven Tide Cabins | 44% | 11.0 | 55% |
-| Saint Agatha's | 35% | 10.1 | 39% |
-| Kettle Peak Lodge | 49% | 10.3 | 38% |
-| KXRL Hilltop | 48% | 11.1 | 63% |
-| **All** | **48%** | **10.6** | **47%** |
+| Holloway Drive‑In | 63% | 10.0 | 35% |
+| Gullhaven Tide Cabins | 42% | 10.7 | 52% |
+| Saint Agatha's | 32% | 9.5 | 31% |
+| Kettle Peak Lodge | 45% | 10.1 | 38% |
+| KXRL Hilltop | 45% | 10.8 | 52% |
+| **All** | **46%** | **10.2** | **42%** |
 
-Matinee: 81% · Nightmare: 12%. Tension report (`SCRIPTS=1 npx vitest run tension`): 66% of games reach 1 health or death, average peak horror 5.4 of 6, about 3 reactions and 4 rescues per game.
+By killer: Projectionist 54%, Caller 49%, Snowblind 42%, Anesthetist 42%, Tidewife 41%. Matinee: 78% · Nightmare: 13%. Tension report (`SCRIPTS=1 npx vitest run tension`): 67% of games reach 1 health or death, average peak horror 5.4 of 6, about 3 reactions and 4 rescues per game.
 
 ### Spec alignment (v1.0)
 v1.0 rebuilt the core loop around a generic solo‑survival rules spec. What changed, and what we kept on purpose:
@@ -132,10 +168,12 @@ v1.0 rebuilt the core loop around a generic solo‑survival rules spec. What cha
 | Hidden final‑health tokens; revival ends the phase; both die → win | Same, for heroine and killer |
 | NPCs follow (2), not into the Hunter; exit rescue → slots → ability | Same |
 | NPCs attacked first; reactions per attack | Same |
-| Elimination‑triggered directional panic | Same; panic tables derive from each location's edges unless a pack overrides them |
+| Elimination‑triggered directional panic | Same; every location has a written d6 panic table |
+| Special NPCs | One named survivor per location, each with one exception, a rescue reward and a death cost |
+| Minions; choose Hunter or minions when attacking; damage split among minions; minions act before the Hunter by default | Same, for the Tidewife and the Anesthetist |
 | 2 hand slots, two‑handed items, backpack, rearrange on gain/Upkeep | Same |
 | Per‑space item piles, top card face up | Same (4 piles of 4) |
-| Tie‑break policy, logged | Player‑adverse and Unpredictable (seeded). "Comedic" needs human judgment and is not offered |
+| Tie‑break policy, logged | Player‑adverse, Most plausible, Comedic, plus Unpredictable (seeded) |
 | Kept from LAST LIGHT | Original names and art, location signature rules, lore as +1 damage, barricades, hiding, ranged weapons, Event cards as ongoing modifiers |
 
 ## 3. Architecture
@@ -147,6 +185,7 @@ src/
     rules.ts   newGame / check / dispatch / effect queue / killer behavior / phases
     bot.ts     heuristic player (balance sim + in-game hint)
     tutorial.ts scripted first-night setup
+    migrate.ts converts v0.9 saves into v1.0 games
     rng.ts     seeded RNG (state stored in the save → exact replays)
   content/     data packs — the only thing an expansion touches
     actions.ts      the action-card tableau (starters + piles)
@@ -167,9 +206,9 @@ scripts/       balance and tension reports (SCRIPTS=1)
 
 ## 4. Adding a Feature (expansion)
 
-1. `src/content/<location>/location.ts` exports a `LocationPack`: nodes (with `search` / `exit` flags and optional `panic` tables), edges, lair, two or more `setups`, `terror` cards, ongoing `events`, items, and one signature `rule`.
+1. `src/content/<location>/location.ts` exports a `LocationPack`: nodes (with `search` / `exit` flags and a d6 `panic` table each), edges, lair, two or more `setups`, `terror` cards, ongoing `events`, named `specials`, items, and one signature `rule`.
    - **Mixing rule:** killer packs must never name a location's nodes. Use `heroine`, `lair`, `random`, `nearKiller` or `farFromKiller`. A test enforces this.
-2. `src/content/<killer>/killer.ts` exports a `KillerPack`: health, starting horror, the 8‑level `bloodlust` track, `behavior`, `power`, `finale` (with its own behavior), `revive`, `terror` cards, lore items and quotes.
+2. `src/content/<killer>/killer.ts` exports a `KillerPack`: health, starting horror, the 8‑level `bloodlust` track, `behavior`, `power`, `finale` (with its own behavior), `revive`, optional `minions`, `terror` cards, lore items and quotes.
 3. Register both in `src/content/registry.ts` and add a `Feature`.
 4. Optionally add heroines (`HeroineDef`: traits, rescue slots, ability).
 5. Art: set `art` keys and add renderers in `src/art/`.
@@ -195,6 +234,7 @@ scripts/       balance and tension reports (SCRIPTS=1)
 | **v0.8 (this build): Draft & readability** | **Lineup draft**: 6 face‑up action cards each round, take up to 3 for free (hand max 5), pay nerve to play. Every lineup is guaranteed a Lead card and a Hide or Fight card. Bleeding and Panic go straight into the hand. Noise every 6 nerve. **Readable map**: labeled badges with icons (searches left, panic n/4, barricade), a **Map key**, and a hover **location card** |
 | v0.9: Hunt him down | **The only win is killing him**; dawn means he escapes, which is a loss. **Resolve**: each rescue gives +1 fight die (max 3) plus an item. **Nerve resets each round** again (5/4/4/3); banking and noise removed. **Movement comes from cards**: Walk, Run and Slip Away, with 2 Walk cards to start and a move card guaranteed in every lineup. **Hands + backpack**: 3 active hand slots and an unlimited backpack; readying an item costs 1 nerve, or is free at the moment you find it. Killers −2 health, dawn at round 14, "he gets back up" at 4 health |
 | **v1.0 (this build): The five‑phase night** | Core loop rebuilt to a generic solo‑survival spec: **Action → Planning → Killer → Panic → Upkeep**. **Nerve 6** and an open **tableau** you buy from (used cards locked until Planning ends; discard for +1 nerve; nerve debt ends your turn). **Horror Rolls** with partials you buy up with cards, and 2+ / 1 / fail outcome bands on every card. **10‑card Terror deck** as the clock; **Finale** when it runs out (dawn removed). **Bloodlust track** sets his move and attack, with level effects and a **power** revealed at level 4. **Hidden final‑health tokens** for both sides. Survivors follow (2) and shield you; **exit rescues** fill slots and unlock an **ability**. **Reactions**. Elimination‑triggered **directional panic**. **Two hand slots** and per‑location **item piles**. Tie‑break policy setting. New tutorial, rule tests and balance pass |
+| **v1.0.1 (this build): The rest of the spec** | All four tie‑break policies, named survivors (one per location), minions for the Tidewife and the Anesthetist with the him‑or‑them attack choice, written panic tables for every location, and v0.9 saves converted on Continue |
 | v1.1 | Season 2 kickoff; heroine scars and campaign mode |
 | v0.4 | Achievements, daily seeded challenge, more heroines |
 | v0.5 | PWA/offline, controller support, localization, optional commissioned art and music swapped into the art/audio slots |

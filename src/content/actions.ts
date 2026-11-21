@@ -41,5 +41,5 @@ export const coreActions: ActionCardDef[] = [
   // ── Reactions (only when he attacks you) ──
   { id: 'ac-brace', name: 'Brace', cost: 1, kind: 'reaction', tags: ['reaction'], roll: true, great: [{ op: 'block', n: 99 }], good: [{ op: 'block', n: 2 }], fail: [{ op: 'block', n: 1 }], flavor: 'Reaction. Arms up, take it on the shoulder.', copies: 2 },
   { id: 'ac-dodge', name: 'Dodge', cost: 2, kind: 'reaction', tags: ['reaction'], roll: false, always: [{ op: 'block', n: 99 }], flavor: 'Reaction. The blade bites the wall, not you.', copies: 1 },
-  { id: 'ac-counter', name: 'Counter', cost: 3, kind: 'reaction', tags: ['reaction', 'attack'], roll: true, great: [{ op: 'block', n: 99 }, { op: 'killerDamage', n: 2 }], good: [{ op: 'block', n: 1 }, { op: 'killerDamage', n: 1 }], fail: [], flavor: 'Reaction. Step inside his swing and hit back.', copies: 1 },
+  { id: 'ac-counter', name: 'Counter', cost: 3, kind: 'reaction', tags: ['reaction', 'attack'], roll: true, great: [{ op: 'block', n: 99 }, { op: 'counter', n: 2 }], good: [{ op: 'block', n: 1 }, { op: 'counter', n: 1 }], fail: [], flavor: 'Reaction. Step inside his swing and hit back.', copies: 1 },
 ];

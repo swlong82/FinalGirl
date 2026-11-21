@@ -6,6 +6,7 @@ import { startParticles } from './ui/particles';
 import { botAction } from './engine/bot';
 import { glyph } from './ui/glyphs';
 import { TUTORIAL, tutorialGame } from './engine/tutorial';
+import { isLegacySave, migrateSave } from './engine/migrate';
 import { Tutorial } from './ui/tutorial';
 import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } from './content/registry';
 import {
@@ -33,6 +34,10 @@ import {
   killerAttack,
   killerMoveValue,
   loreBonus,
+  minionsAt,
+  npcAt,
+  specialDef,
+  specialsAt,
   MAX_HORROR,
   neighbors,
   newGame,
@@ -193,6 +198,16 @@ function describeEffect(e: Effect): string {
       return 'end the phase';
     case 'damage':
       return `${e.n} damage`;
+    case 'spawnSpecial':
+      return content ? `${content.location.specials.find((x) => x.id === e.id)?.name ?? 'a named survivor'} appears` : 'a named survivor appears';
+    case 'spawnMinion':
+      return `+${e.n} ${content?.killer.minions ? (e.n > 1 ? content.killer.minions.plural : content.killer.minions.name.replace(/^(A|An) /, '')) : 'minion'}`;
+    case 'minionsAct':
+      return `the ${content?.killer.minions?.plural ?? 'minions'} act`;
+    case 'enemiesAct':
+      return 'his minions, then he, act';
+    case 'counter':
+      return `${e.n} damage to the attacker`;
     case 'killerDamage':
       return `${e.n} damage to him`;
     case 'block':
@@ -283,9 +298,20 @@ function backdrop() {
   return `<div class="backdrop-wrap">${mapBackdrop(loc, false)}</div>`;
 }
 
-function savedGame() {
+const LEGACY_SAVE_KEY = 'lastlight.save.v1';
+function savedGame(): { ids: [string, string, string]; state: GameState; legacy?: boolean } | null {
   const saved = load<{ ids: [string, string, string]; state: GameState } | null>(SAVE_KEY, null);
-  return saved && saved.state?.version === 2 && !saved.state.outcome ? saved : null;
+  if (saved && saved.state?.version === 2 && !saved.state.outcome) return saved;
+  // A night saved under the v0.9 rules: convert it.
+  const old = load<{ ids: [string, string, string]; state: unknown } | null>(LEGACY_SAVE_KEY, null);
+  if (!old || !isLegacySave(old.state) || old.state.outcome) return null;
+  try {
+    const [l, k, h] = old.ids;
+    const state = migrateSave(buildContent(l, k, h), old.state);
+    return state ? { ids: old.ids, state, legacy: true } : null;
+  } catch {
+    return null;
+  }
 }
 
 function renderTitle() {
@@ -295,7 +321,7 @@ function renderTitle() {
     <h1 class="logo flicker">LAST <span>LIGHT</span></h1>
     <div class="tagline">a solo slasher survival game</div>
     <div class="menu">
-      ${saved ? `<button class="btn primary" data-go="continue">Continue: Turn ${saved.state.round}</button>` : ''}
+      ${saved ? `<button class="btn primary" data-go="continue">Continue: Turn ${saved.state.round}${saved.legacy ? ' (converted from v0.9)' : ''}</button>` : ''}
       ${!load(TUT_KEY, false) ? '<button class="btn primary tut-cta" data-go="tutorial">First Night: Guided Tutorial</button>' : ''}
       <button class="btn ${saved || !load(TUT_KEY, false) ? '' : 'primary'}" data-go="feature">New Night</button>
       ${load(TUT_KEY, false) ? '<button class="btn" data-go="tutorial">Replay Tutorial</button>' : ''}
@@ -478,7 +504,16 @@ function continueGame() {
   game.fx = [];
   resetUi();
   screen = 'game';
+  if (saved.legacy) {
+    persist();
+    try {
+      localStorage.removeItem(LEGACY_SAVE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
   render();
+  if (saved.legacy) toast('This night was saved under the old rules and has been converted to v1.0. Positions, health, items and rescues carried over.', 8000);
 }
 
 function renderGame() {
@@ -698,6 +733,8 @@ function updateGame() {
     <div class="quote">${esc(lastQuote)}</div>
     <h4>Weakness (${loreBonus(c, s)}/${c.killer.items.length})</h4>
     <div class="passive-box">${esc(c.killer.weakness.text)}</div>
+    ${c.killer.minions ? `<h4>${esc(c.killer.minions.plural)} <span class="h4-note">${s.minions.length}/${c.killer.minions.max} on the board</span></h4><div class="passive-box">${esc(c.killer.minions.text)}</div>` : ''}
+    ${s.specials.length || s.specialsGone.length ? `<h4>Named survivors</h4><div class="passive-box">${[...s.specials.map((x) => `<b>${esc(specialDef(c, x.id).name)}</b> at ${esc(nodeName(c, x.at))}. ${esc(specialDef(c, x.id).text)}`), ...s.specialsGone.map((x) => `<b>${esc(specialDef(c, x.id).name)}</b>: ${x.how}.`)].join('<br>')}</div>` : ''}
     <h4>Ongoing events</h4>
     <div class="passive-box">${s.events.map((id) => `<b>${esc(eventDef(c, id).name)}.</b> ${esc(eventSummary(c, id))}`).join('<br>') || 'None.'}</div>
     <div class="stats" style="margin-top:8px"><span>Saved <b style="color:var(--good)">${s.saved}</b></span><span>Slain <b style="color:var(--blood)">${s.slain}</b></span><span>Still out there <b>${s.victimPool}</b></span></div>`;
@@ -746,7 +783,10 @@ function updateBoard() {
     el.classList.toggle('flooded', isFlooded(c, s, id));
     el.classList.toggle('ringing', s.env.ringing === id);
     el.querySelector('.badges')!.innerHTML = badges.join('');
-    el.querySelector('.vics')!.innerHTML = Array(s.victims[id] ?? 0).fill(victimIcon()).join('');
+    const named = specialsAt(s, id).map((x) => `<span class="named" title="${esc(specialDef(c, x.id).name)}: ${esc(specialDef(c, x.id).text)}">${victimIcon()}<i>${esc(specialDef(c, x.id).name.split(',')[0].trim().split(' ').pop()!)}</i></span>`);
+    const mins = minionsAt(s, id).length;
+    el.querySelector('.vics')!.innerHTML =
+      Array(s.victims[id] ?? 0).fill(victimIcon()).join('') + named.join('') + (mins ? `<span class="minion" title="${mins} ${esc(mins > 1 ? c.killer.minions!.plural : c.killer.minions!.name)}">${'☠'.repeat(mins)}</span>` : '');
     el.disabled = !reach.includes(id) && id !== h.loc;
   });
   document.querySelectorAll<SVGLineElement>('svg.edges line[data-edge]').forEach((ln) => {
@@ -786,7 +826,7 @@ function updateBoard() {
   const hint = document.getElementById('board-hint')!;
   if (moving) {
     const p = s.pending as { kind: 'move'; left: number };
-    const here = s.victims[h.loc] ?? 0;
+    const here = npcAt(s, h.loc);
     const cap = escortCap(c);
     const bring = here ? `· bring <span class="bring">${Array.from({ length: cap + 1 }, (_, n) => `<button class="btn tiny ${h.bring === n ? 'sel' : ''}" data-bring="${n}">${n}</button>`).join('')}</span> of ${here} survivor${here > 1 ? 's' : ''}` : '';
     hint.innerHTML = `<b style="color:var(--gold)">${p.left}</b> step${p.left > 1 ? 's' : ''} left: click a glowing location ${bring} <button class="btn tiny" data-act="stopMove">Stop (S)</button>`;
@@ -928,6 +968,17 @@ function updateOverlay() {
     </div></div>`;
     return;
   }
+  if (p?.kind === 'aim') {
+    const def = c.killer.minions!;
+    const mins = minionsAt(s, h.loc);
+    root.innerHTML = `<div class="overlay"><div class="draft react-ov aim-ov">
+      <div class="kind">Choose a target</div>
+      <h2>${p.base} damage: ${esc(c.killer.name)}, or them?</h2>
+      <p>You can hit <b>${esc(c.killer.name)}</b> (your weapon and lore add to it), or the <b>${mins.length} ${esc(mins.length > 1 ? def.plural : def.name.replace(/^(A|An) /, ''))}</b> here (your weapon adds to it and the damage is split between them; any left over is lost). Not both.</p>
+      <div class="row-btns" style="justify-content:center"><button class="btn primary" data-aim="killer">Hit ${esc(c.killer.name)}</button><button class="btn" data-aim="minions">Hit the ${esc(def.plural)} (health ${mins.map((m) => m.health).join(', ')})</button></div>
+    </div></div>`;
+    return;
+  }
   if (p?.kind === 'reaction') {
     const dmg = s.attack?.damage ?? 0;
     const reacts = h.hand
@@ -1066,6 +1117,8 @@ function showMapKey() {
     <tr><td><span class="badge exitb">EXIT</span></td><td><b>Exit</b> (green ring): survivors here with you are rescued, and each one fills a rescue slot.</td></tr>
     <tr><td><span class="badge search">${glyph('search')}4</span></td><td><b>Item pile</b>: search cards draw from it. Hover to see the top card when it is face up.</td></tr>
     <tr><td><span class="badge barr">${glyph('barricade')}2</span></td><td><b>Barricade</b>: each point costs him 1 movement.</td></tr>
+    <tr><td><span class="named">${victimIcon()}<i>Name</i></span></td><td><b>Named survivor</b>: follows the survivor rules with one exception (hover to read it). Rescuing them pays an extra reward; losing them costs you.</td></tr>
+    <tr><td><span class="minion">☠</span></td><td><b>Minions</b>: some killers bring help. They have their own health, move and attack. Survivors will follow you into their location, just not into his.</td></tr>
     <tr><td><span class="kring lair"></span></td><td><b>Red ring</b>: his lair.</td></tr>
     <tr><td><span class="kring reach"></span></td><td><b>Glowing gold</b>: where you can step while a move card is resolving.</td></tr>
     ${ruleTxt}
@@ -1089,6 +1142,9 @@ function inspectNode(id: string | null) {
   if (n.exit) lines.push('<b class="good">Exit</b>: survivors here with you are rescued.');
   if (id === c.location.lair) lines.push('<b>His lair.</b>');
   if (v) lines.push(`${v} survivor${v > 1 ? 's' : ''}.`);
+  for (const x of specialsAt(s, id)) lines.push(`<b>${esc(specialDef(c, x.id).name)}</b>: ${esc(specialDef(c, x.id).text)}`);
+  const mins = minionsAt(s, id);
+  if (mins.length) lines.push(`<b class="bad">${mins.length} ${esc(mins.length > 1 ? c.killer.minions!.plural : c.killer.minions!.name)}</b> (health ${mins.map((x) => x.health).join(', ')}).`);
   const pile = s.piles[id];
   if (pile) lines.push(`Item pile: ${pile.cards.length} left${pile.up && pile.cards.length ? `, top card <b>${esc(itemDef(c, pile.cards[0]).name)}</b>` : pile.cards.length ? ' (top face down)' : ''}.`);
   if ((s.barricades[id] ?? 0) > 0) lines.push(`Barricaded (${s.barricades[id]}).`);
@@ -1139,6 +1195,8 @@ function describeAction(c: Content, s: GameState, a: Action): string {
       return '<b>Answer</b> the phone.';
     case 'ready':
       return 'Take an item in hand.';
+    case 'aim':
+      return a.at === 'killer' ? `Hit <b>${esc(c.killer.name)}</b>.` : `Hit the <b>${esc(c.killer.minions?.plural ?? 'minions')}</b>.`;
     default:
       return `<b>${a.type}</b>.`;
   }
@@ -1238,6 +1296,9 @@ function runFx(s: GameState) {
       case 'hide':
         audio.play('hide');
         break;
+      case 'minion':
+        audio.play('killer');
+        break;
       case 'stun':
         audio.play('stun');
         break;
@@ -1328,6 +1389,8 @@ function contextualTips() {
   else if (s.phase !== 'action') return;
   else if ((s.victims[s.heroine.loc] ?? 0) > 0 && !isExit(c, s.heroine.loc)) showTip('escort', `Survivors here follow you when you move (up to ${escortCap(c)}), but never into his location. Walk them to an <b>exit</b>.`);
   else if (s.killer.loc === s.heroine.loc) showTip('killer', `${esc(c.killer.name)} is here. Attack cards hit him; weapons and lore add damage. When he attacks <b>survivors die first</b>.`);
+  else if (s.minions.some((x) => x.loc === s.heroine.loc)) showTip('minions', `${esc(c.killer.minions?.plural ?? 'Minions')} are here. Attack cards can hit them (damage is split between them). If he is here too, you choose: him or them.`);
+  else if (s.specials.length) showTip('named', 'A <b>named survivor</b> is on the board. They follow the normal rules with one exception (hover them on the map), and pay an extra reward when rescued.');
   else if (s.killer.bloodlust >= 2) showTip('bloodlust', 'Every death feeds his <b>bloodlust</b>, which sets how far he moves and how hard he hits.');
 }
 
@@ -1376,12 +1439,14 @@ function showRules() {
   <p>When you leave a location, up to 2 survivors there come with you, but they won't walk into his location. Anywhere you stand on an <b>exit</b> during your Action phase, survivors with you are rescued. Each rescue fills a <b>rescue slot</b> and pays its reward; fill them all to unlock your heroine's ability. When he attacks, survivors in his location are attacked <b>before you</b>.</p>
   <h3>Attacking, damage, and final health</h3>
   <p>Attack cards need him in your location, unless a weapon in hand reaches farther. If an attack deals at least 1, your best reaching weapon and each lore item you've found add damage. Both of you have a hidden <b>final-health token</b>: when health runs out it's revealed. A number means getting back up with that much health, and the current phase ends at once. A blank means death.</p>
+  <h3>Named survivors and minions</h3>
+  <p>Some survivors have names. They follow all the survivor rules except one printed exception (hover them on the map), come along before the crowd, and pay an extra reward when rescued, or cost you when they die. Some killers also bring <b>minions</b> with their own health, move and attack. If he and his minions are both in reach, an attack hits one or the other: him (weapon and lore add damage) or the minions (weapon adds damage, split between them, leftovers lost). Survivors will follow you into a room with minions, never into his.</p>
   <h3>Reactions</h3>
   <p>When he attacks <b>you</b>, you may play reaction cards against that one attack. They cost nerve from your next turn.</p>
   <h3>Items</h3>
   <p>Two hands: a two-handed item fills both. The backpack holds anything, but items needing hands don't work from it. You may rearrange only when you gain an item and during Upkeep. Search cards draw from the item pile at your location; whatever you don't keep goes back on top, face up.</p>
   <h3>Ties</h3>
-  <p>If the rules leave a genuine tie (two equally close targets with as many survivors), the tie-break policy decides (Settings): <b>${esc(TIEBREAK[prefs.tiebreak].label)}</b>. ${esc(TIEBREAK[prefs.tiebreak].text)} The Script logs each tie-break.</p>
+  <p>If the rules leave a genuine tie (two equally close targets with as many survivors, two equally short routes, or a named survivor standing with the crowd when he strikes), the tie-break policy decides (Settings): <b>${esc(TIEBREAK[prefs.tiebreak].label)}</b>. ${esc(TIEBREAK[prefs.tiebreak].text)} The Script logs each tie-break.</p>
   <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p>
   <h3>Keys</h3><p>1–0 play cards · S stop moving · A answer · H hint · Z undo · E end phase · Space continue · R rules</p>`);
 }
@@ -1403,7 +1468,8 @@ function showSettings() {
     if (screen === 'game') updateGame();
   });
   o.querySelector('#s-tie')!.addEventListener('click', (e) => {
-    prefs.tiebreak = prefs.tiebreak === 'adverse' ? 'random' : 'adverse';
+    const order: TieBreak[] = ['adverse', 'plausible', 'comedic', 'random'];
+    prefs.tiebreak = order[(order.indexOf(prefs.tiebreak) + 1) % order.length];
     (e.target as HTMLElement).textContent = TIEBREAK[prefs.tiebreak].label;
     (e.target as HTMLElement).title = TIEBREAK[prefs.tiebreak].text;
     savePrefs();
@@ -1455,6 +1521,8 @@ function handleGameClick(t: HTMLElement): boolean {
   if (readyUid) return readyItem(+readyUid), true;
   const swapBtn = t.closest<HTMLElement>('[data-swap]');
   if (swapBtn) return act({ type: 'ready', uid: +swapBtn.dataset.swap!, swapOut: [+swapBtn.dataset.out!] }), true;
+  const aim = d('aim');
+  if (aim) return act({ type: 'aim', at: aim as 'killer' | 'minions' }), true;
   const react = d('react');
   if (react) return act({ type: 'react', uid: +react }), true;
   const buy = d('buy');

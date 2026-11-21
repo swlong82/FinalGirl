@@ -18,6 +18,7 @@ Runs in any modern browser on desktop or mobile, with no install. Headphones rec
 - **Season 1 is complete**: 5 features, 7 heroines, and a signature rule for every location (tide, blackouts, cold, ringing phones, intermission).
 - **v1.0: the five‑phase night.** Each turn is Action → Planning → Killer → Panic → Upkeep. You spend **nerve** on action cards, buy new ones from an open tableau, and make **Horror Rolls** where 3–4 is a partial you can buy up with cards. A **10‑card Terror deck** counts down to the **Finale**. His **bloodlust** sets how far he moves and how hard he hits, and both of you carry a hidden **final‑health token**. The only way to win is to kill him.
 - **Double Bill builder**: put any killer in any location (25 pairings), with live VHS‑poster previews and a random pick. Three difficulty modes and a stats screen.
+- Named survivors with their own quirks in every location, minions for two of the killers, and four tie‑break policies (player‑adverse, most plausible, comedic, unpredictable). Nights saved under v0.9 are converted when you Continue.
 - 7 playable heroines, each with a passive, a rescue‑reward track, and an ability that unlocks when every rescue slot is full.
 - Procedural art (SVG) and a procedural soundtrack (WebAudio). There are no external assets.
 - Autosave, undo, keyboard shortcuts, mobile layout, a guided first night, and in‑context tips.

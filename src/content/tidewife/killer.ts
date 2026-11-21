@@ -6,7 +6,7 @@ export const tidewife: KillerPack = {
   name: 'The Tidewife',
   epithet: 'Hester Crane, who is still waiting',
   art: 'tidewife',
-  health: 23,
+  health: 19,
   horror: 2,
   bloodlust: {
     revealAt: 4,
@@ -14,7 +14,7 @@ export const tidewife: KillerPack = {
       { move: 1, attack: 1, name: 'Waiting', text: 'She stands at the end of the dock.' },
       { move: 2, attack: 1 },
       { move: 2, attack: 2, name: 'The Floodwater Rises', text: 'Seawater pours in under every door. She heals in it.', effects: [{ op: 'killerHeal', n: 2 }] },
-      { move: 2, attack: 2, name: 'The Drowned Rise', text: 'Shapes stand up in the shallows. They only watch. That is worse.', effects: [{ op: 'horror', n: 2 }] },
+      { move: 2, attack: 2, name: 'The Drowned Rise', text: 'Shapes stand up in the shallows, and they start walking.', effects: [{ op: 'spawnMinion', at: 'nearKiller', n: 1 }, { op: 'horror', n: 1 }] },
       { move: 2, attack: 2, name: 'The Lamp Turns', text: 'Her power is revealed.' },
       { move: 3, attack: 3, name: 'Riptide', text: 'The ground turns to wet sand and drags her toward the Tidewife.', effects: [{ op: 'killerTeleport', to: 'heroine' }, { op: 'horror', n: 1 }] },
       { move: 3, attack: 3, name: 'Salt in the Lungs', text: 'Every breath tastes of brine.', effects: [{ op: 'wound', n: 1 }] },
@@ -40,7 +40,9 @@ export const tidewife: KillerPack = {
   },
   revive: { name: 'The Lantern Goes Out', text: 'Her lantern shatters. In the dark her veil lifts, and there is only water underneath.', effects: [{ op: 'horror', n: 2 }] },
   quotes: ['"Have you seen his boat?"', '"The lamp is lit. Come home."', '"Stay. Stay with me."', '"The water is warm, love."'],
+  minions: { name: 'A Drowned One', plural: 'Drowned', text: 'Everyone she has taken, back from the shallows. 1 health, move 1, attack 1. They go for the closest survivor (you, if there are none) and act before she does.', health: 1, move: 1, attack: 1, max: 2, who: 'npc', order: 'before' },
   terror: [
+    { id: 'tw-shallows', name: 'Out of the Shallows', tone: 'killer', text: 'The tide comes in, and so do they.', effects: [{ op: 'spawnMinion', at: 'lair', n: 1 }, { op: 'minionsAct' }] },
     { id: 'tw-undertow', name: 'Undertow', tone: 'killer', text: 'She steps into a puddle at the lighthouse and steps out of one somewhere else.', effects: [{ op: 'killerTeleport', to: 'random' }] },
     { id: 'tw-lamp', name: 'The Lamp Turns', tone: 'killer', text: 'The great beam sweeps the point and stops. It is pointing at her.', effects: [{ op: 'killerMove', toward: 'heroine', steps: 2 }, { op: 'attack' }] },
     { id: 'tw-wet', name: 'Wet Footprints', tone: 'killer', text: 'A trail of puddles leads right up to where she is standing.', effects: [{ op: 'killerMove', toward: 'heroine', steps: 1 }, { op: 'horror', n: 1 }] },

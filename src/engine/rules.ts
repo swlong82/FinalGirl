@@ -1,4 +1,4 @@
-import { pick, rollD6, shuffle } from './rng';
+import { nextRand, pick, rollD6, shuffle } from './rng';
 import type {
   Action,
   ActionCardDef,
@@ -80,9 +80,49 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
 };
 
 export const TIEBREAK: Record<TieBreak, { label: string; text: string }> = {
-  adverse: { label: 'Player-adverse', text: 'When the rules leave a genuine tie, he picks whatever is worst for you.' },
+  adverse: { label: 'Player-adverse', text: 'When the rules leave a genuine tie, the outcome least favorable to you happens: he goes for you, takes the route toward you, kills the named survivor first.' },
+  plausible: { label: 'Most plausible', text: 'Ties go to what fits the story: he keeps after the target he was already chasing, stays on familiar ground near his lair, and cuts down the anonymous crowd before the people with names.' },
+  comedic: { label: 'Comedic', text: 'Ties go to the funniest outcome: he wanders after the farthest option, takes the long way round, and always gets the guy who was two days from retirement. Every tie comes with a pratfall in the Script.' },
   random: { label: 'Unpredictable', text: 'Genuine ties are settled by a seeded coin flip (still replayable).' },
 };
+
+const GAGS = [
+  'He stops, looks both ways, and flips an imaginary coin.',
+  'He walks face-first into a hanging sign, recovers, and pretends that was the plan.',
+  'He stands perfectly still for a full ten seconds, deciding. Somewhere, a cricket chirps.',
+  'He trips over a garden hose that was definitely not there before.',
+  'He pauses to adjust his mask in a reflection. It takes a while.',
+  'He starts one way, stops, sighs audibly, and turns around.',
+];
+
+/** Order tied options by the tie-break policy (most preferred first). */
+function tieOrder(c: Content, s: GameState, opts: NodeId[], kind: 'target' | 'path'): NodeId[] {
+  const h = s.heroine;
+  const sorted = [...opts].sort();
+  switch (s.tiebreak) {
+    case 'random':
+      return [pick(s, sorted)];
+    case 'adverse': {
+      const dh = distances(c, h.loc);
+      return sorted.sort((a, b) => Number(b === h.loc) - Number(a === h.loc) || (dh[a] ?? 99) - (dh[b] ?? 99));
+    }
+    case 'plausible': {
+      const dl = distances(c, c.location.lair);
+      const prev = s.killer.target;
+      return sorted.sort((a, b) => (kind === 'target' ? Number(b === prev) - Number(a === prev) : 0) || (dl[a] ?? 99) - (dl[b] ?? 99));
+    }
+    case 'comedic': {
+      const dh = distances(c, h.loc);
+      return sorted.sort((a, b) => Number(a === h.loc) - Number(b === h.loc) || (dh[b] ?? 99) - (dh[a] ?? 99));
+    }
+  }
+}
+
+function logTieBreak(s: GameState, what: string) {
+  const label = TIEBREAK[s.tiebreak].label.toLowerCase();
+  if (s.tiebreak === 'comedic') log(s, `Tie-break (${label}): ${pick(s, GAGS)} Then ${what}.`, 'info');
+  else log(s, `Tie-break (${label}): ${what}.`, 'info');
+}
 
 // ── Lookups ─────────────────────────────────────────────────────────────────
 export function allItems(c: Content): ItemDef[] {
@@ -218,6 +258,9 @@ export function newGame(c: Content, seed: number, difficulty: Difficulty = 'stan
       attackBonus: dm.attack,
     },
     victims: Object.fromEntries(c.location.nodes.map((n) => [n.id, 0])),
+    specials: [],
+    specialsGone: [],
+    minions: [],
     barricades: Object.fromEntries(c.location.nodes.map((n) => [n.id, 0])),
     saved: 0,
     slain: 0,
@@ -521,11 +564,18 @@ function heroineAttack(c: Content, s: GameState, base: number) {
     log(s, 'No damage.', 'bad');
     return;
   }
-  const range = s.rolling?.range ?? (s.heroine.loc === s.killer.loc ? 0 : 99);
-  if (range > 0 && !bestWeapon(c, s, range)) {
-    log(s, 'Out of reach.', 'bad');
-    return;
-  }
+  const h = s.heroine;
+  const range = h.loc === s.killer.loc ? 0 : (distances(c, h.loc)[s.killer.loc] ?? 99);
+  const killerOk = range === 0 || !!bestWeapon(c, s, range);
+  const minionsHere = minionsAt(s, h.loc).length > 0;
+  // With both in reach she must choose: him, or the minions. Never both.
+  if (killerOk && minionsHere) s.pending = { kind: 'aim', base, range };
+  else if (killerOk) hitKiller(c, s, base, range);
+  else if (minionsHere) hitMinions(c, s, base);
+  else log(s, 'Out of reach.', 'bad');
+}
+
+function hitKiller(c: Content, s: GameState, base: number, range: number) {
   let dmg = base;
   const w = bestWeapon(c, s, range);
   if (w) {
@@ -537,7 +587,7 @@ function heroineAttack(c: Content, s: GameState, base: number) {
   hurtKiller(c, s, dmg);
 }
 
-const SEQUENCING = new Set<Effect['op']>(['_strike', '_reactDone', '_clearMods', '_terror', '_phase', '_behavior', '_finaleCheck', '_rule', 'target', 'hunt', 'attack', 'move', 'search']);
+const SEQUENCING = new Set<Effect['op']>(['_strike', '_reactDone', '_clearMods', '_terror', '_phase', '_behavior', '_finaleCheck', '_rule', '_minion', '_minionsAll', 'minionsAct', 'enemiesAct', 'target', 'hunt', 'attack', 'move', 'search']);
 
 function settle(c: Content, s: GameState) {
   if (!s.down || s.outcome) return;
@@ -629,14 +679,57 @@ function revealEvent(c: Content, s: GameState) {
 }
 
 // ── Survivors ───────────────────────────────────────────────────────────────
-function eliminate(c: Content, s: GameState, at: NodeId) {
-  if ((s.victims[at] ?? 0) <= 0) return;
-  s.victims[at]--;
+// Survivors = ordinary survivors (a count per location) + named special survivors.
+export function specialDef(c: Content, id: string) {
+  const d = c.location.specials.find((x) => x.id === id);
+  if (!d) throw new Error(`Unknown special survivor ${id}`);
+  return d;
+}
+export function specialsAt(s: GameState, node: NodeId) {
+  return s.specials.filter((x) => x.at === node);
+}
+export function npcAt(s: GameState, node: NodeId) {
+  return (s.victims[node] ?? 0) + specialsAt(s, node).length;
+}
+export function npcNodes(s: GameState): NodeId[] {
+  const out = new Set(Object.entries(s.victims).filter(([, n]) => n > 0).map(([id]) => id));
+  for (const x of s.specials) out.add(x.at);
+  return [...out];
+}
+export function minionsAt(s: GameState, node: NodeId) {
+  return s.minions.filter((m) => m.loc === node);
+}
+/** Where any enemy (the killer or a minion) stands. */
+export function enemyNodes(s: GameState): NodeId[] {
+  return [...new Set([s.killer.loc, ...s.minions.map((m) => m.loc)])];
+}
+
+function eliminate(c: Content, s: GameState, at: NodeId, by = c.killer.name) {
+  const regular = s.victims[at] ?? 0;
+  const named = specialsAt(s, at);
+  if (regular + named.length <= 0) return;
+  // Who dies first when a named survivor stands with the crowd is a genuine tie.
+  let victim: string | null = null;
+  if (named.length && !regular) victim = named[0].id;
+  else if (named.length) {
+    const pickNamed = s.tiebreak === 'adverse' || s.tiebreak === 'comedic' || (s.tiebreak === 'random' && nextRand(s) < 0.5);
+    if (pickNamed) victim = named[0].id;
+    logTieBreak(s, pickNamed ? `${specialDef(c, named[0].id).name} is the one ${by} reaches first` : `${by} reaches someone in the crowd before ${specialDef(c, named[0].id).name}`);
+  }
   s.slain++;
   s.slainThisTurn++;
-  log(s, `${c.killer.name} kills a survivor at ${nodeName(c, at)}.`, 'killer');
   s.fx.push({ t: 'victimSlain', at });
   if (s.heroine.loc === at) pushFront(s, [{ op: 'horror', n: 1 }]);
+  if (victim) {
+    const d = specialDef(c, victim);
+    s.specials = s.specials.filter((x) => x.id !== victim);
+    s.specialsGone.push({ id: victim, how: 'dead' });
+    log(s, `${by} kills ${d.name} at ${nodeName(c, at)}.`, 'killer');
+    pushFront(s, d.death);
+  } else {
+    s.victims[at]--;
+    log(s, `${by} kills a survivor at ${nodeName(c, at)}.`, 'killer');
+  }
   addBloodlust(c, s, 1);
 }
 
@@ -644,15 +737,18 @@ function eliminate(c: Content, s: GameState, at: NodeId) {
 function checkRescue(c: Content, s: GameState) {
   const h = s.heroine;
   if (s.phase !== 'action' || s.outcome || !isExit(c, h.loc)) return;
-  const n = s.victims[h.loc] ?? 0;
+  const regular = s.victims[h.loc] ?? 0;
+  const named = specialsAt(s, h.loc);
+  const n = regular + named.length;
   if (n <= 0) return;
   s.victims[h.loc] = 0;
+  s.specials = s.specials.filter((x) => x.at !== h.loc);
   s.saved += n;
   log(s, `${n === 1 ? 'A survivor gets' : `${n} survivors get`} out through ${nodeName(c, h.loc)}. Rescued!`, 'good');
   s.fx.push({ t: 'saved', n });
   const slots = c.heroine.rescue.slots;
   const effs: Effect[] = [];
-  for (let i = 0; i < n; i++) {
+  const fill = () => {
     const slot = h.rescued < slots.length ? slots[h.rescued] : c.heroine.rescue.repeat;
     h.rescued++;
     log(s, `Rescue reward: ${slot.text}`, 'good');
@@ -661,47 +757,197 @@ function checkRescue(c: Content, s: GameState) {
       log(s, `Every rescue slot is full. ${c.heroine.ability.name} is unlocked.`, 'good');
       s.fx.push({ t: 'unlock' });
     }
+  };
+  for (const x of named) {
+    const d = specialDef(c, x.id);
+    s.specialsGone.push({ id: x.id, how: 'rescued' });
+    log(s, `${d.name} makes it out.`, 'good');
+    fill();
+    effs.push(...d.rescue);
   }
+  for (let i = 0; i < regular; i++) fill();
   runNow(c, s, effs);
 }
 
 function panicAt(c: Content, s: GameState, at: NodeId) {
-  const n = s.victims[at] ?? 0;
-  if (n <= 0) return;
   const table = panicTable(c, at);
-  for (let i = 0; i < n; i++) {
+  const roll = (who: string) => {
     const r = rollD6(s);
     const to = table[r - 1];
-    if (!to) {
-      log(s, `A survivor at ${nodeName(c, at)} freezes in terror (rolled ${r}).`, 'info');
-      continue;
-    }
+    if (!to) log(s, `${who} at ${nodeName(c, at)} freezes in terror (rolled ${r}).`, 'info');
+    else log(s, `${who} panics (rolled ${r}) and runs from ${nodeName(c, at)} to ${nodeName(c, to)}.`, 'bad');
+    return to;
+  };
+  const n = s.victims[at] ?? 0;
+  for (let i = 0; i < n; i++) {
+    const to = roll('A survivor');
+    if (!to) continue;
     s.victims[at]--;
     s.victims[to] = (s.victims[to] ?? 0) + 1;
-    log(s, `A survivor panics (rolled ${r}) and runs from ${nodeName(c, at)} to ${nodeName(c, to)}.`, 'bad');
   }
+  for (const x of specialsAt(s, at)) {
+    const d = specialDef(c, x.id);
+    if (d.trait === 'still') {
+      log(s, `${d.name} doesn't panic. ${d.text}`, 'info');
+      continue;
+    }
+    const to = roll(d.name);
+    if (to) x.at = to;
+  }
+}
+
+/** Who would come with her from `from` to `to`: named survivors first, then the crowd, up to her limit. */
+export function followPlan(c: Content, s: GameState, from: NodeId, to: NodeId): { specials: string[]; regular: number; count: number } {
+  const none = { specials: [], regular: 0, count: 0 };
+  if (to === s.killer.loc) return none; // they won't walk into him
+  let room = Math.max(0, Math.min(s.heroine.bring, escortCap(c)));
+  const specials: string[] = [];
+  for (const x of specialsAt(s, from)) {
+    const w = specialDef(c, x.id).trait === 'heavy' ? 2 : 1;
+    if (w <= room) {
+      specials.push(x.id);
+      room -= w;
+    }
+  }
+  const regular = Math.min(room, s.victims[from] ?? 0);
+  return { specials, regular, count: specials.length + regular };
 }
 
 /** How many survivors would come with her from `from` to `to`. */
 export function followers(c: Content, s: GameState, from: NodeId, to: NodeId) {
-  if (to === s.killer.loc) return 0; // they won't walk into him
-  return Math.max(0, Math.min(s.heroine.bring, escortCap(c), s.victims[from] ?? 0));
+  return followPlan(c, s, from, to).count;
 }
 
 function moveHeroine(c: Content, s: GameState, to: NodeId) {
   const h = s.heroine;
   const from = h.loc;
-  const bring = followers(c, s, from, to);
-  s.victims[from] -= bring;
-  s.victims[to] = (s.victims[to] ?? 0) + bring;
+  const plan = followPlan(c, s, from, to);
+  s.victims[from] -= plan.regular;
+  s.victims[to] = (s.victims[to] ?? 0) + plan.regular;
+  for (const x of s.specials) if (plan.specials.includes(x.id)) x.at = to;
   h.loc = to;
   h.hidden = false;
   s.fx.push({ t: 'move' });
-  log(s, `Moved to ${nodeName(c, to)}${bring ? ` with ${bring} survivor${bring > 1 ? 's' : ''}` : ''}.`);
+  const names = plan.specials.map((id) => specialDef(c, id).name);
+  const who = [...names, ...(plan.regular ? [`${plan.regular} survivor${plan.regular > 1 ? 's' : ''}`] : [])].join(' and ');
+  log(s, `Moved to ${nodeName(c, to)}${who ? ` with ${who}` : ''}.`);
   if (s.killer.loc === to) {
     s.fx.push({ t: 'killerAppears' });
     log(s, `${c.killer.name} is HERE.`, 'killer');
   }
+}
+
+/** Upkeep: named survivors' standing exceptions. */
+function specialsUpkeep(c: Content, s: GameState) {
+  const h = s.heroine;
+  for (const x of [...s.specials]) {
+    const d = specialDef(c, x.id);
+    if (x.at === h.loc) continue; // with her, they stay with her
+    if (d.trait === 'toExit') {
+      if (isExit(c, x.at)) continue;
+      const dist = (n: NodeId) => Math.min(...exits(c).map((e) => distances(c, n)[e] ?? 99));
+      const next = neighbors(c, x.at)
+        .filter((n) => n !== s.killer.loc && dist(n) < dist(x.at))
+        .sort()[0];
+      if (next) {
+        x.at = next;
+        log(s, `${d.name} heads for the exit: now at ${nodeName(c, next)}.`, 'info');
+      }
+    } else if (d.trait === 'wander') {
+      const opts = neighbors(c, x.at).filter((n) => n !== s.killer.loc);
+      if (opts.length) {
+        x.at = pick(s, opts.sort());
+        log(s, `${d.name} wanders off to ${nodeName(c, x.at)}.`, 'info');
+      }
+    } else if (d.trait === 'loud') {
+      log(s, `${d.name} is making a racket at ${nodeName(c, x.at)}. ${c.killer.name} will go for the noise.`, 'killer');
+      s.killer.lured = x.at;
+    }
+  }
+}
+
+/** Resolve a spawn location keyword. */
+function spawnSpot(c: Content, s: GameState, at: NodeId | 'random' | 'farFromKiller' | 'nearKiller'): NodeId {
+  const k = s.killer;
+  const h = s.heroine;
+  const ex = exits(c);
+  let spot = at;
+  if (spot === 'random') spot = pick(s, c.location.nodes.map((n) => n.id).filter((id) => id !== k.loc && !ex.includes(id)));
+  else if (spot === 'nearKiller') {
+    const opts = neighbors(c, k.loc).filter((id) => !ex.includes(id) && id !== h.loc);
+    spot = opts.length ? pick(s, opts) : k.loc;
+  } else if (spot === 'farFromKiller') {
+    const d = distances(c, k.loc);
+    spot = c.location.nodes
+      .map((n) => n.id)
+      .filter((id) => !ex.includes(id))
+      .sort((a, b) => (d[b] ?? 0) - (d[a] ?? 0) || a.localeCompare(b))[0];
+  }
+  if (spot === k.loc) {
+    const opts = neighbors(c, spot).filter((n) => !ex.includes(n));
+    if (opts.length) spot = pick(s, opts);
+  }
+  return spot;
+}
+
+// ── Minions (subordinate enemies) ───────────────────────────────────────────
+function spawnMinions(c: Content, s: GameState, at: Extract<Effect, { op: 'spawnMinion' }>['at'], n: number) {
+  const def = c.killer.minions;
+  if (!def) return;
+  const k = s.killer;
+  const h = s.heroine;
+  for (let i = 0; i < n; i++) {
+    if (s.minions.length >= def.max) {
+      log(s, `No more ${def.plural} to come (limit ${def.max}).`, 'info');
+      return;
+    }
+    let loc: NodeId;
+    if (at === 'killer') loc = k.loc;
+    else if (at === 'lair') loc = c.location.lair;
+    else if (at === 'nearKiller') loc = pick(s, neighbors(c, k.loc).sort());
+    else if (at === 'nearHeroine') {
+      const opts = neighbors(c, h.loc).filter((x) => !isExit(c, x)).sort();
+      loc = opts.length ? pick(s, opts) : k.loc;
+    } else loc = pick(s, c.location.nodes.map((x) => x.id).filter((x) => !isExit(c, x) && x !== h.loc));
+    s.minions.push({ uid: s.uid++, loc, health: def.health });
+    log(s, `${def.name} appears at ${nodeName(c, loc)}.`, 'killer');
+    s.fx.push({ t: 'minion', n: 1 });
+  }
+}
+
+function minionStep(c: Content, s: GameState, m: { loc: NodeId }, to: NodeId) {
+  if (to === m.loc) return;
+  if ((s.barricades[to] ?? 0) > 0) {
+    s.barricades[to]--;
+    log(s, `${c.killer.minions!.name} claws at the barricade at ${nodeName(c, to)}.`, 'killer');
+    return;
+  }
+  m.loc = to;
+}
+
+/** Her attack on the minions in her location: damage may be split between them; excess is lost. */
+function hitMinions(c: Content, s: GameState, base: number) {
+  const def = c.killer.minions!;
+  const here = minionsAt(s, s.heroine.loc).sort((a, b) => a.health - b.health);
+  let dmg = base;
+  const w = bestWeapon(c, s, 0);
+  if (w) {
+    dmg += itemDef(c, w.id).damage ?? 0;
+    spendUse(c, s, w);
+  }
+  dmg += s.mods.damage ?? 0;
+  s.mods.damage = 0;
+  let killed = 0;
+  for (const m of here) {
+    if (dmg <= 0) break;
+    const a = Math.min(dmg, m.health);
+    m.health -= a;
+    dmg -= a;
+    if (m.health <= 0) killed++;
+  }
+  s.minions = s.minions.filter((m) => m.health > 0);
+  s.fx.push({ t: 'hit', n: base });
+  log(s, killed ? `${killed} ${killed === 1 ? def.name : def.plural} destroyed.${dmg > 0 ? ` (${dmg} damage wasted.)` : ''}` : `The ${def.plural} take the hit but keep coming.`, 'good');
 }
 
 // ── Effect queue ────────────────────────────────────────────────────────────
@@ -761,9 +1007,9 @@ function checkCond(c: Content, s: GameState, cond: Condition): boolean {
     case 'heroineAt':
       return h.loc === cond.node;
     case 'alone':
-      return (s.victims[h.loc] ?? 0) === 0;
+      return npcAt(s, h.loc) === 0;
     case 'survivorsHere':
-      return (s.victims[h.loc] ?? 0) > 0;
+      return npcAt(s, h.loc) > 0;
     case 'finale':
       return s.killer.finale;
     case 'hurt':
@@ -793,39 +1039,29 @@ function stepToward(c: Content, s: GameState, from: NodeId, to: NodeId): NodeId 
     .filter((n) => d[n] !== undefined && d[n] < d[from])
     .sort();
   if (opts.length <= 1) return opts[0] ?? from;
-  if (s.tiebreak === 'random') return pick(s, opts);
-  const dh = distances(c, s.heroine.loc);
-  return opts.sort((a, b) => (dh[a] ?? 99) - (dh[b] ?? 99) || a.localeCompare(b))[0];
+  return tieOrder(c, s, opts, 'path')[0];
 }
 
-/** Closest valid target; ties → most survivors → tie-break policy. */
-function selectTarget(c: Content, s: GameState, who: 'npc' | 'heroine' | 'any', logTie = true): NodeId {
-  const k = s.killer;
+/** Closest valid target from `from`; ties → most survivors → tie-break policy. */
+function selectTarget(c: Content, s: GameState, who: 'npc' | 'heroine' | 'any', logTie = true, from = s.killer.loc, actor = c.killer.name): NodeId {
   const h = s.heroine;
-  const d = distances(c, k.loc);
-  const npcNodes = Object.entries(s.victims)
-    .filter(([, n]) => n > 0)
-    .map(([id]) => id);
+  const d = distances(c, from);
+  const npcs = npcNodes(s);
   const heroine = h.hidden ? [] : [h.loc];
   let cands: NodeId[];
-  if (who === 'npc') cands = npcNodes.length ? npcNodes : heroine;
-  else if (who === 'heroine') cands = heroine.length ? heroine : npcNodes;
-  else cands = [...new Set([...npcNodes, ...heroine])];
-  if (!cands.length) return k.loc;
+  if (who === 'npc') cands = npcs.length ? npcs : heroine;
+  else if (who === 'heroine') cands = heroine.length ? heroine : npcs;
+  else cands = [...new Set([...npcs, ...heroine])];
+  if (!cands.length) return from;
   const best = Math.min(...cands.map((n) => d[n] ?? 99));
   let tied = cands.filter((n) => (d[n] ?? 99) === best);
   if (tied.length > 1) {
-    const most = Math.max(...tied.map((n) => s.victims[n] ?? 0));
-    tied = tied.filter((n) => (s.victims[n] ?? 0) === most);
+    const most = Math.max(...tied.map((n) => npcAt(s, n)));
+    tied = tied.filter((n) => npcAt(s, n) === most);
   }
   if (tied.length === 1) return tied[0];
-  let chosen: NodeId;
-  if (s.tiebreak === 'random') chosen = pick(s, tied.sort());
-  else {
-    const dh = distances(c, h.loc);
-    chosen = tied.sort((a, b) => Number(b === h.loc) - Number(a === h.loc) || (dh[a] ?? 99) - (dh[b] ?? 99) || a.localeCompare(b))[0];
-  }
-  if (logTie) log(s, `Tie-break (${TIEBREAK[s.tiebreak].label.toLowerCase()}): he goes for ${chosen === h.loc ? 'her' : nodeName(c, chosen)}.`, 'info');
+  const chosen = tieOrder(c, s, tied, 'target')[0];
+  if (logTie) logTieBreak(s, `${actor} goes for ${chosen === h.loc ? 'her' : nodeName(c, chosen)}`);
   return chosen;
 }
 
@@ -843,26 +1079,42 @@ function exec(c: Content, s: GameState, e: Effect) {
   const k = s.killer;
   switch (e.op) {
     // ── board
-    case 'spawn': {
-      const ex = exits(c);
-      let at = e.at;
-      if (at === 'random') at = pick(s, c.location.nodes.map((n) => n.id).filter((id) => id !== k.loc && !ex.includes(id)));
-      else if (at === 'nearKiller') {
-        const opts = neighbors(c, k.loc).filter((id) => !ex.includes(id) && id !== h.loc);
-        at = opts.length ? pick(s, opts) : k.loc;
-      } else if (at === 'farFromKiller') {
-        const d = distances(c, k.loc);
-        at = c.location.nodes
-          .map((n) => n.id)
-          .filter((id) => !ex.includes(id))
-          .sort((a, b) => (d[b] ?? 0) - (d[a] ?? 0) || a.localeCompare(b))[0];
-      }
-      if (at === k.loc) {
-        const opts = neighbors(c, at).filter((n) => !ex.includes(n));
-        if (opts.length) at = pick(s, opts);
-      }
-      placeVictims(c, s, at, e.n);
+    case 'spawn':
+      placeVictims(c, s, spawnSpot(c, s, e.at), e.n);
       if (s.phase === 'action') checkRescue(c, s);
+      break;
+    case 'spawnSpecial': {
+      const d = specialDef(c, e.id);
+      if (s.specials.some((x) => x.id === e.id) || s.specialsGone.some((x) => x.id === e.id)) {
+        log(s, `(${d.name} has already been tonight.)`, 'info');
+        break;
+      }
+      const at = spawnSpot(c, s, e.at);
+      s.specials.push({ id: e.id, at });
+      log(s, `${d.name} is at ${nodeName(c, at)}. ${d.text}`, 'info');
+      if (s.phase === 'action') checkRescue(c, s);
+      break;
+    }
+    case 'spawnMinion':
+      spawnMinions(c, s, e.at, e.n);
+      break;
+    case 'minionsAct':
+    case '_minionsAll':
+      pushFront(s, s.minions.map((m) => ({ op: '_minion', uid: m.uid }) as Effect));
+      break;
+    case 'enemiesAct':
+      // Unless told otherwise, minions act before the killer.
+      pushFront(s, [{ op: '_minionsAll' }, { op: '_behavior' }]);
+      break;
+    case '_minion': {
+      const def = c.killer.minions;
+      const m = s.minions.find((x) => x.uid === e.uid);
+      if (!def || !m) break;
+      const target = selectTarget(c, s, def.who, true, m.loc, def.name);
+      const start = m.loc;
+      for (let i = 0; i < def.move && m.loc !== target; i++) minionStep(c, s, m, stepToward(c, s, m.loc, target));
+      if (m.loc !== start) log(s, `${def.name} shambles to ${nodeName(c, m.loc)}.`, 'killer');
+      pushFront(s, [{ op: '_strike', who: def.who, by: m.uid }]);
       break;
     }
     case 'rally': {
@@ -871,8 +1123,16 @@ function exec(c: Content, s: GameState, e: Effect) {
         break;
       }
       let left = e.n;
-      const from = neighbors(c, h.loc).sort((a, b) => (s.victims[b] ?? 0) - (s.victims[a] ?? 0));
+      const from = neighbors(c, h.loc).sort((a, b) => npcAt(s, b) - npcAt(s, a));
       for (const n of from) {
+        for (const x of specialsAt(s, n)) {
+          const d = specialDef(c, x.id);
+          const w = d.trait === 'heavy' ? 2 : 1;
+          if (w > left) continue;
+          x.at = h.loc;
+          left -= w;
+          log(s, `"Over here!" ${d.name} comes to her from ${nodeName(c, n)}.`, 'good');
+        }
         const m = Math.min(left, s.victims[n] ?? 0);
         if (m <= 0) continue;
         s.victims[n] -= m;
@@ -979,6 +1239,22 @@ function exec(c: Content, s: GameState, e: Effect) {
     case 'killerDamage':
       hurtKiller(c, s, e.n);
       break;
+    case 'counter': {
+      const by = s.attack?.by;
+      if (by === undefined) {
+        hurtKiller(c, s, e.n);
+        break;
+      }
+      const m = s.minions.find((x) => x.uid === by);
+      if (m) {
+        m.health -= e.n;
+        if (m.health <= 0) {
+          s.minions = s.minions.filter((x) => x.uid !== by);
+          log(s, `She drops the ${c.killer.minions!.name.replace(/^(A|An|The) /, '').toLowerCase()} that came at her.`, 'good');
+        }
+      }
+      break;
+    }
     case 'block':
       if (s.attack) {
         const before = s.attack.damage;
@@ -1046,14 +1322,29 @@ function exec(c: Content, s: GameState, e: Effect) {
       pushFront(s, Array.from({ length: e.n ?? 1 }, () => ({ op: '_strike', who: e.who }) as Effect));
       break;
     case '_strike': {
-      const here = k.loc;
-      const npcs = s.victims[here] ?? 0;
+      const minion = e.by !== undefined ? s.minions.find((m) => m.uid === e.by) : undefined;
+      if (e.by !== undefined && !minion) break; // destroyed before it could strike
+      const actor = minion ? c.killer.minions!.name : c.killer.name;
+      const here = minion ? minion.loc : k.loc;
+      const npcs = npcAt(s, here);
       const herHere = h.loc === here;
       if (npcs > 0 && (e.who !== 'heroine' || !herHere)) {
-        eliminate(c, s, here);
+        eliminate(c, s, here, actor);
         break;
       }
       if (!herHere) break;
+      if (minion) {
+        if (h.hidden) {
+          log(s, `${actor} shuffles right past her hiding place.`, 'good');
+          break;
+        }
+        const dmg = c.killer.minions!.attack;
+        s.attack = { damage: dmg, by: minion.uid };
+        log(s, `${actor} attacks her (${dmg} damage).`, 'killer');
+        if (canReact(c, s)) s.pending = { kind: 'reaction' };
+        else takeAttack(c, s);
+        break;
+      }
       if (h.hidden) {
         const need = k.finale ? 4 : 5;
         const r = rollD6(s);
@@ -1123,9 +1414,10 @@ function exec(c: Content, s: GameState, e: Effect) {
       if (e.to === 'panic') {
         s.phase = 'panic';
         h.hidden = false;
-        if (s.slainThisTurn > 0 && (s.victims[k.loc] ?? 0) > 0) {
-          log(s, 'Blood has been spilled tonight. Survivors near him panic.', 'killer');
-          panicAt(c, s, k.loc);
+        const scared = enemyNodes(s).filter((n) => npcAt(s, n) > 0);
+        if (s.slainThisTurn > 0 && scared.length) {
+          log(s, 'Blood has been spilled tonight. Survivors near the killer panic.', 'killer');
+          for (const n of scared) panicAt(c, s, n);
         }
         pushFront(s, [{ op: '_phase', to: 'upkeep' }]);
       } else {
@@ -1148,6 +1440,7 @@ function exec(c: Content, s: GameState, e: Effect) {
       break;
     case '_rule':
       ruleUpkeep(c, s);
+      specialsUpkeep(c, s);
       break;
   }
 }
@@ -1299,7 +1592,7 @@ export function reqCheck(c: Content, s: GameState, d: ActionCardDef): { ok: bool
       if (!s.piles[h.loc]?.cards.length) return { ok: false, why: 'Nothing left to find here' };
       return { ok: true };
     case 'reach':
-      return canReach(c, s) ? { ok: true } : { ok: false, why: 'He must be here (or in range of a weapon in hand)' };
+      return canReach(c, s) || minionsAt(s, h.loc).length ? { ok: true } : { ok: false, why: 'He must be here (or in range of a weapon in hand)' };
     default:
       return { ok: true };
   }
@@ -1383,6 +1676,8 @@ export function check(c: Content, s: GameState, a: Action): Check {
     }
     case 'takeHit':
       return p?.kind === 'reaction' ? yes() : no('Nothing to take');
+    case 'aim':
+      return p?.kind === 'aim' ? yes() : no('Nothing to aim');
     case 'useItem': {
       if (!canAct(s)) return no('Not now');
       const it = activeItems(c, s).find((i) => i.uid === a.uid);
@@ -1526,6 +1821,13 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
     case 'takeHit':
       takeAttack(c, s);
       break;
+    case 'aim': {
+      const p = s.pending as { kind: 'aim'; base: number; range: number };
+      s.pending = undefined;
+      if (a.at === 'killer') hitKiller(c, s, p.base, p.range);
+      else hitMinions(c, s, p.base);
+      break;
+    }
     case 'useItem': {
       const it = activeItems(c, s).find((i) => i.uid === a.uid)!;
       const d = itemDef(c, it.id);
@@ -1586,7 +1888,8 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       s.discard = [];
       s.phase = 'hunter';
       log(s, `${c.killer.name}'s turn.`, 'killer');
-      s.queue = [{ op: '_behavior' }, { op: '_clearMods' }, { op: '_terror' }, { op: '_phase', to: 'panic' }];
+      const enemies: Effect[] = !c.killer.minions ? [{ op: '_behavior' }] : c.killer.minions.order === 'before' ? [{ op: '_minionsAll' }, { op: '_behavior' }] : [{ op: '_behavior' }, { op: '_minionsAll' }];
+      s.queue = [...enemies, { op: '_clearMods' }, { op: '_terror' }, { op: '_phase', to: 'panic' }];
       break;
     }
     case 'endUpkeep':

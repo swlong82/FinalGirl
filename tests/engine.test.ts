@@ -392,3 +392,207 @@ describe('items & searching', () => {
     expect(n.heroine.items.map((i) => i.id)).toEqual(['shears']);
   });
 });
+
+describe('tie-break policies', () => {
+  // Projectionist at the Concession Stand; one survivor each in Rows A and the Restrooms (both 1 step away);
+  // she is at the Ticket Booth, 2 away. A genuine tie between Rows A (next to her) and the Restrooms.
+  const tie = (policy: 'adverse' | 'plausible' | 'comedic' | 'random', prev?: string) => {
+    const c = C();
+    let s = quiet(c);
+    s.tiebreak = policy;
+    s.heroine.loc = 'gate';
+    s.killer.loc = 'concession';
+    s.killer.target = prev;
+    s.victims.lotA = 1;
+    s.victims.restrooms = 1;
+    s.heroine.hand = [];
+    s = act(c, s, { type: 'endAction' });
+    s.terrorDeck = ['kv-silence', ...s.terrorDeck];
+    s = act(c, s, { type: 'endPlanning' });
+    return s;
+  };
+  it('player-adverse goes for the group next to her', () => {
+    const s = tie('adverse');
+    expect(s.killer.target).toBe('lotA');
+    expect(s.log.some((l) => l.text.startsWith('Tie-break (player-adverse)'))).toBe(true);
+  });
+  it('most plausible keeps after his previous target', () => {
+    expect(tie('plausible', 'restrooms').killer.target).toBe('restrooms');
+  });
+  it('comedic wanders after the farther option and logs a pratfall', () => {
+    const s = tie('comedic');
+    expect(s.killer.target).toBe('restrooms');
+    expect(s.log.some((l) => l.text.startsWith('Tie-break (comedic)') && l.text.length > 60)).toBe(true);
+  });
+  it('random is seeded and replayable', () => {
+    expect(tie('random').killer.target).toBe(tie('random').killer.target);
+  });
+});
+
+describe('named survivors', () => {
+  it('a heavy survivor counts as 2 when following; rescue pays the slot and their own reward', () => {
+    const c = C('june', 'gullhaven-tide-cabins');
+    let s = quiet(c);
+    s.heroine.loc = 'office';
+    s.killer.loc = 'light';
+    s.specials = [{ id: 'sp-gilley', at: 'office' }];
+    s.victims.office = 1;
+    s.heroine.hand = [];
+    s.heroine.health = 1;
+    const uid = giveCard(s, 'ac-walk');
+    s = act(c, s, { type: 'playCard', uid });
+    s = act(c, s, { type: 'step', to: 'causeway' });
+    expect(s.victims.office).toBe(1); // Gilley used both places
+    expect(s.saved).toBe(1);
+    expect(s.specialsGone).toEqual([{ id: 'sp-gilley', how: 'rescued' }]);
+    expect(s.heroine.rescued).toBe(1);
+    expect(s.heroine.health).toBe(2); // Gilley's flask: heal 1
+  });
+
+  it('under player-adverse he reaches the named survivor first, and their death costs extra', () => {
+    const c = C('june', 'gullhaven-tide-cabins');
+    let s = quiet(c);
+    s.killer.loc = 'beach';
+    s.specials = [{ id: 'sp-gilley', at: 'beach' }];
+    s.victims.beach = 1;
+    s.heroine.hand = [];
+    s = act(c, s, { type: 'endAction' });
+    s.terrorDeck = ['kv-silence', ...s.terrorDeck];
+    s = act(c, s, { type: 'endPlanning' });
+    expect(s.specialsGone).toEqual([{ id: 'sp-gilley', how: 'dead' }]);
+    expect(s.killer.bloodlust).toBe(2); // the kill, plus Gilley's death
+  });
+
+  it('a still survivor never panics; a toExit one walks for the exit in Upkeep', () => {
+    const c = C('june', 'saint-agatha-west-wing');
+    let s = quiet(c);
+    s.killer.loc = 'chapel';
+    s.specials = [{ id: 'sp-ruiz', at: 'chapel' }];
+    s.victims.chapel = 1;
+    s.tiebreak = 'plausible'; // the crowd first
+    s.heroine.hand = [];
+    s = act(c, s, { type: 'endAction' });
+    s.terrorDeck = ['kv-silence', ...s.terrorDeck];
+    s = act(c, s, { type: 'endPlanning' });
+    expect(s.slain).toBe(1);
+    expect(s.specials).toEqual([{ id: 'sp-ruiz', at: 'chapel' }]);
+
+    const d = C('june');
+    let t = quiet(d);
+    t.specials = [{ id: 'sp-usher', at: 'restrooms' }];
+    t.killer.loc = 'junkyard';
+    t.heroine.loc = 'booth';
+    t.heroine.hand = [];
+    t = act(d, t, { type: 'endAction' });
+    t.terrorDeck = ['kv-silence', ...t.terrorDeck];
+    t = act(d, t, { type: 'endPlanning' });
+    expect(['shed', 'lotA', 'playground']).toContain(t.specials[0].at);
+  });
+});
+
+describe('minions', () => {
+  const tide = () => C('june', 'gullhaven-tide-cabins', 'the-tidewife');
+  it('spawns stop at the token limit', () => {
+    const c = tide();
+    let s = quiet(c);
+    s.queue = [{ op: 'spawnMinion', at: 'lair', n: 5 }];
+    s = act(c, s, { type: 'discardForNerve', uid: s.heroine.hand[0].uid });
+    expect(s.minions.length).toBe(c.killer.minions!.max);
+  });
+
+  it('she must choose: him or the minions; damage on minions is split, excess lost, lore does not apply', () => {
+    const c = tide();
+    let s = quiet(c);
+    s.killer.loc = s.heroine.loc;
+    s.minions = [
+      { uid: 801, loc: s.heroine.loc, health: 1 },
+      { uid: 802, loc: s.heroine.loc, health: 1 },
+    ];
+    s.foundLore = ['lore-letter'];
+    s.heroine.hand = [];
+    const uid = giveCard(s, 'ac-fullswing');
+    s.rolling = { uid, dice: [6, 6], converted: [], card: 'ac-fullswing', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-fullswing', reaction: false };
+    s = act(c, s, { type: 'resolveRoll' });
+    expect(s.pending?.kind).toBe('aim');
+    const hp = s.killer.health;
+    s = act(c, s, { type: 'aim', at: 'minions' });
+    expect(s.minions.length).toBe(0);
+    expect(s.killer.health).toBe(hp);
+  });
+
+  it('minions attack survivors first, then her (reactions allowed), and act before the Tidewife', () => {
+    const c = tide();
+    let s = quiet(c);
+    const next = neighbors(c, s.heroine.loc).find((n) => n !== s.killer.loc)!;
+    s.minions = [{ uid: 900, loc: next, health: 1 }];
+    s.victims[next] = 1;
+    s.heroine.hand = [];
+    s = act(c, s, { type: 'endAction' });
+    s.terrorDeck = ['tw-weeping', ...s.terrorDeck];
+    s = act(c, s, { type: 'endPlanning' });
+    expect(s.slain).toBe(1);
+    const i = s.log.findIndex((l) => l.text.includes('kills a survivor'));
+    const j = s.log.findIndex((l, k) => k > 0 && l.text.includes(`${c.killer.name} prowls`));
+    expect(s.log[i].text.startsWith(c.killer.minions!.name)).toBe(true);
+    if (j >= 0) expect(i).toBeLessThan(j);
+  });
+
+  it('survivors follow her into a minion location, but not into his', () => {
+    const c = tide();
+    let s = quiet(c);
+    const next = neighbors(c, s.heroine.loc).find((n) => n !== s.killer.loc)!;
+    s.minions = [{ uid: 901, loc: next, health: 1 }];
+    s.victims[s.heroine.loc] = 1;
+    const uid = giveCard(s, 'ac-walk');
+    s = act(c, s, { type: 'playCard', uid });
+    s = act(c, s, { type: 'step', to: next });
+    expect(s.victims[next]).toBe(1);
+  });
+});
+
+describe('authored panic tables', () => {
+  it('every built-in location has a written d6 table pointing at its neighbors', () => {
+    for (const l of LOCATIONS) {
+      const c = buildContent(l.id, 'the-projectionist', 'june');
+      for (const n of l.nodes) {
+        expect(n.panic, `${l.id}/${n.id}`).toHaveLength(6);
+        expect(n.panic!.some(Boolean), `${l.id}/${n.id} never moves`).toBe(true);
+        for (const t of n.panic!) if (t) expect(neighbors(c, n.id), `${l.id}/${n.id} → ${t}`).toContain(t);
+      }
+    }
+  });
+});
+
+describe('v0.9 saves', () => {
+  it('convert into a playable v1.0 game', async () => {
+    const { migrateSave } = await import('../src/engine/migrate');
+    const c = C('rosa');
+    const old = {
+      version: 1 as const,
+      seed: 4242,
+      difficulty: 'standard',
+      round: 6,
+      dawnAt: 14,
+      heroine: { loc: 'lotB', health: 3, maxHealth: 5, horror: 4, items: [{ id: 'tire-iron' }], pack: [{ id: 'lore-logbook' }], escorting: 2 },
+      killer: { loc: 'booth', health: 4, maxHealth: 6, bloodlust: 7, stunned: 0, finale: false },
+      victims: { lotA: 1 },
+      barricades: { shed: 1 },
+      saved: 3,
+      slain: 2,
+      victimPool: 5,
+      foundLore: ['lore-logbook'],
+      log: [{ round: 6, text: 'Old line.' }],
+    };
+    const s = migrateSave(c, old)!;
+    expect(s.version).toBe(2);
+    expect(s.round).toBe(6);
+    expect(s.terrorDeck.length).toBe(TERROR_DEAL - 5);
+    expect(s.victims.lotB).toBe(2);
+    expect(s.heroine.items.map((i) => i.id)).toEqual(['tire-iron']);
+    expect(s.foundLore).toEqual(['lore-logbook']);
+    expect(s.heroine.rescued).toBe(3);
+    expect(s.killer.bloodlust).toBe(3);
+    expect(simulate(c, s, dispatch).outcome).toBeDefined();
+  });
+});

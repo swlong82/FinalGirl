@@ -17,7 +17,10 @@ import {
   isSearch,
   itemDef,
   killerAttack,
+  minionsAt,
   neighbors,
+  npcAt,
+  npcNodes,
   reqCheck,
   totalHealth,
 } from './rules';
@@ -33,8 +36,9 @@ function safeDist(c: Content, s: GameState, target: NodeId, brave = false): Reco
   const base = distances(c, target);
   const out: Record<NodeId, number> = {};
   const kn = new Set(neighbors(c, s.killer.loc));
+  const mins = new Set(s.minions.map((m) => m.loc));
   for (const [n, d] of Object.entries(base))
-    out[n] = d + (brave ? 0 : n === s.killer.loc ? 3 : kn.has(n) && s.killer.stunned === 0 ? 0.5 : 0) + (isFlooded(c, s, n) ? 0.6 : 0);
+    out[n] = d + (brave ? 0 : n === s.killer.loc ? 3 : kn.has(n) && s.killer.stunned === 0 ? 0.5 : 0) + (mins.has(n) ? 1.5 : 0) + (isFlooded(c, s, n) ? 0.6 : 0);
   return out;
 }
 
@@ -57,7 +61,7 @@ function armed(c: Content, s: GameState) {
 export function botGoal(c: Content, s: GameState): { node: NodeId; brave: boolean } {
   const h = s.heroine;
   const k = s.killer;
-  const withHer = s.victims[h.loc] ?? 0;
+  const withHer = npcAt(s, h.loc);
   const ex = exits(c);
   if (withHer > 0 && !ex.includes(h.loc)) {
     const d = safeDist(c, s, h.loc);
@@ -66,7 +70,7 @@ export function botGoal(c: Content, s: GameState): { node: NodeId; brave: boolea
   }
   const healthy = totalHealth(s) >= 3;
   const hunting = (k.finale || (armed(c, s) && healthy)) && tagged(c, s, 'attack').length > 0;
-  const victim = nearest(c, h.loc, (n) => (s.victims[n] ?? 0) > 0 && n !== k.loc && !ex.includes(n));
+  const victim = nearest(c, h.loc, (n) => npcAt(s, n) > 0 && n !== k.loc && !ex.includes(n));
   if (victim && !(k.finale && hunting)) return { node: victim, brave: false };
   if (hunting) return { node: k.loc, brave: true };
   const pile = nearest(c, h.loc, (n) => isSearch(c, n) && (s.piles[n]?.cards.length ?? 0) > 0 && n !== k.loc);
@@ -146,7 +150,7 @@ function buy(c: Content, s: GameState): Action {
   const count = (tag: CardTag) => h.hand.filter((x) => defOf(c, x).tags.includes(tag)).length;
   const reactions = h.hand.filter((x) => defOf(c, x).kind === 'reaction').length;
   const hurt = h.health < h.maxHealth || h.token === null;
-  const npcs = Object.values(s.victims).some((n) => n > 0);
+  const npcs = npcNodes(s).length > 0;
   const piles = Object.values(s.piles).some((p) => p.cards.length > 0);
   const want = (d: ActionCardDef): number => {
     let v = 0;
@@ -192,13 +196,18 @@ export function botAction(c: Content, s: GameState): Action {
     const succ = r.dice.filter((d) => d >= 5).length + r.converted.length;
     const partial = r.dice.findIndex((d, i) => d >= 3 && d <= 4 && !r.converted.includes(i));
     const d = actionDef(c, r.card);
-    const important = r.reaction || d.tags.includes('attack') || d.tags.includes('search') || (d.tags.includes('move') && (s.victims[h.loc] ?? 0) > 0);
+    const important = r.reaction || d.tags.includes('attack') || d.tags.includes('search') || (d.tags.includes('move') && (npcAt(s, h.loc)) > 0);
     if (partial >= 0 && succ < 2 && important && h.hand.length >= 4) {
       const [x, y] = cheapest(c, s, 2);
       const a: Action = { type: 'convert', die: partial, discard: [x, y] };
       if (ok(a)) return a;
     }
     return { type: 'resolveRoll' };
+  }
+  if (p?.kind === 'aim') {
+    // Go for him when he's close to finished or it's the Finale; otherwise clear the minions off her.
+    const finishing = k.health + (k.token !== null ? 2 : 0) <= p.base + 3;
+    return { type: 'aim', at: k.finale || finishing ? 'killer' : 'minions' };
   }
   if (p?.kind === 'search') {
     const order = p.drawn.map((id, i) => ({ i, v: itemScore(c, s, id) })).sort((a, b) => b.v - a.v);
@@ -219,7 +228,7 @@ export function botAction(c: Content, s: GameState): Action {
   const killerHere = k.loc === h.loc;
   const killerNear = killerHere || neighbors(c, h.loc).includes(k.loc);
   const hurt = h.maxHealth - h.health;
-  const withHer = s.victims[h.loc] ?? 0;
+  const withHer = npcAt(s, h.loc);
   const nerve = h.nerve;
   /** Best playable card with a tag, cheapest first unless strongest is asked. */
   const playable = (tag: CardTag, strongest = false, afford = true): Action | null => {
@@ -254,7 +263,7 @@ export function botAction(c: Content, s: GameState): Action {
       hasOp(e, 'killerDamage') ||
       (hasOp(e, 'killerMove') && killerNear) ||
       (hasOp(e, 'barricade') && killerNear && !killerHere) ||
-      (hasOp(e, 'rally') && neighbors(c, h.loc).some((n) => (s.victims[n] ?? 0) > 0)) ||
+      (hasOp(e, 'rally') && neighbors(c, h.loc).some((n) => npcAt(s, n) > 0)) ||
       (calms(e) && h.horror >= 2) ||
       (hasOp(e, 'nerve') && !hasOp(e, 'killerMove')) ||
       hasOp(e, 'move');
@@ -264,6 +273,11 @@ export function botAction(c: Content, s: GameState): Action {
   if (ok({ type: 'answer' })) return { type: 'answer' };
 
   // ── He's here, or in range ──
+  // ── Minions in her location and no killer: clear them ──
+  if (!killerHere && minionsAt(s, h.loc).length) {
+    const atk = playable('attack', true);
+    if (atk) return atk;
+  }
   if (canReach(c, s) && k.stunned === 0 || killerHere) {
     const theirHit = killerAttack(c, s);
     const brave = k.finale || armed(c, s) || totalHealth(s) > theirHit + 1 || k.health <= 2;
@@ -281,7 +295,7 @@ export function botAction(c: Content, s: GameState): Action {
     const mv = playable('move', true, false);
     if (mv) return mv;
   }
-  const adjNpcs = neighbors(c, h.loc).some((n) => (s.victims[n] ?? 0) > 0 && n !== k.loc);
+  const adjNpcs = neighbors(c, h.loc).some((n) => npcAt(s, n) > 0 && n !== k.loc);
   if (adjNpcs && !killerHere) {
     const r = playable('rally');
     if (r) return r;
@@ -327,6 +341,7 @@ function fallback(s: GameState): Action[] {
   if (p?.kind === 'roll') return [{ type: 'resolveRoll' }];
   if (p?.kind === 'search') return [{ type: 'keep', picks: [] }];
   if (p?.kind === 'reaction') return [{ type: 'takeHit' }];
+  if (p?.kind === 'aim') return [{ type: 'aim', at: 'killer' }];
   if (s.phase === 'planning') return [{ type: 'endPlanning' }];
   if (s.phase === 'upkeep') return [{ type: 'endUpkeep' }];
   return [{ type: 'endAction' }];

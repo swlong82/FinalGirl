@@ -16,6 +16,10 @@ export type Effect =
   | { op: 'spawn'; at: NodeId | 'random' | 'farFromKiller' | 'nearKiller'; n: number }
   | { op: 'rally'; n: number } // pull up to n survivors from adjacent locations into hers
   | { op: 'panic'; at: 'killer' | 'heroine' } // survivors there panic right now
+  | { op: 'spawnSpecial'; id: string; at: NodeId | 'random' | 'farFromKiller' | 'nearKiller' } // a named survivor joins the board
+  | { op: 'spawnMinion'; at: 'killer' | 'lair' | 'nearKiller' | 'nearHeroine' | 'random'; n: number } // up to the minion limit
+  | { op: 'minionsAct' } // every minion takes its behavior now
+  | { op: 'enemiesAct' } // minions, then the killer, take their behavior now
   // ── the heroine
   | { op: 'move'; n: number } // n movement points; she chooses the route and may stop early
   | { op: 'search'; draw: number; keep: number } // from this location's item pile
@@ -34,6 +38,7 @@ export type Effect =
   // ── attacks & defense
   | { op: 'damage'; n: number } // her attack: a weapon and lore add to it if it deals at least 1
   | { op: 'killerDamage'; n: number } // flat damage to the killer (items); no modifiers
+  | { op: 'counter'; n: number } // reaction: flat damage to whoever is attacking her
   | { op: 'block'; n: number } // reaction: reduce the incoming attack by n (99 = cancel it)
   // ── the killer
   | { op: 'bloodlust'; n: number }
@@ -49,7 +54,9 @@ export type Effect =
   | { op: 'if'; cond: Condition; then: Effect[]; else?: Effect[] }
   | { op: 'log'; text: string }
   // ── internal sequencing (never used by content)
-  | { op: '_strike'; who?: 'heroine' }
+  | { op: '_strike'; who?: 'heroine' | 'npc' | 'any'; by?: number } // by = minion uid
+  | { op: '_minion'; uid: number }
+  | { op: '_minionsAll' }
   | { op: '_reactDone' }
   | { op: '_clearMods' }
   | { op: '_terror' }
@@ -103,6 +110,33 @@ export interface NodeDef {
   tags?: NodeTag[];
 }
 
+/** A named survivor with an exception to the normal survivor rules (spec §16). */
+export interface SpecialDef {
+  id: string;
+  name: string;
+  flavor: string;
+  text: string; // the exception, as printed
+  /** toExit: walks 1 toward the nearest exit each Upkeep. heavy: counts as 2 when following.
+   *  still: never panics. loud: each Upkeep he's not with her, the killer's next target is him.
+   *  wander: each Upkeep she's not with him, he wanders to a neighbor (never into the killer). */
+  trait: 'toExit' | 'heavy' | 'still' | 'loud' | 'wander';
+  rescue: Effect[]; // extra reward when rescued (on top of the rescue slot)
+  death: Effect[]; // consequence when eliminated (on top of bloodlust +1)
+}
+
+/** Subordinate enemies (spec §17). */
+export interface MinionDef {
+  name: string; // singular
+  plural: string;
+  text: string;
+  health: number;
+  move: number;
+  attack: number;
+  max: number; // tokens available; extra spawns are ignored
+  who: Who; // what each one targets
+  order: 'before' | 'after'; // relative to the killer's behavior in the Killer phase
+}
+
 export interface SetupCard {
   heroine: NodeId;
   killer: NodeId;
@@ -121,6 +155,7 @@ export interface LocationPack {
   setups: SetupCard[]; // one is picked at random
   terror: EventDef[]; // location Terror cards (shuffled with the killer's)
   events: EventDef[]; // ongoing Event cards: one is revealed at setup
+  specials: SpecialDef[]; // named survivors, brought in by the location's cards
   items: ItemDef[];
   palette: { sky: string; glow: string; accent: string };
   art: 'drivein' | 'coast' | 'hospital' | 'snow' | 'radio';
@@ -153,6 +188,7 @@ export interface KillerPack {
   finale: { name: string; text: string; effects: Effect[]; behavior: Behavior; attack?: number; move?: number; upkeep?: Effect[] };
   revive: { name: string; text: string; effects: Effect[] }; // when his final-health token shows a number
   terror: EventDef[]; // killer Terror cards (shuffled with the location's)
+  minions?: MinionDef;
   art: 'projectionist' | 'tidewife' | 'anesthetist' | 'snowblind' | 'caller';
   weakness: { text: string };
   items: ItemDef[]; // lore items, always dealt into the search piles
@@ -160,7 +196,7 @@ export interface KillerPack {
 }
 
 export type Difficulty = 'story' | 'standard' | 'nightmare';
-export type TieBreak = 'adverse' | 'random';
+export type TieBreak = 'adverse' | 'plausible' | 'comedic' | 'random';
 
 export interface HeroineTraits {
   moveBonus?: number; // first move effect each turn gets +n
@@ -282,10 +318,12 @@ export type Pending =
   | { kind: 'move'; left: number }
   | { kind: 'roll'; card: string; reaction: boolean }
   | { kind: 'search'; node: NodeId; drawn: string[]; keep: number }
-  | { kind: 'reaction' };
+  | { kind: 'reaction' }
+  | { kind: 'aim'; base: number; range: number };
 
 export type Fx =
   | { t: 'killerAppears' }
+  | { t: 'minion'; n: number }
   | { t: 'wound'; n: number }
   | { t: 'victimSlain'; at: NodeId }
   | { t: 'saved'; n: number }
@@ -364,7 +402,10 @@ export interface GameState {
     target?: NodeId;
     lured?: NodeId;
   };
-  victims: Record<NodeId, number>;
+  victims: Record<NodeId, number>; // ordinary survivors
+  specials: { id: string; at: NodeId }[]; // named survivors on the board
+  specialsGone: { id: string; how: 'rescued' | 'dead' }[];
+  minions: { uid: number; loc: NodeId; health: number }[];
   barricades: Record<NodeId, number>;
   saved: number;
   slain: number;
@@ -383,7 +424,7 @@ export interface GameState {
 
   queue: Effect[];
   pending?: Pending;
-  attack?: { damage: number };
+  attack?: { damage: number; by?: number };
   rolling?: { uid: number; dice: number[]; converted: number[]; card: string; reaction: boolean; range: number };
   rearrange: boolean; // she may rearrange items (just gained one, or Upkeep)
   env: { tideHigh: boolean; dark: boolean; ringing?: NodeId; cold: number };
@@ -407,6 +448,7 @@ export type Action =
   | { type: 'keep'; picks: number[] }
   | { type: 'react'; uid: number }
   | { type: 'takeHit' }
+  | { type: 'aim'; at: 'killer' | 'minions' }
   | { type: 'useItem'; uid: number }
   | { type: 'useAbility' }
   | { type: 'ready'; uid: number; swapOut?: number[] }

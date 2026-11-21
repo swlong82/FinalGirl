@@ -6,7 +6,7 @@ export const anesthetist: KillerPack = {
   name: 'The Anesthetist',
   epithet: 'Dr. Ambrose Lull, who only wants you to rest',
   art: 'anesthetist',
-  health: 24,
+  health: 21,
   horror: 2,
   bloodlust: {
     revealAt: 4,
@@ -14,7 +14,7 @@ export const anesthetist: KillerPack = {
       { move: 1, attack: 1, name: 'On Rounds', text: 'Footsteps, a clipboard, a soft knock on each door.' },
       { move: 2, attack: 1 },
       { move: 2, attack: 2, name: 'A Second Dose', text: 'He injects himself with something and sighs with relief.', effects: [{ op: 'killerHeal', n: 2 }] },
-      { move: 2, attack: 2, name: 'The Sleepers of Ward C', text: 'Behind the bricked-up wall, eleven people begin to snore.', effects: [{ op: 'horror', n: 2 }] },
+      { move: 2, attack: 2, name: 'The Sleepers of Ward C', text: 'Behind the bricked-up wall, eleven people stop snoring and get up.', effects: [{ op: 'spawnMinion', at: 'lair', n: 1 }, { op: 'horror', n: 1 }] },
       { move: 2, attack: 2, name: 'Scrubbed In', text: 'His power is revealed.' },
       { move: 3, attack: 3, name: 'Bedside Manner', text: 'She blinks, and he is sitting beside her, holding her hand.', effects: [{ op: 'killerTeleport', to: 'heroine' }, { op: 'horror', n: 1 }] },
       { move: 3, attack: 3, name: 'Just a Little Pinch', text: 'A needle mark on her arm. She does not remember it happening.', effects: [{ op: 'wound', n: 1 }] },
@@ -40,7 +40,9 @@ export const anesthetist: KillerPack = {
   },
   revive: { name: 'Lights Out', text: 'His mask tears away. Under it, he is smiling too. He keeps counting backward.', effects: [{ op: 'horror', n: 1 }, { op: 'nerve', n: -1 }] },
   quotes: ['"Count backward from ten for me."', '"Shh. Shh. It\'s all right."', '"You\'re so very tired."', '"Just a little pinch."'],
+  minions: { name: 'A Sleepwalker', plural: 'Sleepwalkers', text: 'Ward C patients, eyes closed, still under. 1 health, move 1, attack 1. They go for whoever is closest and act after he does.', health: 1, move: 1, attack: 1, max: 2, who: 'any', order: 'after' },
   terror: [
+    { id: 'an-sleepwalk', name: 'Sleepwalking', tone: 'killer', text: 'A patient in a paper gown walks down the corridor with her eyes shut, humming his lullaby. Everyone on the ward gets up and follows the tune: his patients, then the doctor.', effects: [{ op: 'spawnMinion', at: 'random', n: 1 }, { op: 'enemiesAct' }] },
     { id: 'an-rounds', name: 'He Makes His Rounds', tone: 'killer', text: 'Footsteps, a clipboard, a soft knock on each door in turn.', effects: [{ op: 'killerTeleport', to: 'random' }] },
     { id: 'an-countdown', name: 'Count Backward', tone: 'killer', text: 'His voice on the intercom: "Ten… nine… eight…" Her eyelids feel heavy.', effects: [{ op: 'nerve', n: -1 }, { op: 'horror', n: 1 }] },
     { id: 'an-ether', name: 'Ether in the Vents', tone: 'killer', text: 'A sweet chemical smell rolls through the ducts.', effects: [{ op: 'if', cond: { c: 'killerAdjacent' }, then: [{ op: 'horror', n: 2 }], else: [{ op: 'horror', n: 1 }] }] },

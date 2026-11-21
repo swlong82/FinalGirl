@@ -748,3 +748,10 @@ b.ok { color: #2f6b3a; font-weight: 400; }
 .rslot { min-height: 0; }
 .act.fcard .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; padding-right: 30px; display: block; }
 .act.fcard .n kbd { position: absolute; top: 6px; right: 8px; }
+/* ── v1.0.1: named survivors, minions, aim ── */
+.vics .named, .keytable .named { display: inline-flex; flex-direction: column; align-items: center; margin: 0 2px; }
+.vics .named .victim, .keytable .named .victim { fill: #ffd27a; filter: drop-shadow(0 0 4px rgba(255, 210, 122, .9)); }
+.vics .named i, .keytable .named i { font-style: normal; font-family: var(--ui); font-size: 8px; letter-spacing: .06em; text-transform: uppercase; background: rgba(0, 0, 0, .75); color: #ffd27a; padding: 0 3px; border-radius: 2px; line-height: 11px; }
+.vics .minion, .keytable .minion { color: #ff5a76; font-size: 15px; line-height: 17px; text-shadow: 0 0 6px rgba(255, 51, 85, .9), 0 1px 0 #000; margin-left: 2px; letter-spacing: -1px; }
+.aim-ov p { max-width: 560px; }
+.node .vics { height: auto; min-height: 18px; align-items: flex-end; flex-wrap: wrap; justify-content: center; max-width: 140%; }
