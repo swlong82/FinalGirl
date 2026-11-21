@@ -5,7 +5,7 @@ export const projectionist: KillerPack = {
   id: 'the-projectionist',
   name: 'The Projectionist',
   epithet: 'Orrin Vale, who never left the booth',
-  health: 24,
+  health: 21,
   horror: 2,
   bloodlust: {
     revealAt: 4,
@@ -47,7 +47,9 @@ export const projectionist: KillerPack = {
     '"Nobody leaves before the credits."',
     '"The show must be watched."',
   ],
+  minions: { name: 'A Charred Patron', plural: 'Charred Patrons', text: 'The audience from the 1979 fire, still in their seats, still watching. 2 health, move 1, attack 1. They go for whoever is closest and act after he does.', health: 2, move: 1, attack: 1, max: 2, who: 'any', order: 'after' },
   terror: [
+    { id: 'kv-frontrow', name: 'Reserved Seating', tone: 'killer', text: 'Someone is sitting in the front row of the burned-out booth. It turns its head toward her. It is still smoking.', effects: [{ op: 'spawnMinion', at: 'lair', n: 1 }, { op: 'minionsAct' }] },
     { id: 'kv-reelchange', name: 'Reel Change', tone: 'killer', text: 'A cigarette burn flickers in the corner of the screen. He is back in the booth — threading the next reel.', effects: [{ op: 'killerTeleport', to: 'lair' }] },
     { id: 'kv-countdown', name: 'The Countdown Leader', tone: 'killer', text: 'Every speaker on the lot: 8… 7… 6… The numbers burn white on the screen.', effects: [{ op: 'killerMove', toward: 'heroine', steps: 1 }, { op: 'horror', n: 1 }] },
     { id: 'kv-splice', name: 'Fresh Splice', tone: 'killer', text: 'He wipes the shears on his apron. Snip. Snip.', effects: [{ op: 'mod', key: 'killerAttack', n: 1 }, { op: 'bloodlust', n: 1 }] },

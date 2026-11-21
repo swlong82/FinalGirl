@@ -243,6 +243,7 @@ export function newGame(c: Content, seed: number, difficulty: Difficulty = 'stan
       movesThisTurn: 0,
       horrorTakenThisTurn: 0,
       broke: false,
+      leave: [],
       bring: c.heroine.traits.escortCap ?? DEFAULT_ESCORT,
     },
     killer: {
@@ -569,7 +570,10 @@ function heroineAttack(c: Content, s: GameState, base: number) {
   const killerOk = range === 0 || !!bestWeapon(c, s, range);
   const minionsHere = minionsAt(s, h.loc).length > 0;
   // With both in reach she must choose: him, or the minions. Never both.
-  if (killerOk && minionsHere) s.pending = { kind: 'aim', base, range };
+  // Against several minions she also chooses how to divide the damage.
+  const mins = minionsAt(s, h.loc);
+  const splitMatters = mins.length > 1 && minionDamage(c, s, base) < mins.reduce((n, m) => n + m.health, 0);
+  if (minionsHere && (killerOk || splitMatters)) s.pending = { kind: 'aim', base, range, killer: killerOk };
   else if (killerOk) hitKiller(c, s, base, range);
   else if (minionsHere) hitMinions(c, s, base);
   else log(s, 'Out of reach.', 'bad');
@@ -803,6 +807,7 @@ export function followPlan(c: Content, s: GameState, from: NodeId, to: NodeId): 
   let room = Math.max(0, Math.min(s.heroine.bring, escortCap(c)));
   const specials: string[] = [];
   for (const x of specialsAt(s, from)) {
+    if ((s.heroine.leave ?? []).includes(x.id)) continue; // she asked them to stay put
     const w = specialDef(c, x.id).trait === 'heavy' ? 2 : 1;
     if (w <= room) {
       specials.push(x.id);
@@ -926,28 +931,44 @@ function minionStep(c: Content, s: GameState, m: { loc: NodeId }, to: NodeId) {
 }
 
 /** Her attack on the minions in her location: damage may be split between them; excess is lost. */
-function hitMinions(c: Content, s: GameState, base: number) {
-  const def = c.killer.minions!;
-  const here = minionsAt(s, s.heroine.loc).sort((a, b) => a.health - b.health);
-  let dmg = base;
+/** Total damage an attack would deal to minions: base + a melee weapon + focus. Lore never applies. */
+export function minionDamage(c: Content, s: GameState, base: number) {
   const w = bestWeapon(c, s, 0);
-  if (w) {
-    dmg += itemDef(c, w.id).damage ?? 0;
-    spendUse(c, s, w);
+  return base + (w ? itemDef(c, w.id).damage ?? 0 : 0) + (s.mods.damage ?? 0);
+}
+
+/** The default split: finish off the weakest first. */
+export function autoSplit(c: Content, s: GameState, base: number): Record<number, number> {
+  let dmg = minionDamage(c, s, base);
+  const out: Record<number, number> = {};
+  for (const m of minionsAt(s, s.heroine.loc).sort((a, b) => a.health - b.health || a.uid - b.uid)) {
+    const a = Math.min(dmg, m.health);
+    out[m.uid] = a;
+    dmg -= a;
   }
-  dmg += s.mods.damage ?? 0;
+  return out;
+}
+
+/** Her attack on the minions in her location. She divides the damage; whatever she doesn't assign, or overkills, is lost. */
+function hitMinions(c: Content, s: GameState, base: number, split?: Record<number, number>) {
+  const def = c.killer.minions!;
+  const total = minionDamage(c, s, base);
+  const plan = split ?? autoSplit(c, s, base);
+  const w = bestWeapon(c, s, 0);
+  if (w) spendUse(c, s, w);
   s.mods.damage = 0;
   let killed = 0;
-  for (const m of here) {
-    if (dmg <= 0) break;
-    const a = Math.min(dmg, m.health);
+  let used = 0;
+  for (const m of minionsAt(s, s.heroine.loc)) {
+    const a = Math.min(plan[m.uid] ?? 0, m.health);
     m.health -= a;
-    dmg -= a;
-    if (m.health <= 0) killed++;
+    used += a;
+    if (a > 0 && m.health <= 0) killed++;
   }
   s.minions = s.minions.filter((m) => m.health > 0);
   s.fx.push({ t: 'hit', n: base });
-  log(s, killed ? `${killed} ${killed === 1 ? def.name : def.plural} destroyed.${dmg > 0 ? ` (${dmg} damage wasted.)` : ''}` : `The ${def.plural} take the hit but keep coming.`, 'good');
+  const wasted = total - used;
+  log(s, killed ? `${killed} ${killed === 1 ? def.name : def.plural} destroyed.${wasted > 0 ? ` (${wasted} damage lost.)` : ''}` : `The ${def.plural} take ${used} damage and keep coming.`, 'good');
 }
 
 // ── Effect queue ────────────────────────────────────────────────────────────
@@ -1676,8 +1697,17 @@ export function check(c: Content, s: GameState, a: Action): Check {
     }
     case 'takeHit':
       return p?.kind === 'reaction' ? yes() : no('Nothing to take');
-    case 'aim':
-      return p?.kind === 'aim' ? yes() : no('Nothing to aim');
+    case 'aim': {
+      if (p?.kind !== 'aim') return no('Nothing to aim');
+      if (a.at === 'killer') return p.killer ? yes() : no('He is out of reach');
+      if (!a.split) return yes();
+      const here = new Set(minionsAt(s, h.loc).map((m) => m.uid));
+      const vals = Object.entries(a.split);
+      if (vals.some(([uid, n]) => !here.has(+uid) || !Number.isInteger(n) || n < 0)) return no('Assign damage to minions here');
+      return vals.reduce((t, [, n]) => t + n, 0) <= minionDamage(c, s, p.base) ? yes() : no('More damage than the attack deals');
+    }
+    case 'toggleFollow':
+      return s.specials.some((x) => x.id === a.id && x.at === h.loc) ? yes() : no('Not here');
     case 'useItem': {
       if (!canAct(s)) return no('Not now');
       const it = activeItems(c, s).find((i) => i.uid === a.uid);
@@ -1825,9 +1855,12 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       const p = s.pending as { kind: 'aim'; base: number; range: number };
       s.pending = undefined;
       if (a.at === 'killer') hitKiller(c, s, p.base, p.range);
-      else hitMinions(c, s, p.base);
+      else hitMinions(c, s, p.base, a.split);
       break;
     }
+    case 'toggleFollow':
+      h.leave = (h.leave ?? []).includes(a.id) ? h.leave.filter((x) => x !== a.id) : [...(h.leave ?? []), a.id];
+      break;
     case 'useItem': {
       const it = activeItems(c, s).find((i) => i.uid === a.uid)!;
       const d = itemDef(c, it.id);
@@ -1898,6 +1931,15 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
   }
   drain(c, s);
   settle(c, s);
+  return s;
+}
+
+/** Fill in fields added since a save was written (v1.0 → v1.0.2). */
+export function upgradeState(s: GameState): GameState {
+  s.specials ??= [];
+  s.specialsGone ??= [];
+  s.minions ??= [];
+  s.heroine.leave ??= [];
   return s;
 }
 

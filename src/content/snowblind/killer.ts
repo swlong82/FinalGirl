@@ -6,7 +6,7 @@ export const snowblind: KillerPack = {
   name: 'The Snowblind',
   epithet: 'Wes Corder, who came down off the mountain',
   art: 'snowblind',
-  health: 25,
+  health: 21,
   horror: 2,
   bloodlust: {
     revealAt: 4,
@@ -40,7 +40,9 @@ export const snowblind: KillerPack = {
   },
   revive: { name: 'Snow Blindness', text: 'His goggles crack and fall. Behind them his eyes are pure white, and he is still listening.', effects: [{ op: 'horror', n: 1 }] },
   quotes: ['"Run’s closed."', '"I can hear you breathing."', '"Three days. Three days under."', '"Nobody listens."'],
+  minions: { name: 'A Buried Skier', plural: 'Buried Skiers', text: 'The ones the 1974 slide took, digging themselves out at last. 2 health, move 1, attack 1. Like him, they listen for her heartbeat, and they act before he does.', health: 2, move: 1, attack: 1, max: 2, who: 'heroine', order: 'before' },
   terror: [
+    { id: 'sb-dugout', name: 'They Dig Themselves Out', tone: 'killer', text: 'A gloved hand pushes up through the drift beside him, then a frozen face in 1974 goggles.', effects: [{ op: 'spawnMinion', at: 'nearKiller', n: 1 }, { op: 'minionsAct' }] },
     { id: 'sb-siren', name: 'The Avalanche Siren', tone: 'killer', text: 'Three long blasts roll down the mountain, and everyone stops talking.', effects: [{ op: 'killerMove', toward: 'heroine', steps: 2 }, { op: 'attack' }] },
     { id: 'sb-whiteout', name: 'Whiteout', tone: 'killer', text: 'The world goes white. When it clears, he is somewhere else.', effects: [{ op: 'killerTeleport', to: 'random' }] },
     { id: 'sb-listen', name: 'He Listens', tone: 'killer', text: 'Absolute silence. Somewhere close, someone is holding their breath, just as she is.', effects: [{ op: 'if', cond: { c: 'alone' }, then: [{ op: 'horror', n: 1 }], else: [{ op: 'killerMove', toward: 'heroine', steps: 1 }] }] },

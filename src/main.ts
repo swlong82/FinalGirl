@@ -1,3 +1,7 @@
+import '@fontsource/oswald/latin-400.css';
+import '@fontsource/oswald/latin-600.css';
+import '@fontsource/special-elite/latin-400.css';
+import '@fontsource/creepster/latin-400.css';
 import './ui/style.css';
 import { audio } from './audio/audio';
 import { heroinePortrait, heroineToken, icon, killerPortrait, mapBackdrop, pip, victimIcon } from './art/art';
@@ -34,6 +38,8 @@ import {
   killerAttack,
   killerMoveValue,
   loreBonus,
+  autoSplit,
+  minionDamage,
   minionsAt,
   npcAt,
   specialDef,
@@ -51,6 +57,7 @@ import {
   terrorDef,
   TIEBREAK,
   totalHealth,
+  upgradeState,
 } from './engine/rules';
 import type { Action, ActionCardDef, Content, Difficulty, Effect, GameState, HeldItem, TieBreak } from './engine/types';
 import { startGrain, setGrainIntensity } from './ui/grain';
@@ -101,6 +108,8 @@ const cardQueue: Reveal[] = [];
 let content: Content | null = null;
 let game: GameState | null = null;
 let killerLogStart = 0;
+/** Her and his numbers when the Killer phase began, for the end-of-turn summary. */
+let turnStart: { health: number; slain: number; saved: number; bloodlust: number; killerHealth: number; finale: boolean; minions: number } | null = null;
 let lastQuote = '';
 let overlayLocked = false; // during the dice animation
 let boardBuilt = false;
@@ -113,6 +122,9 @@ let convertDie: number | null = null;
 let convertPick: number[] = [];
 let searchPicks: number[] = [];
 let swapFor: number | null = null;
+let selItem: number | null = null;
+let aimMode: 'choose' | 'split' = 'choose';
+let splitDraft: Record<number, number> = {};
 
 const prefs: Prefs = { sound: true, volume: 0.8, music: 0.7, grain: 0.6, tips: true, tiebreak: 'adverse', ...load(PREFS_KEY, {}) };
 const seenTips = new Set<string>(load(TIPS_KEY, [] as string[]));
@@ -268,7 +280,7 @@ function cardHtml(c: Content, s: GameState | null, d: ActionCardDef, attrs: stri
     ? `<span class="band"><i class="g">2+</i>${esc(describeEffects(d.great ?? []))}</span><span class="band"><i class="o">1</i>${esc(describeEffects(d.good ?? []))}</span><span class="band"><i class="x">✗</i>${esc(describeEffects(d.fail ?? []))}</span>`
     : `<span class="band"><i class="g">✓</i>${esc(describeEffects(d.always ?? []))}</span>`;
   return `<button class="act fcard ${d.kind} tag-${d.tags[0]}" data-kind="${d.tags[0]}" ${attrs}>
-    <span class="n">${esc(d.name)}${idx !== undefined && idx < 10 ? ` <kbd>${(idx + 1) % 10}</kbd>` : ''}</span>
+    <span class="n" title="${esc(d.name)}">${esc(d.name)}</span>${idx !== undefined && idx < 10 ? `<kbd class="key">${(idx + 1) % 10}</kbd>` : ''}
     <span class="cost"><b>${cardCost(c, d)}</b>◉ · ${dice}${d.kind === 'reaction' ? ' · <em>reaction</em>' : ''}</span>
     <span class="bands">${bands}</span>${extra}
   </button>`;
@@ -500,9 +512,12 @@ function continueGame() {
   pick = { location: l, killer: k };
   heroineId = h;
   content = buildContent(l, k, h);
-  game = saved.state;
+  game = upgradeState(saved.state);
   game.fx = [];
   resetUi();
+  // The end-of-turn summary starts at the last Killer phase, not at the top of the night.
+  const lastTurn = game.log.map((x) => x.text).lastIndexOf(`${content.killer.name}'s turn.`);
+  killerLogStart = lastTurn >= 0 ? lastTurn : game.log.length;
   screen = 'game';
   if (saved.legacy) {
     persist();
@@ -651,93 +666,8 @@ function updateGame() {
     </div>`;
   document.getElementById('phasebar')!.innerHTML = PHASES.map(([p, n], i) => `<span class="ph ${s.phase === p ? 'on' : ''} ${PHASES.findIndex(([q]) => q === s.phase) > i ? 'done' : ''}">${i + 1} · ${n}</span>`).join('<i>→</i>');
 
-  // ── heroine panel ──
-  const hearts =
-    Array.from({ length: h.maxHealth }, (_, i) => `<svg class="heart ${i < h.health ? '' : 'empty'}" viewBox="0 0 24 22"><path d="M12 21 C-6 9 4 -4 12 5 C20 -4 30 9 12 21 Z"/></svg>`).join('') +
-    `<span class="token-heart ${h.token === null ? 'used' : ''}" title="${h.token === null ? 'Final-health token already used: the next time she runs out of health, she dies.' : 'Hidden final-health token: when she runs out of health, it is revealed. A number means she gets back up with that much; blank means she dies.'}">${h.token === null ? '✕' : '?'}</span>`;
-  const track = DIFFICULTY[s.difficulty].track;
-  const meter = Array.from({ length: MAX_HORROR + 1 }, (_, i) => `<i class="${i === h.horror ? 'cur' : ''} ${i <= h.horror ? 'on' : ''}" title="Horror ${i}: ${track[i]} dice"><b>${track[i]}</b></i>`).join('');
-  const base = DIFFICULTY[s.difficulty].nerve;
-  const nerve = h.nerve < 0 ? `<span class="debt">${h.nerve} (in debt)</span>` : Array.from({ length: Math.max(h.nerve, base) }, (_, i) => `<i class="${i < h.nerve ? 'on' : ''}"></i>`).join('');
-  const slots = c.heroine.rescue.slots
-    .map((sl, i) => `<div class="rslot ${i < h.rescued ? 'full' : ''}" title="${esc(sl.text)}"><b>${i + 1}</b><span>${esc(sl.text)}</span></div>`)
-    .join('');
-  const unlocked = abilityUnlocked(c, s);
-  const abilityChk = check(c, s, { type: 'useAbility' });
-  const rearrangeOk = (s.rearrange || s.phase === 'upkeep') && !s.pending;
-  const itemRow = (it: HeldItem, where: 'hand' | 'pack') => {
-    const d = itemDef(c, it.id);
-    const uses = it.usesLeft !== undefined ? ` <span class="k">×${it.usesLeft}</span>` : '';
-    const hands = d.hands ? `<span class="k">${d.hands === 2 ? '2 hands' : '1 hand'}</span>` : '<span class="k">no hands</span>';
-    let btns = '';
-    const active = where === 'hand' || d.hands === 0;
-    if (d.use && active) {
-      const chk = check(c, s, { type: 'useItem', uid: it.uid });
-      btns += `<button class="btn small" data-item="${it.uid}" ${chk.ok ? '' : `disabled title="${esc(chk.why ?? '')}"`}>${esc(d.use.label)}</button>`;
-    }
-    if (where === 'hand' && rearrangeOk) btns += `<button class="btn small ghost" data-stow="${it.uid}" title="Put in the backpack">Stow</button>`;
-    if (where === 'pack' && d.hands > 0 && rearrangeOk) btns += `<button class="btn small" data-ready="${it.uid}">Take in hand</button>`;
-    return `<div class="item ${d.kind} ${where} ${active ? '' : 'inactive'}" title="${esc(d.lore ?? d.text)}">${itemIcon(d)}<div class="grow"><div class="name">${esc(d.name)}${uses} ${hands}</div><div class="txt">${esc(d.text)}</div></div><div class="acts">${btns}</div></div>`;
-  };
-  const used = handsUsed(c, h.items);
-  const handItems = h.items.map((it) => itemRow(it, 'hand')).join('') + (used < HAND_SLOTS ? Array(HAND_SLOTS - used).fill('<div class="item slot-empty">Empty hand</div>').join('') : '');
-  const packRows = h.pack.map((it) => itemRow(it, 'pack')).join('');
-  document.getElementById('heroine-panel')!.innerHTML = `
-    <div class="who">${heroinePortrait(c.heroine, { grim: h.horror / 6, hurt: 1 - totalHealth(s) / (h.maxHealth + 1) })}
-      <div><h3>${esc(c.heroine.name)}</h3><div class="sub">${esc(c.heroine.title)}</div><div class="hearts" title="Health">${hearts}</div></div>
-    </div>
-    <h4>Horror <span class="h4-note">${horrorDice(s)} dice per roll</span></h4>
-    <div class="meter htrack" title="Your Horror Level sets how many dice you roll. 5–6 succeeds, 3–4 is a partial.">${meter}</div>
-    <h4>Nerve <span class="h4-note">resets to ${base} in Planning</span></h4>
-    <div class="nerve" title="Pay for cards. Discard a card for +1. Below zero ends your turn.">${nerve}</div>
-    <h4>Rescues <span class="h4-note">${h.rescued} saved · ${h.rescued >= c.heroine.rescue.slots.length ? `repeat: ${esc(c.heroine.rescue.repeat.text)}` : 'fill all to unlock'}</span></h4>
-    <div class="rescue">${slots}</div>
-    <div class="ability ${unlocked ? 'on' : ''}"><b>${esc(c.heroine.ability.name)}</b> ${esc(c.heroine.ability.text)}
-      ${unlocked ? `<button class="btn small" data-act="useAbility" ${abilityChk.ok ? '' : `disabled title="${esc(abilityChk.why ?? '')}"`}>Use</button>` : '<span class="lock">locked</span>'}</div>
-    ${h.resolve ? `<div class="stats"><span>Resolve <b>+${h.resolve}</b> attack dice</span></div>` : ''}
-    <h4>Passive</h4>
-    <div class="passive-box"><b>${esc(c.heroine.passive.name)}.</b> ${esc(c.heroine.passive.text)}</div>
-    <h4>In hand <span class="h4-note">${used}/${HAND_SLOTS} hands${rearrangeOk ? ' · <b class="ok">rearrange now</b>' : ''}</span></h4>
-    <div class="items">${handItems}</div>
-    <h4 class="pack-h">${glyph('pack')} Backpack <span class="h4-note">${h.pack.length} · items needing hands don't work here</span></h4>
-    <div class="items pack">${packRows || '<div class="empty-note">Nothing stored yet.</div>'}</div>`;
-
-  // ── killer panel ──
-  const lv = c.killer.bloodlust.levels;
-  const blTrack = lv
-    .map((l, i) => `<i class="${i <= k.bloodlust ? 'on' : ''} ${i === k.bloodlust ? 'cur' : ''} ${i === c.killer.bloodlust.revealAt ? 'mark' : ''}" title="Bloodlust ${i}${l.name ? `: ${esc(l.name)}` : ''}. Move ${l.move}, attack ${l.attack}.${l.text ? ' ' + esc(l.text) : ''}"><b>${l.move}/${l.attack}</b></i>`)
-    .join('');
-  const powerBox =
-    k.power === 'hidden'
-      ? `<div class="power hidden"><b>Power: hidden</b> Revealed at bloodlust ${c.killer.bloodlust.revealAt}, or in the Finale.</div>`
-      : k.power === 'active'
-        ? `<div class="power on"><b>${esc(c.killer.power.name)}</b> ${esc(c.killer.power.text)} <span class="k">${k.powerHealth} temp health left</span></div>`
-        : `<div class="power spent"><b>${esc(c.killer.power.name)}</b> broken.</div>`;
-  const beh = k.finale ? c.killer.finale.behavior : c.killer.behavior;
-  const target = predictTarget(c, s);
-  document.getElementById('killer-panel')!.innerHTML = `
-    <div class="killer-head"><div>${killerPortrait({ finale: k.finale, art: c.killer.art })}</div>
-      <div><h3>${esc(c.killer.name)}</h3><div class="sub" style="font-size:11px;color:var(--muted)">${esc(c.killer.epithet)}</div></div></div>
-    <h4>Health ${k.health}/${k.maxHealth} <span class="token-heart small ${k.token === null ? 'used' : ''}" title="${k.token === null ? 'His final-health token is used. Next time he hits zero, he is dead.' : 'Hidden final-health token: when he runs out, it is revealed. He may get back up.'}">${k.token === null ? '✕' : '?'}</span>${k.finale ? ` · <span style="color:var(--blood)">${esc(c.killer.finale.name)}</span>` : ''}</h4>
-    <div class="hpbar"><div style="width:${(k.health / Math.max(1, k.maxHealth)) * 100}%"></div></div>
-    ${k.power === 'active' ? `<div class="hpbar temp"><div style="width:${(k.powerHealth / Math.max(1, c.killer.power.health)) * 100}%"></div></div>` : ''}
-    <h4>Bloodlust ${k.bloodlust}${bloodlustLevel(c, s).name ? ` · ${esc(bloodlustLevel(c, s).name!)}` : ''} <span class="h4-note">move/attack</span></h4>
-    <div class="meter bl">${blTrack}</div>
-    <div class="stats" style="margin-top:8px">
-      <span>Move <b>${killerMoveValue(c, s)}</b></span><span>Attack <b>${killerAttack(c, s)}</b></span>
-      ${k.stunned ? '<span style="color:var(--good)">STUNNED</span>' : ''}
-    </div>
-    <h4>${k.finale ? 'Finale behavior' : 'Behavior'}</h4>
-    <div class="passive-box behavior">${esc(beh.text)}<br><small>Next: ${esc(target === h.loc ? 'you' : nodeName(c, target))} · he is at ${esc(nodeName(c, k.loc))}</small></div>
-    ${powerBox}
-    <div class="quote">${esc(lastQuote)}</div>
-    <h4>Weakness (${loreBonus(c, s)}/${c.killer.items.length})</h4>
-    <div class="passive-box">${esc(c.killer.weakness.text)}</div>
-    ${c.killer.minions ? `<h4>${esc(c.killer.minions.plural)} <span class="h4-note">${s.minions.length}/${c.killer.minions.max} on the board</span></h4><div class="passive-box">${esc(c.killer.minions.text)}</div>` : ''}
-    ${s.specials.length || s.specialsGone.length ? `<h4>Named survivors</h4><div class="passive-box">${[...s.specials.map((x) => `<b>${esc(specialDef(c, x.id).name)}</b> at ${esc(nodeName(c, x.at))}. ${esc(specialDef(c, x.id).text)}`), ...s.specialsGone.map((x) => `<b>${esc(specialDef(c, x.id).name)}</b>: ${x.how}.`)].join('<br>')}</div>` : ''}
-    <h4>Ongoing events</h4>
-    <div class="passive-box">${s.events.map((id) => `<b>${esc(eventDef(c, id).name)}.</b> ${esc(eventSummary(c, id))}`).join('<br>') || 'None.'}</div>
-    <div class="stats" style="margin-top:8px"><span>Saved <b style="color:var(--good)">${s.saved}</b></span><span>Slain <b style="color:var(--blood)">${s.slain}</b></span><span>Still out there <b>${s.victimPool}</b></span></div>`;
+  renderHeroinePanel(c, s);
+  renderKillerPanel(c, s);
 
   const logEl = document.getElementById('log')!;
   logEl.innerHTML = s.log
@@ -750,6 +680,145 @@ function updateGame() {
   updateBottom();
   updateOverlay();
   tutorial.sync(s);
+}
+
+// ── Side panels ─────────────────────────────────────────────────────────────
+// One type system: Oswald for labels and numbers, the typewriter face for
+// sentences, Creepster only for names. Every section is a flex row header
+// (label left, meta right) above its content; nothing floats.
+const sec = (title: string, meta: string, body: string, cls = '') =>
+  `<section class="sec ${cls}"><div class="sec-h"><span class="sec-t">${title}</span>${meta ? `<span class="sec-m">${meta}</span>` : ''}</div>${body}</section>`;
+const vital = (label: string, num: string, sub: string, cls = '', title = '') =>
+  `<div class="vital ${cls}" ${title ? `title="${esc(title)}"` : ''}><span class="v-l">${label}</span><span class="v-n">${num}</span><span class="v-s">${sub}</span></div>`;
+
+function itemFacts(c: Content, it: HeldItem): string[] {
+  const d = itemDef(c, it.id);
+  const out: string[] = [];
+  if (d.damage) out.push(`+${d.damage} dmg`);
+  if ((d.range ?? [0]).some((r) => r > 0)) out.push('reach 1');
+  if (d.searchDice) out.push(`+${d.searchDice} search`);
+  if (d.kind === 'lore') out.push('+1 dmg vs him');
+  if (it.usesLeft !== undefined) out.push(`${it.usesLeft} left`);
+  return out;
+}
+
+function itemTile(c: Content, s: GameState, it: HeldItem, where: 'hand' | 'pack', span2 = false): string {
+  const d = itemDef(c, it.id);
+  const active = where === 'hand' || d.hands === 0;
+  const usable = active && !!d.use && check(c, s, { type: 'useItem', uid: it.uid }).ok;
+  const hands = d.hands ? `<i class="hb">${d.hands}H</i>` : '';
+  const facts = itemFacts(c, it);
+  return `<button class="tile k-${d.kind} ${where} ${active ? '' : 'idle'} ${usable ? 'ready' : ''} ${selItem === it.uid ? 'sel' : ''} ${span2 ? 'span2' : ''}" data-sel="${it.uid}" title="${esc(d.name)}: ${esc(d.text)}${active ? '' : ' (needs to be in hand to work)'}">
+    <span class="t-ico">${itemIcon(d)}</span>
+    <span class="t-nm">${esc(d.name)}</span>
+    <span class="t-f">${hands}${facts.map((f) => `<i>${esc(f)}</i>`).join('')}</span>
+  </button>`;
+}
+
+function itemDetail(c: Content, s: GameState, rearrangeOk: boolean): string {
+  const h = s.heroine;
+  const it = [...h.items, ...h.pack].find((x) => x.uid === selItem);
+  if (!it) {
+    const tip = rearrangeOk && h.pack.some((x) => itemDef(c, x.id).hands > 0) ? 'You can rearrange now: tap an item, then take it in hand or stow it.' : 'Tap an item to read it and use it.';
+    return `<div class="detail empty">${tip}</div>`;
+  }
+  const d = itemDef(c, it.id);
+  const inHand = h.items.some((x) => x.uid === it.uid);
+  const active = inHand || d.hands === 0;
+  const btns: string[] = [];
+  if (d.use) {
+    const chk = check(c, s, { type: 'useItem', uid: it.uid });
+    btns.push(`<button class="btn small ${chk.ok ? 'primary' : ''}" data-item="${it.uid}" ${chk.ok ? '' : `disabled title="${esc(chk.why ?? '')}"`}>${esc(d.use.label)}</button>`);
+  }
+  if (inHand) btns.push(`<button class="btn small" data-stow="${it.uid}" ${rearrangeOk ? '' : 'disabled title="Only when you gain an item, or in Upkeep"'}>Stow</button>`);
+  else if (d.hands > 0) btns.push(`<button class="btn small" data-ready="${it.uid}" ${rearrangeOk ? '' : 'disabled title="Only when you gain an item, or in Upkeep"'}>Take in hand</button>`);
+  const where = inHand ? 'In hand' : d.hands === 0 ? 'Backpack · works from here' : 'Backpack · needs hands to work';
+  return `<div class="detail">
+    <div class="d-h"><span class="d-nm">${esc(d.name)}</span><span class="d-m">${d.hands ? `${d.hands} hand${d.hands > 1 ? 's' : ''}` : 'no hands'}</span></div>
+    <div class="d-w ${active ? '' : 'warn'}">${where}${itemFacts(c, it).length ? ` · ${esc(itemFacts(c, it).join(' · '))}` : ''}</div>
+    <p class="prose">${esc(d.text)}</p>
+    ${d.lore ? `<p class="prose lore">${esc(d.lore)}</p>` : ''}
+    ${btns.length ? `<div class="d-a">${btns.join('')}</div>` : ''}
+  </div>`;
+}
+
+function renderHeroinePanel(c: Content, s: GameState) {
+  const h = s.heroine;
+  const base = DIFFICULTY[s.difficulty].nerve;
+  const track = DIFFICULTY[s.difficulty].track;
+  const total = totalHealth(s);
+  // Horror climbs left to right; the row under it is what that costs you in dice.
+  const htrack = track.map((d, i) => `<i class="${i < h.horror ? 'past' : ''} ${i === h.horror ? 'cur' : ''}" title="Horror ${i}: you roll ${d} dice"><b>${i}</b><b>${d}</b></i>`).join('');
+  const slots = c.heroine.rescue.slots;
+  const rtrack = slots
+    .map((sl, i) => `<span class="rt ${i < h.rescued ? 'done' : i === h.rescued ? 'next' : ''}" title="Rescue ${i + 1}: ${esc(sl.text)}">${i < h.rescued ? '✓' : i + 1}</span>`)
+    .join('<i class="rt-link"></i>');
+  const unlocked = abilityUnlocked(c, s);
+  const abilityChk = check(c, s, { type: 'useAbility' });
+  const nextTxt = h.rescued < slots.length ? `<b>Next rescue:</b> ${esc(slots[h.rescued].text)}` : `<b>Each rescue:</b> ${esc(c.heroine.rescue.repeat.text)}`;
+  const rearrangeOk = (s.rearrange || s.phase === 'upkeep') && !s.pending;
+  const used = handsUsed(c, h.items);
+  const handTiles = h.items.map((it) => itemTile(c, s, it, 'hand', itemDef(c, it.id).hands === 2)).join('') + Array(Math.max(0, HAND_SLOTS - used)).fill('<div class="tile empty">Empty hand</div>').join('');
+  const bag = h.pack.map((it) => itemTile(c, s, it, 'pack')).join('') || '<div class="bag-empty">Nothing stored yet.</div>';
+  document.getElementById('heroine-panel')!.innerHTML = `<div class="pane">
+    <header class="p-id">${heroinePortrait(c.heroine, { grim: h.horror / 6, hurt: 1 - total / (h.maxHealth + 1) })}
+      <div><div class="p-name">${esc(c.heroine.name)}</div><div class="p-role">${esc(c.heroine.title)}</div></div></header>
+    <div class="vitals">
+      ${vital('Health', `${total}<small>/${h.maxHealth + 1}</small>`, h.token === null ? 'last token used' : `${h.health} + <span class="tok">?</span> token`, total <= 2 ? 'bad' : '', h.token === null ? 'Final-health token used: the next time she runs out of health, she dies.' : 'Ordinary health plus a hidden final-health token. When her health runs out the token is revealed: a number gets her back up, blank means death.')}
+      ${vital('Horror', `${h.horror}<small>/${MAX_HORROR}</small>`, `${horrorDice(s)} dice a roll`, h.horror >= 4 ? 'bad' : '', 'The higher your horror, the fewer dice you roll. Past 6, it feeds his bloodlust.')}
+      ${vital('Nerve', String(h.nerve), h.nerve < 0 ? 'in debt' : `resets to ${base}`, h.nerve < 0 ? 'bad' : 'gold', 'Pays for cards. Discard a card for +1. Below zero ends your Action phase.')}
+    </div>
+    <div class="htrack" title="Horror track: as horror rises, you roll fewer dice"><span class="ht-k"><b>horror</b><b>dice</b></span>${htrack}</div>
+    ${sec('Rescues', `${h.rescued} saved${h.resolve ? ` · +${h.resolve} attack die` : ''}`, `<div class="rtrack" title="Fill every slot to unlock ${esc(c.heroine.ability.name)}">${rtrack}<i class="rt-link"></i><span class="rt ab ${unlocked ? 'done' : ''}" title="${esc(c.heroine.ability.name)}: ${esc(c.heroine.ability.text)}">★</span></div><p class="prose small">${nextTxt}</p>
+      <div class="ability ${unlocked ? 'on' : ''}" title="${esc(c.heroine.ability.text)}"><div class="ab-h"><span class="ab-n">★ ${esc(c.heroine.ability.name)}</span>${unlocked ? `<button class="btn small ${abilityChk.ok ? 'primary' : ''}" data-act="useAbility" ${abilityChk.ok ? '' : `disabled title="${esc(abilityChk.why ?? '')}"`}>Use</button>` : `<span class="ab-l">unlocks at ${slots.length}</span>`}</div>${unlocked ? `<p class="prose small">${esc(c.heroine.ability.text)}</p>` : ''}</div>`)}
+    ${sec('Hands', `${used}/${HAND_SLOTS}${rearrangeOk ? ' · <b class="ok">rearrange now</b>' : ''}`, `<div class="hands">${handTiles}</div>`, 'inv')}
+    ${sec(`${glyph('pack')} Backpack`, `${h.pack.length} item${h.pack.length === 1 ? '' : 's'}`, `<div class="bag">${bag}</div>${itemDetail(c, s, rearrangeOk)}`, 'inv')}
+    ${sec('Passive', esc(c.heroine.passive.name), `<p class="prose small">${esc(c.heroine.passive.text)}</p>`)}
+  </div>`;
+}
+
+function renderKillerPanel(c: Content, s: GameState) {
+  const k = s.killer;
+  const h = s.heroine;
+  const lv = c.killer.bloodlust.levels;
+  const cur = bloodlustLevel(c, s);
+  const btrack = lv
+    .map((l, i) => `<i class="${i < k.bloodlust ? 'past' : ''} ${i === k.bloodlust ? 'cur' : ''} ${i === c.killer.bloodlust.revealAt ? 'mark' : ''}" title="Bloodlust ${i}${l.name ? `: ${esc(l.name)}` : ''}. Move ${l.move}, attack ${l.attack}.${l.text ? ' ' + esc(l.text) : ''}"><b>${l.move}</b><b>${l.attack}</b></i>`)
+    .join('');
+  const beh = k.finale ? c.killer.finale.behavior : c.killer.behavior;
+  const target = predictTarget(c, s);
+  const power =
+    k.power === 'hidden'
+      ? `<p class="prose small">Hidden until bloodlust ${c.killer.bloodlust.revealAt}, or the Finale.</p>`
+      : k.power === 'active'
+        ? `<div class="hpbar temp" title="Temporary health"><div style="width:${(k.powerHealth / Math.max(1, c.killer.power.health)) * 100}%"></div></div><p class="prose small">${esc(c.killer.power.text)}</p>`
+        : `<p class="prose small spent">Broken.</p>`;
+  const mdef = c.killer.minions;
+  const minions = mdef
+    ? sec(esc(mdef.plural), `${s.minions.length}/${mdef.max} out`, `<div class="facts"><i>${mdef.health} hp</i><i>move ${mdef.move}</i><i>attack ${mdef.attack}</i><i>${mdef.order === 'before' ? 'acts first' : 'acts after him'}</i></div><p class="prose small">${esc(mdef.text.split('. ')[0])}.</p>`)
+    : '';
+  const named = s.specials.length || s.specialsGone.length
+    ? sec('Named survivors', '', `<ul class="list">${[...s.specials.map((x) => `<li><b>${esc(specialDef(c, x.id).name)}</b> · ${esc(nodeName(c, x.at))}<br><span>${esc(specialDef(c, x.id).text)}</span></li>`), ...s.specialsGone.map((x) => `<li class="gone"><b>${esc(specialDef(c, x.id).name)}</b> · ${x.how}</li>`)].join('')}</ul>`)
+    : '';
+  document.getElementById('killer-panel')!.innerHTML = `<div class="pane dark">
+    <header class="p-id">${killerPortrait({ finale: k.finale, art: c.killer.art })}
+      <div><div class="p-name">${esc(c.killer.name)}</div><div class="p-role">${esc(c.killer.epithet)}</div></div></header>
+    <div class="vitals">
+      ${vital('Health', `${k.health}<small>/${k.maxHealth}</small>`, k.token === null ? 'token used' : '+ hidden token', '', k.token === null ? 'His final-health token is used. Next time he hits zero, he is dead.' : 'When he runs out, his hidden final-health token is revealed: he may get back up.')}
+      ${vital('Move', String(killerMoveValue(c, s)), k.stunned ? 'stunned' : 'per turn', k.stunned ? 'good' : '')}
+      ${vital('Attack', String(killerAttack(c, s)), 'damage', '')}
+    </div>
+    <div class="hpbar" title="Health"><div style="width:${(k.health / Math.max(1, k.maxHealth)) * 100}%"></div></div>
+    ${sec(k.finale ? `Finale: ${esc(c.killer.finale.name)}` : 'His turn', `next: <b>${esc(target === h.loc ? 'you' : nodeName(c, target))}</b>`, `<p class="prose small">${esc(beh.text)}</p>`, `next ${k.finale ? 'fin' : ''}`)}
+    ${sec(`Bloodlust ${k.bloodlust}`, esc(cur.name ?? ''), `<div class="btrack"><span class="bt-k"><b>move</b><b>attack</b></span>${btrack}</div>`)}
+    ${sec(k.power === 'hidden' ? 'Power' : esc(c.killer.power.name), k.power === 'active' ? `${k.powerHealth} temp hp` : k.power === 'spent' ? 'spent' : 'hidden', power, `power ${k.power}`)}
+    ${minions}
+    ${named}
+    ${sec('Ongoing events', '', `<ul class="list">${s.events.map((id) => `<li><b>${esc(eventDef(c, id).name)}</b><br><span>${esc(eventSummary(c, id))}</span></li>`).join('') || '<li>None.</li>'}</ul>`)}
+    ${sec('Weakness', `lore ${loreBonus(c, s)}/${c.killer.items.length}`, `<p class="prose small">${esc(c.killer.weakness.text)}</p>`)}
+    ${lastQuote ? `<p class="quote">${esc(lastQuote)}</p>` : ''}
+    <div class="tally"><span><b class="good">${s.saved}</b> saved</span><span><b class="bad">${s.slain}</b> slain</span><span><b>${s.victimPool}</b> out there</span></div>
+  </div>`;
 }
 
 function eventSummary(c: Content, id: string): string {
@@ -828,8 +897,11 @@ function updateBoard() {
     const p = s.pending as { kind: 'move'; left: number };
     const here = npcAt(s, h.loc);
     const cap = escortCap(c);
-    const bring = here ? `· bring <span class="bring">${Array.from({ length: cap + 1 }, (_, n) => `<button class="btn tiny ${h.bring === n ? 'sel' : ''}" data-bring="${n}">${n}</button>`).join('')}</span> of ${here} survivor${here > 1 ? 's' : ''}` : '';
-    hint.innerHTML = `<b style="color:var(--gold)">${p.left}</b> step${p.left > 1 ? 's' : ''} left: click a glowing location ${bring} <button class="btn tiny" data-act="stopMove">Stop (S)</button>`;
+    const named = specialsAt(s, h.loc)
+      .map((x) => `<button class="btn tiny ${(h.leave ?? []).includes(x.id) ? '' : 'sel'}" data-follow="${x.id}" title="${(h.leave ?? []).includes(x.id) ? 'Staying put: click to bring' : 'Coming with you: click to leave behind'}">${esc(specialDef(c, x.id).name.split(',')[0].trim().split(' ').pop()!)} ${(h.leave ?? []).includes(x.id) ? 'stays' : 'comes'}</button>`)
+      .join('');
+    const bring = here ? `<span class="hint-group">Bring up to <span class="bring">${Array.from({ length: cap + 1 }, (_, n) => `<button class="btn tiny ${h.bring === n ? 'sel' : ''}" data-bring="${n}">${n}</button>`).join('')}</span> of ${here}${named ? ` ${named}` : ''}</span>` : '';
+    hint.innerHTML = `<span class="hint-group"><b class="steps">${p.left}</b> step${p.left > 1 ? 's' : ''} left: click a glowing location, or stop here</span>${bring}`;
   } else if (s.phase === 'action') hint.innerHTML = 'Play a card from your hand. Hover a location for details.';
   else hint.innerHTML = '';
 }
@@ -856,7 +928,9 @@ function updateBottom() {
       : '';
   const pile = `<div class="pile" title="Your hand holds up to ${HAND_LIMIT} action cards"><span><b>${h.hand.length}</b>/${HAND_LIMIT} cards</span><span><b>${s.discard.length}</b> used this turn</span></div>`;
   let main = '';
-  if (s.phase === 'action')
+  if (s.pending?.kind === 'move')
+    main = `<button class="endturn stop" data-act="stopMove">Stop here <small style="display:block;font-size:10px;opacity:.8">${(s.pending as { left: number }).left} step${(s.pending as { left: number }).left > 1 ? 's' : ''} unused · S</small></button>`;
+  else if (s.phase === 'action')
     main = `<button class="endturn" data-act="endAction" ${check(c, s, { type: 'endAction' }).ok ? '' : 'disabled'}>End Action <small style="display:block;font-size:10px;opacity:.7">${h.nerve} nerve → Planning · E</small></button>`;
   else if (s.phase === 'planning')
     main = `<button class="endturn" data-go="openPlan">Tableau</button><button class="endturn" data-act="endPlanning">Done <small style="display:block;font-size:10px;opacity:.7">his turn · E</small></button>`;
@@ -971,11 +1045,35 @@ function updateOverlay() {
   if (p?.kind === 'aim') {
     const def = c.killer.minions!;
     const mins = minionsAt(s, h.loc);
+    const total = minionDamage(c, s, p.base);
+    const one = def.name.replace(/^(A|An) /, '');
+    if (!p.killer || aimMode === 'split') {
+      // Divide the damage between the minions here.
+      if (!Object.keys(splitDraft).length || Object.keys(splitDraft).some((u) => !mins.some((m) => m.uid === +u))) splitDraft = autoSplit(c, s, p.base);
+      const assigned = Object.values(splitDraft).reduce((n, v) => n + v, 0);
+      const rows = mins
+        .map((m, i) => {
+          const v = splitDraft[m.uid] ?? 0;
+          return `<div class="split-row"><span class="sr-n">${esc(one)} ${i + 1}</span><span class="sr-h">${'■'.repeat(m.health)}<small>${m.health} hp</small></span>
+            <span class="sr-c"><button class="btn tiny" data-split="${m.uid}" data-d="-1" ${v <= 0 ? 'disabled' : ''}>−</button><b>${v}</b><button class="btn tiny" data-split="${m.uid}" data-d="1" ${assigned >= total ? 'disabled' : ''}>+</button></span>
+            <span class="sr-r ${v >= m.health ? 'kill' : ''}">${v >= m.health ? 'destroyed' : v ? `${m.health - v} hp left` : ''}</span></div>`;
+        })
+        .join('');
+      root.innerHTML = `<div class="overlay"><div class="draft react-ov aim-ov">
+        <div class="kind">Divide the damage</div>
+        <h2>${total} damage on the ${esc(def.plural)}</h2>
+        <p>Your weapon adds to it; lore doesn't. Damage you don't assign, or that's more than one needs, is lost.</p>
+        <div class="split">${rows}</div>
+        <div class="split-sum">${assigned} of ${total} assigned${assigned < total ? ` · ${total - assigned} will be lost` : ''}</div>
+        <div class="row-btns">${p.killer ? '<button class="btn" data-go="aimBack">Back</button>' : ''}<button class="btn primary" data-go="aimSplit">Strike</button></div>
+      </div></div>`;
+      return;
+    }
     root.innerHTML = `<div class="overlay"><div class="draft react-ov aim-ov">
       <div class="kind">Choose a target</div>
       <h2>${p.base} damage: ${esc(c.killer.name)}, or them?</h2>
-      <p>You can hit <b>${esc(c.killer.name)}</b> (your weapon and lore add to it), or the <b>${mins.length} ${esc(mins.length > 1 ? def.plural : def.name.replace(/^(A|An) /, ''))}</b> here (your weapon adds to it and the damage is split between them; any left over is lost). Not both.</p>
-      <div class="row-btns" style="justify-content:center"><button class="btn primary" data-aim="killer">Hit ${esc(c.killer.name)}</button><button class="btn" data-aim="minions">Hit the ${esc(def.plural)} (health ${mins.map((m) => m.health).join(', ')})</button></div>
+      <p>Hit <b>${esc(c.killer.name)}</b> (weapon and lore add to it), or the <b>${mins.length} ${esc(mins.length > 1 ? def.plural : one)}</b> here (weapon adds to it; you divide it between them). Not both.</p>
+      <div class="row-btns" style="justify-content:center"><button class="btn primary" data-aim="killer">Hit ${esc(c.killer.name)}</button><button class="btn" ${mins.length > 1 ? 'data-go="aimMinions"' : 'data-aim="minions"'}>Hit the ${esc(mins.length > 1 ? def.plural : one)}</button></div>
     </div></div>`;
     return;
   }
@@ -1028,10 +1126,35 @@ function updateOverlay() {
     return;
   }
   if (s.phase === 'upkeep' && upkeepHidden !== s.round) {
-    const lines = s.log.slice(killerLogStart).map((l) => `<li class="${l.tone ?? ''}">${esc(l.text)}</li>`).join('');
+    // Collapse repeats ("He heals 1." ×3) so a long late-game turn stays readable.
+    const counts = new Map<string, { n: number; tone?: string }>();
+    for (const l of s.log.slice(killerLogStart)) {
+      if (/^.+'s turn\.$/.test(l.text)) continue;
+      const e = counts.get(l.text);
+      if (e) e.n++;
+      else counts.set(l.text, { n: 1, tone: l.tone });
+    }
+    const lines = [...counts].map(([t, e]) => `<li class="${e.tone ?? ''} ${/^(TERROR|FINALE|POWER|EVENT)/.test(t) ? 'big' : ''}">${esc(t)}${e.n > 1 ? ` <b class="x">×${e.n}</b>` : ''}</li>`).join('');
+    const chips: string[] = [];
+    if (turnStart) {
+      const dh = totalHealth(s) - turnStart.health;
+      if (dh < 0) chips.push(`<span class="chip-s bad">−${-dh} health</span>`);
+      const dk = s.slain - turnStart.slain;
+      if (dk > 0) chips.push(`<span class="chip-s bad">${dk} survivor${dk > 1 ? 's' : ''} killed</span>`);
+      const db = s.killer.bloodlust - turnStart.bloodlust;
+      if (db > 0) chips.push(`<span class="chip-s warn">bloodlust +${db}</span>`);
+      const dkh = s.killer.health - turnStart.killerHealth;
+      if (dkh > 0) chips.push(`<span class="chip-s warn">he healed ${dkh}</span>`);
+      const dm = s.minions.length - turnStart.minions;
+      if (dm > 0) chips.push(`<span class="chip-s warn">+${dm} ${esc(dm > 1 ? c.killer.minions?.plural ?? 'minions' : (c.killer.minions?.name ?? 'minion').replace(/^(A|An) /, ''))}</span>`);
+      if (s.killer.finale && !turnStart.finale) chips.push('<span class="chip-s bad">the Finale begins</span>');
+      if (!chips.length) chips.push('<span class="chip-s good">you came through untouched</span>');
+    }
+    if (s.lastTerror && s.log.slice(killerLogStart).some((l) => l.text.startsWith('TERROR'))) chips.push(`<span class="chip-s">Terror: ${esc(terrorDef(c, s.lastTerror).name)}</span>`);
     root.innerHTML = `<div class="overlay"><div class="killerturn">
       <h2>${esc(c.killer.name)}</h2>
-      <ul>${lines || '<li>He waits in the dark.</li>'}</ul>
+      <div class="kt-sum">${chips.join('')}</div>
+      <ul class="kt-log">${lines || '<li>He waits in the dark.</li>'}</ul>
       <p class="dim">Upkeep: you may rearrange items between your hands and backpack now.</p>
       <div class="row-btns"><button class="btn" data-go="hideUpkeep">Rearrange items</button><button class="btn primary" data-act="endUpkeep">Next turn <small>(space)</small></button></div>
     </div></div>`;
@@ -1065,7 +1188,10 @@ function updateOverlay() {
 function act(a: Action) {
   if (!game || !content || overlayLocked) return;
   if (a.type === 'endAction' && game.heroine.nerve > 0 && !confirmEnd()) return;
-  if (a.type === 'endPlanning') killerLogStart = game.log.length;
+  if (a.type === 'endPlanning') {
+    killerLogStart = game.log.length;
+    turnStart = { health: totalHealth(game), slain: game.slain, saved: game.saved, bloodlust: game.killer.bloodlust, killerHealth: game.killer.health, finale: game.killer.finale, minions: game.minions.length };
+  }
   const prev = game;
   const next = dispatch(content, game, a);
   if (next === game) return;
@@ -1075,6 +1201,15 @@ function act(a: Action) {
     convertPick = [];
   }
   if (a.type === 'keep') searchPicks = [];
+  if (game.pending?.kind !== 'aim') {
+    aimMode = 'choose';
+    splitDraft = {};
+  }
+  // Show the item she just picked up.
+  const had = new Set([...prev.heroine.items, ...prev.heroine.pack].map((x) => x.uid));
+  const gained = [...game.heroine.items, ...game.heroine.pack].filter((x) => !had.has(x.uid));
+  if (gained.length) selItem = gained[gained.length - 1].uid;
+  else if (selItem !== null && ![...game.heroine.items, ...game.heroine.pack].some((x) => x.uid === selItem)) selItem = null;
   swapFor = null;
   const undoable = (prev.phase === 'action' || prev.phase === 'planning') && prev.phase === game.phase && !prev.pending;
   if (undoable) history.push(prev);
@@ -1195,6 +1330,8 @@ function describeAction(c: Content, s: GameState, a: Action): string {
       return '<b>Answer</b> the phone.';
     case 'ready':
       return 'Take an item in hand.';
+    case 'toggleFollow':
+      return 'Change who follows you.';
     case 'aim':
       return a.at === 'killer' ? `Hit <b>${esc(c.killer.name)}</b>.` : `Hit the <b>${esc(c.killer.minions?.plural ?? 'minions')}</b>.`;
     default:
@@ -1509,6 +1646,22 @@ function handleGameClick(t: HTMLElement): boolean {
   if (disc) return act({ type: 'discardForNerve', uid: +disc }), true;
   const node = d('node');
   if (node && node !== game.heroine.loc) return act({ type: 'step', to: node }), true;
+  if (node && game.pending?.kind === 'move') return act({ type: 'stopMove' }), true; // click yourself to stop
+  const sel = d('sel');
+  if (sel) {
+    selItem = selItem === +sel ? null : +sel;
+    updateGame();
+    return true;
+  }
+  const follow = d('follow');
+  if (follow) return act({ type: 'toggleFollow', id: follow }), true;
+  const split = t.closest<HTMLElement>('[data-split]');
+  if (split) {
+    const uid = +split.dataset.split!;
+    splitDraft = { ...splitDraft, [uid]: Math.max(0, (splitDraft[uid] ?? 0) + +split.dataset.d!) };
+    updateOverlay();
+    return true;
+  }
   const bring = d('bring');
   if (bring !== undefined) return act({ type: 'setBring', n: +bring }), true;
   const a = d('act');
@@ -1627,6 +1780,15 @@ function navigate(go: string) {
     case 'doConvert':
       if (convertDie !== null && convertPick.length === CONVERT_COST) act({ type: 'convert', die: convertDie, discard: [convertPick[0], convertPick[1]] });
       return;
+    case 'aimMinions':
+      aimMode = 'split';
+      splitDraft = {};
+      return updateOverlay();
+    case 'aimBack':
+      aimMode = 'choose';
+      return updateOverlay();
+    case 'aimSplit':
+      return act({ type: 'aim', at: 'minions', split: { ...splitDraft } });
     case 'keepPicks':
       return act({ type: 'keep', picks: [...searchPicks] });
     case 'mapkey':

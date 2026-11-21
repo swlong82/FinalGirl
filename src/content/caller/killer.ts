@@ -6,7 +6,7 @@ export const caller: KillerPack = {
   name: 'The Caller',
   epithet: 'Mister Request, who always called at three',
   art: 'caller',
-  health: 24,
+  health: 21,
   horror: 2,
   bloodlust: {
     revealAt: 4,
@@ -40,7 +40,9 @@ export const caller: KillerPack = {
   },
   revive: { name: 'Off the Air', text: 'The tower light dies. In the silence his mask whistles with every breath, and he hums the station jingle.', effects: [{ op: 'horror', n: 1 }] },
   quotes: ['"Are you still there?"', '"Long-time listener."', '"Play it for me. Play it for me."', '"Don’t hang up."'],
+  minions: { name: 'A Listener', plural: 'Listeners', text: 'Long-time listeners who drove up the hill for the last show, wearing headphones that play only his voice. 1 health, move 2, attack 1. They go for the closest survivor and act after he does.', health: 1, move: 2, attack: 1, max: 2, who: 'npc', order: 'after' },
   terror: [
+    { id: 'cl-fans', name: 'Call-In Winners', tone: 'killer', text: '"Caller number nine, you’re our winner!" Headlights in the turnout. Someone has come to collect.', effects: [{ op: 'spawnMinion', at: 'random', n: 1 }, { op: 'minionsAct' }] },
     { id: 'cl-ring', name: 'It’s For You', tone: 'killer', text: 'A phone rings beside her. When she looks back, the hallway is shorter.', effects: [{ op: 'killerMove', toward: 'heroine', steps: 1 }, { op: 'horror', n: 1 }] },
     { id: 'cl-deadair', name: 'Dead Air', tone: 'killer', text: 'The broadcast cuts to silence. Wherever he was, he isn’t now.', effects: [{ op: 'killerTeleport', to: 'random' }] },
     { id: 'cl-line', name: 'Breathing on the Line', tone: 'killer', text: 'Slow breathing comes through every speaker in the building, and it is getting closer to the mic.', effects: [{ op: 'killerMove', toward: 'heroine', steps: 2 }, { op: 'attack' }] },

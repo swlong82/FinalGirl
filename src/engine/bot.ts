@@ -207,7 +207,7 @@ export function botAction(c: Content, s: GameState): Action {
   if (p?.kind === 'aim') {
     // Go for him when he's close to finished or it's the Finale; otherwise clear the minions off her.
     const finishing = k.health + (k.token !== null ? 2 : 0) <= p.base + 3;
-    return { type: 'aim', at: k.finale || finishing ? 'killer' : 'minions' };
+    return { type: 'aim', at: p.killer && (k.finale || finishing) ? 'killer' : 'minions' };
   }
   if (p?.kind === 'search') {
     const order = p.drawn.map((id, i) => ({ i, v: itemScore(c, s, id) })).sort((a, b) => b.v - a.v);
@@ -341,7 +341,7 @@ function fallback(s: GameState): Action[] {
   if (p?.kind === 'roll') return [{ type: 'resolveRoll' }];
   if (p?.kind === 'search') return [{ type: 'keep', picks: [] }];
   if (p?.kind === 'reaction') return [{ type: 'takeHit' }];
-  if (p?.kind === 'aim') return [{ type: 'aim', at: 'killer' }];
+  if (p?.kind === 'aim') return [{ type: 'aim', at: 'minions' }];
   if (s.phase === 'planning') return [{ type: 'endPlanning' }];
   if (s.phase === 'upkeep') return [{ type: 'endUpkeep' }];
   return [{ type: 'endAction' }];

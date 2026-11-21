@@ -596,3 +596,39 @@ describe('v0.9 saves', () => {
     expect(simulate(c, s, dispatch).outcome).toBeDefined();
   });
 });
+
+describe('player choices: followers and damage split', () => {
+  it('she can ask a named survivor to stay put', () => {
+    const c = C('june', 'gullhaven-tide-cabins');
+    let s = quiet(c);
+    s.heroine.loc = 'office';
+    s.killer.loc = 'light';
+    s.specials = [{ id: 'sp-gilley', at: 'office' }];
+    s.victims.office = 2;
+    s = act(c, s, { type: 'toggleFollow', id: 'sp-gilley' });
+    const uid = giveCard(s, 'ac-walk');
+    s = act(c, s, { type: 'playCard', uid });
+    s = act(c, s, { type: 'step', to: 'north' });
+    expect(s.specials[0].at).toBe('office');
+    expect(s.victims.north).toBe(2);
+  });
+
+  it('she divides damage between minions; unassigned damage is lost', () => {
+    const c = C('june', 'holloway-drive-in', 'the-projectionist');
+    let s = quiet(c);
+    s.minions = [
+      { uid: 701, loc: s.heroine.loc, health: 2 },
+      { uid: 702, loc: s.heroine.loc, health: 2 },
+    ];
+    s.heroine.hand = [];
+    const uid = giveCard(s, 'ac-fullswing');
+    s.rolling = { uid, dice: [6, 6], converted: [], card: 'ac-fullswing', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-fullswing', reaction: false };
+    s = act(c, s, { type: 'resolveRoll' }); // 3 damage vs 2 + 2 health: she must split
+    expect(s.pending).toMatchObject({ kind: 'aim', killer: false });
+    expect(dispatch(c, s, { type: 'aim', at: 'killer' })).toBe(s);
+    expect(dispatch(c, s, { type: 'aim', at: 'minions', split: { 701: 2, 702: 2 } })).toBe(s); // 4 > 3
+    s = act(c, s, { type: 'aim', at: 'minions', split: { 701: 1, 702: 1 } });
+    expect(s.minions.map((m) => m.health)).toEqual([1, 1]);
+  });
+});

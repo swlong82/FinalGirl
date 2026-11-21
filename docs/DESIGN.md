@@ -81,18 +81,21 @@ Each location has one named survivor, brought in by one of its Terror cards. The
 | Kettle Peak Lodge | Marty, the Bartender | loud: the killer's next target is his noise | heal 2 | horror +1 |
 | KXRL Hilltop | Old Herb, the Engineer | wanders to a neighbor every Upkeep | the killer is stunned, +1 nerve | horror +1, bloodlust +1 more |
 
-A rescued named survivor fills a rescue slot *and* pays their own reward. Named survivors follow you before the crowd does.
+A rescued named survivor fills a rescue slot *and* pays their own reward. Named survivors follow you before the crowd does, unless you tell one to stay put (the toggle next to their name while you move).
 
 ### Minions (subordinate enemies)
-Two killers bring help. Minions have their own health, move, attack and target rule, a token limit (extra spawns are ignored), and act before or after the killer in the Killer phase. When an effect makes "the enemies" act and says nothing else, minions go first.
+Every killer brings help. Minions have their own health, move, attack and target rule, a token limit (extra spawns are ignored), and act before or after the killer in the Killer phase. When an effect makes "the enemies" act and says nothing else, minions go first.
 
 | Killer | Minions | Stats | Targets | Order |
 |---|---|---|---|---|
+| The Projectionist | Charred Patrons (*Reserved Seating*) | 2 health, move 1, attack 1, max 2 | whoever is closest | after him |
 | The Tidewife | The Drowned (bloodlust 3, *Out of the Shallows*) | 1 health, move 1, attack 1, max 2 | closest survivor | before her |
 | The Anesthetist | Sleepwalkers (bloodlust 3, *Sleepwalking*) | 1 health, move 1, attack 1, max 2 | whoever is closest | after him |
+| The Snowblind | Buried Skiers (*They Dig Themselves Out*) | 2 health, move 1, attack 1, max 2 | her | before him |
+| The Caller | Listeners (*Call-In Winners*) | 1 health, move 2, attack 1, max 2 | closest survivor | after him |
 
 - With the killer **and** minions in reach, an attack must choose: him, or the minions. Never both.
-- Against minions, the damage (plus a weapon, not lore) is split between all minions in your location; leftover damage is lost.
+- Against minions, the damage (plus a weapon, not lore) is divided between the minions in your location: you assign it with +/− per minion (a sensible split is pre-filled); unassigned or overkill damage is lost. You're only asked when the split matters.
 - Survivors will follow you into a location with minions, just not one with the killer. Minion kills feed bloodlust and trigger panic like his.
 - Minion attacks on you can be answered with reactions; Counter hits whoever is attacking.
 
@@ -234,7 +237,8 @@ scripts/       balance and tension reports (SCRIPTS=1)
 | **v0.8 (this build): Draft & readability** | **Lineup draft**: 6 face‑up action cards each round, take up to 3 for free (hand max 5), pay nerve to play. Every lineup is guaranteed a Lead card and a Hide or Fight card. Bleeding and Panic go straight into the hand. Noise every 6 nerve. **Readable map**: labeled badges with icons (searches left, panic n/4, barricade), a **Map key**, and a hover **location card** |
 | v0.9: Hunt him down | **The only win is killing him**; dawn means he escapes, which is a loss. **Resolve**: each rescue gives +1 fight die (max 3) plus an item. **Nerve resets each round** again (5/4/4/3); banking and noise removed. **Movement comes from cards**: Walk, Run and Slip Away, with 2 Walk cards to start and a move card guaranteed in every lineup. **Hands + backpack**: 3 active hand slots and an unlimited backpack; readying an item costs 1 nerve, or is free at the moment you find it. Killers −2 health, dawn at round 14, "he gets back up" at 4 health |
 | **v1.0 (this build): The five‑phase night** | Core loop rebuilt to a generic solo‑survival spec: **Action → Planning → Killer → Panic → Upkeep**. **Nerve 6** and an open **tableau** you buy from (used cards locked until Planning ends; discard for +1 nerve; nerve debt ends your turn). **Horror Rolls** with partials you buy up with cards, and 2+ / 1 / fail outcome bands on every card. **10‑card Terror deck** as the clock; **Finale** when it runs out (dawn removed). **Bloodlust track** sets his move and attack, with level effects and a **power** revealed at level 4. **Hidden final‑health tokens** for both sides. Survivors follow (2) and shield you; **exit rescues** fill slots and unlock an **ability**. **Reactions**. Elimination‑triggered **directional panic**. **Two hand slots** and per‑location **item piles**. Tie‑break policy setting. New tutorial, rule tests and balance pass |
-| **v1.0.1 (this build): The rest of the spec** | All four tie‑break policies, named survivors (one per location), minions for the Tidewife and the Anesthetist with the him‑or‑them attack choice, written panic tables for every location, and v0.9 saves converted on Continue |
+| **v1.0.2 (this build): Readable night** | **UI overhaul**: one type system (Oswald for labels and numbers, the typewriter face for sentences, Creepster for names) with fonts bundled locally instead of loaded from Google; rebuilt side panels (three big stat blocks, an ascending horror track with the dice it leaves you, a rescue track, item tiles with a detail strip instead of cramped rows); a big **Stop here** button and click‑yourself‑to‑stop while moving; card names no longer truncated; a capped, scrolling end‑of‑turn summary with repeats collapsed and a damage/kill/bloodlust summary strip; visible minion markers. **Choices**: tell a named survivor to stay put; divide damage between minions yourself. **Minions for every killer** |
+| v1.0.1: The rest of the spec | All four tie‑break policies, named survivors (one per location), minions for the Tidewife and the Anesthetist with the him‑or‑them attack choice, written panic tables for every location, and v0.9 saves converted on Continue |
 | v1.1 | Season 2 kickoff; heroine scars and campaign mode |
 | v0.4 | Achievements, daily seeded challenge, more heroines |
 | v0.5 | PWA/offline, controller support, localization, optional commissioned art and music swapped into the art/audio slots |

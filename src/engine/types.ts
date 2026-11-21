@@ -319,7 +319,7 @@ export type Pending =
   | { kind: 'roll'; card: string; reaction: boolean }
   | { kind: 'search'; node: NodeId; drawn: string[]; keep: number }
   | { kind: 'reaction' }
-  | { kind: 'aim'; base: number; range: number };
+  | { kind: 'aim'; base: number; range: number; killer: boolean };
 
 export type Fx =
   | { t: 'killerAppears' }
@@ -386,7 +386,8 @@ export interface GameState {
     movesThisTurn: number;
     horrorTakenThisTurn: number;
     broke: boolean; // nerve went below zero this Action phase
-    bring: number; // how many survivors she tries to bring when she moves
+    bring: number; // how many survivors (in total) she tries to bring
+    leave: string[]; // named survivors she has asked to stay put // how many survivors she tries to bring when she moves
   };
   killer: {
     loc: NodeId;
@@ -448,7 +449,8 @@ export type Action =
   | { type: 'keep'; picks: number[] }
   | { type: 'react'; uid: number }
   | { type: 'takeHit' }
-  | { type: 'aim'; at: 'killer' | 'minions' }
+  | { type: 'aim'; at: 'killer' | 'minions'; split?: Record<number, number> }
+  | { type: 'toggleFollow'; id: string }
   | { type: 'useItem'; uid: number }
   | { type: 'useAbility' }
   | { type: 'ready'; uid: number; swapOut?: number[] }

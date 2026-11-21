@@ -22,7 +22,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'You',
-    text: 'Hearts are your health; the <b>?</b> is a hidden final-health token that may get you back up once. <b>Horror</b> sets how many dice you roll (the numbers on the track). <b>Nerve</b> pays for cards and resets to 7 on Matinee.',
+    text: '<b>Health</b> counts a hidden final-health token (the <b>?</b>) that may get you back up once. <b>Horror</b> climbs left to right on the track, and the row under it shows how many dice you roll at that level: more fear, fewer dice. <b>Nerve</b> pays for cards and resets to 7 on Matinee. Your items are below: tap one to read or use it.',
     target: '#heroine-panel',
   },
   {
@@ -169,6 +169,9 @@ export class Tutorial {
     const spot = this.root.querySelector<HTMLDivElement>('.tut-spot')!;
     const card = this.root.querySelector<HTMLDivElement>('.tut-card')!;
     const el = step.target ? document.querySelector<HTMLElement>(step.target) : null;
+    // A decision overlay (dice, search, reaction, aim) is up and this step isn't about it: step aside.
+    const overlay = document.querySelector('#overlay-root .overlay');
+    this.root.style.display = overlay && !(el && overlay.contains(el)) ? 'none' : '';
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     if (!el || el.getClientRects().length === 0) {
