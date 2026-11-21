@@ -296,8 +296,30 @@ function cardHtml(c: Content, s: GameState | null, d: ActionCardDef, attrs: stri
 }
 
 // ── Screens ─────────────────────────────────────────────────────────────────
+/** Internal scroll positions on the pick screens survive re-renders (picking re-renders). */
+let scrollMemo: { screen: Screen; pos: Record<string, [number, number]> } = { screen: 'title', pos: {} };
 function render() {
   if (screen !== 'game') boardBuilt = false;
+  const same = scrollMemo.screen === screen;
+  if (same) app.querySelectorAll<HTMLElement>('[data-scroll]').forEach((el) => (scrollMemo.pos[el.dataset.scroll!] = [el.scrollLeft, el.scrollTop]));
+  else scrollMemo = { screen, pos: {} };
+  renderScreen();
+  app.querySelectorAll<HTMLElement>('[data-scroll]').forEach((el) => {
+    const p = scrollMemo.pos[el.dataset.scroll!];
+    if (p) [el.scrollLeft, el.scrollTop] = p;
+    else {
+      // First visit: bring the current pick into view inside its own list
+      // (innermost lists only, so an outer scroller stays at the top).
+      const sel = el.querySelector<HTMLElement>('.sel');
+      if (!sel || el.querySelector('[data-scroll]')) return;
+      const r = sel.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      if (r.bottom > box.bottom) el.scrollTop += r.bottom - box.bottom + 8;
+      if (r.right > box.right) el.scrollLeft += r.right - box.right + 8;
+    }
+  });
+}
+function renderScreen() {
   switch (screen) {
     case 'title':
       return renderTitle();
@@ -367,24 +389,36 @@ function comboPoster(locId: string, killerId: string, title?: string): string {
   });
 }
 
+/** Pinned action bar for the pick screens: always on screen, whatever the list length. */
+function selBar(back: string, mid: string, primary: string) {
+  return `<footer class="sel-bar"><div class="sel-bar-l">${back}</div><div class="sel-bar-m">${mid}</div><div class="sel-bar-r">${primary}</div></footer>`;
+}
+
 function renderFeature() {
   const k = KILLERS.find((x) => x.id === pick.killer)!;
+  const l = LOCATIONS.find((x) => x.id === pick.location)!;
   const curated = FEATURES.find((f) => f.location === pick.location && f.killer === pick.killer);
-  app.innerHTML = `<div class="screen builder">${backdrop()}
-    <h2 class="section">Now Showing</h2>
-    <div class="tagline">pick a feature, or build your own double bill</div>
-    <div class="shelf">
-      ${FEATURES.map(
-        (f) => `<button class="shelf-item ${f.location === pick.location && f.killer === pick.killer ? 'sel' : ''}" data-feature="${f.id}" ${f.available ? '' : 'disabled'} title="${esc(f.subtitle)}">
+  // One horizontal reel, grouped by season: more seasons just extend it sideways.
+  const seasons = [...new Set(FEATURES.map((f) => f.season ?? 1))].sort((a, b) => a - b);
+  const reel = seasons
+    .map(
+      (n) => `<div class="season"><div class="season-l">Season ${n}</div><div class="season-row">${FEATURES.filter((f) => (f.season ?? 1) === n)
+        .map(
+          (f) => `<button class="shelf-item ${f === curated ? 'sel' : ''}" data-feature="${f.id}" ${f.available ? '' : 'disabled'} title="${esc(f.title)} · ${esc(f.subtitle)}">
           ${comboPoster(f.location, f.killer)}
           <span class="shelf-label">${esc(f.title.split(':')[0])}</span>
         </button>`,
-      ).join('')}
-    </div>
-    <div class="builder-grid">
-      <section>
-        <h3 class="col-h">Killer</h3>
-        <div class="cards">${KILLERS.map(
+        )
+        .join('')}</div></div>`,
+    )
+    .join('');
+  app.innerHTML = `<div class="screen fit builder">${backdrop()}
+    <header class="sel-head"><h2 class="section">Now Showing</h2><div class="tagline">pick a feature, or build your own double bill</div></header>
+    <div class="reel" data-scroll="reel">${reel}</div>
+    <div class="builder-grid sel-body" data-scroll="builder">
+      <section class="col">
+        <h3 class="col-h">Killer <small>${KILLERS.length}</small></h3>
+        <div class="cards" data-scroll="killers">${KILLERS.map(
           (x) => `<button class="mini ${x.id === pick.killer ? 'sel' : ''}" data-killer="${x.id}" title="${esc(x.behavior.text)}">
             <span class="mini-art">${killerPortrait({ art: x.art })}</span>
             <b>${esc(x.name)}</b><small>${esc(x.epithet)}</small>
@@ -393,53 +427,63 @@ function renderFeature() {
         ).join('')}</div>
       </section>
       <section class="preview">
-        <h3 class="col-h">${curated ? 'Feature' : 'Your Double Bill'}</h3>
-        ${comboPoster(pick.location, pick.killer)}
-        <p class="preview-txt">${esc(k.lore[0])}</p>
-        <button class="btn small" data-go="shuffle">${glyph('die')} Spin the Reel</button>
+        <h3 class="col-h">${curated ? esc(curated.title.split(':')[0]) : 'Your Double Bill'}</h3>
+        <div class="preview-poster">${comboPoster(pick.location, pick.killer)}</div>
+        <p class="preview-txt"><b>${esc(k.name)}</b> at <b>${esc(l.name)}</b>. ${esc(k.lore[0])}</p>
       </section>
-      <section>
-        <h3 class="col-h">Location</h3>
-        <div class="cards">${LOCATIONS.map(
-          (l) => `<button class="mini loc ${l.id === pick.location ? 'sel' : ''}" data-location="${l.id}">
-            <span class="mini-art wide">${mapBackdrop(l, false)}</span>
-            <b>${esc(l.name)}</b><small>${esc(l.era)}</small>
-            <span class="mini-stats">${l.nodes.length} locations · ${l.nodes.filter((n) => n.exit).length} exits · ${esc(l.rule.name)}</span>
+      <section class="col">
+        <h3 class="col-h">Location <small>${LOCATIONS.length}</small></h3>
+        <div class="cards" data-scroll="locations">${LOCATIONS.map(
+          (x) => `<button class="mini loc ${x.id === pick.location ? 'sel' : ''}" data-location="${x.id}">
+            <span class="mini-art wide">${mapBackdrop(x, false)}</span>
+            <b>${esc(x.name)}</b><small>${esc(x.era)}</small>
+            <span class="mini-stats">${x.nodes.length} locations · ${x.nodes.filter((n) => n.exit).length} exits · ${esc(x.rule.name)}</span>
           </button>`,
         ).join('')}</div>
       </section>
     </div>
-    <div class="menu" style="flex-direction:row;justify-content:center;margin-top:16px">
-      <button class="btn" data-go="title">Back</button>
-      <button class="btn primary" data-go="heroine">Choose Heroine</button>
-    </div>
+    ${selBar(
+      `<button class="btn" data-go="title">Back</button>`,
+      `<button class="btn small" data-go="shuffle">${glyph('die')} Spin the Reel</button>`,
+      `<button class="btn primary" data-go="heroine">Choose Heroine</button>`,
+    )}
   </div>`;
 }
 
 function renderHeroine() {
-  app.innerHTML = `<div class="screen">${backdrop()}
-    <h2 class="section">Who Survives?</h2>
-    <div class="tagline">choose your final heroine</div>
-    <div class="picker">
-      ${HEROINES.map(
-        (h) => `<button class="pick ${h.id === heroineId ? 'sel' : ''}" data-heroine="${h.id}">
-          ${heroinePortrait(h)}
+  const h = HEROINES.find((x) => x.id === heroineId) ?? HEROINES[0];
+  app.innerHTML = `<div class="screen fit hero-screen">${backdrop()}
+    <header class="sel-head"><h2 class="section">Who Survives?</h2><div class="tagline">choose your final heroine</div></header>
+    <div class="hero-body sel-body">
+      <div class="roster" data-scroll="roster" role="listbox" aria-label="Heroines">
+        ${HEROINES.map(
+          (x) => `<button class="r-tile ${x.id === h.id ? 'sel' : ''}" data-heroine="${x.id}" role="option" aria-selected="${x.id === h.id}" title="${esc(x.name)}: ${esc(x.title)}">
+            ${heroinePortrait(x)}
+            <b>${esc(x.name.split(' ')[0])}</b>
+            <small class="d-${x.difficulty.toLowerCase()}">${esc(x.difficulty)}</small>
+          </button>`,
+        ).join('')}
+      </div>
+      <article class="hero-detail" data-scroll="hero-detail">
+        <div class="hd-art">${heroinePortrait(h)}</div>
+        <div class="hd-txt">
           <h3>${esc(h.name)}</h3>
-          <div class="sub">${esc(h.title)}</div>
-          <p>${esc(h.bio)}</p>
+          <div class="sub">${esc(h.title)} <span class="tag">${esc(h.difficulty)}</span></div>
+          <p class="hd-bio">${esc(h.bio)}</p>
+          <div class="hd-stats"><span><b>${h.health}</b> health</span><span><b>${h.rescue.slots.length}</b> rescues to unlock</span></div>
           <div class="passive"><b>${esc(h.passive.name)}:</b> ${esc(h.passive.text)}</div>
-          <p>♥ ${h.health} · Unlocks <i>${esc(h.ability.name)}</i> after ${h.rescue.slots.length} rescues</p>
-          <span class="tag">${h.difficulty}</span>
-        </button>`,
-      ).join('')}
+          <ol class="hd-rescue">${h.rescue.slots.map((r) => `<li>${esc(r.text)}</li>`).join('')}<li class="rep">Every rescue after: ${esc(h.rescue.repeat.text)}</li></ol>
+          <div class="hd-ability">★ <b>${esc(h.ability.name)}</b> ${esc(h.ability.text)}</div>
+        </div>
+      </article>
     </div>
-    <div class="combo" style="margin-bottom:14px"><div><div class="sub">Difficulty</div>${(Object.keys(DIFFICULTY) as Difficulty[])
-      .map((d) => `<button class="chip ${d === difficulty ? 'sel' : ''}" data-difficulty="${d}" title="${esc(DIFFICULTY[d].text)}">${esc(DIFFICULTY[d].label)}</button>`)
-      .join('')}<p class="diff-note">${esc(DIFFICULTY[difficulty].text)}</p></div></div>
-    <div class="menu" style="flex-direction:row;justify-content:center">
-      <button class="btn" data-go="feature">Back</button>
-      <button class="btn primary" data-go="intro">Roll Film</button>
-    </div>
+    ${selBar(
+      `<button class="btn" data-go="feature">Back</button>`,
+      `<div class="diff">${(Object.keys(DIFFICULTY) as Difficulty[])
+        .map((d) => `<button class="chip ${d === difficulty ? 'sel' : ''}" data-difficulty="${d}" title="${esc(DIFFICULTY[d].text)}">${esc(DIFFICULTY[d].label)}</button>`)
+        .join('')}</div><p class="diff-note">${esc(DIFFICULTY[difficulty].text)}</p>`,
+      `<button class="btn primary" data-go="intro">Roll Film</button>`,
+    )}
   </div>`;
 }
 
@@ -1778,6 +1822,19 @@ app.addEventListener('click', (e) => {
   }
   handleGameClick(t);
 });
+// A mouse wheel scrolls the sideways lists (the feature reel, the phone roster) sideways.
+app.addEventListener(
+  'wheel',
+  (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.reel, .roster, .builder-grid .cards');
+    if (!el || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    const sideways = el.scrollWidth > el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1;
+    if (!sideways) return;
+    el.scrollLeft += e.deltaY;
+    e.preventDefault();
+  },
+  { passive: false },
+);
 document.body.addEventListener('click', (e) => {
   const t = e.target as HTMLElement;
   if (app.contains(t) || !t.closest('#overlay-root')) return;

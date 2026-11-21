@@ -32,6 +32,7 @@ export const MAX_HORROR = 6;
 export const DEFAULT_ESCORT = 2;
 export const VICTIM_POOL = 16;
 export const SETUP_SURVIVORS = 2; // survivors on each setup-card spot at the start
+export const UPKEEP_ARRIVALS = 1; // survivors who wander in every Upkeep, until the supply runs out
 export const TERROR_DEAL = 10;
 export const PILE_SIZE = 4;
 export const CONVERT_COST = 2; // cards discarded to turn a partial into a success
@@ -904,13 +905,18 @@ function specialsUpkeep(c: Content, s: GameState) {
 }
 
 /** Resolve a spawn location keyword. */
-function spawnSpot(c: Content, s: GameState, at: NodeId | 'random' | 'farFromKiller' | 'nearKiller'): NodeId {
+function spawnSpot(c: Content, s: GameState, at: NodeId | 'random' | 'farFromKiller' | 'nearKiller' | 'awayFromKiller'): NodeId {
   const k = s.killer;
   const h = s.heroine;
   const ex = exits(c);
   let spot = at;
   if (spot === 'random') spot = pick(s, c.location.nodes.map((n) => n.id).filter((id) => id !== k.loc && !ex.includes(id)));
-  else if (spot === 'nearKiller') {
+  else if (spot === 'awayFromKiller') {
+    // Somewhere at least 2 steps from him, not an exit and not where she stands.
+    const d = distances(c, k.loc);
+    const opts = c.location.nodes.map((n) => n.id).filter((id) => (d[id] ?? 0) >= 2 && !ex.includes(id) && id !== h.loc);
+    spot = opts.length ? pick(s, opts) : spawnSpot(c, s, 'farFromKiller');
+  } else if (spot === 'nearKiller') {
     const opts = neighbors(c, k.loc).filter((id) => !ex.includes(id) && id !== h.loc);
     spot = opts.length ? pick(s, opts) : k.loc;
   } else if (spot === 'farFromKiller') {
@@ -1480,6 +1486,7 @@ function exec(c: Content, s: GameState, e: Effect) {
         s.phase = 'upkeep';
         s.rearrange = true;
         const ups: Effect[] = [{ op: '_finaleCheck' }, { op: '_rule', when: 'upkeep' }];
+        if (s.victimPool > 0) ups.push({ op: 'spawn', at: 'awayFromKiller', n: UPKEEP_ARRIVALS });
         for (const id of s.events) ups.push(...(eventDef(c, id).upkeep ?? []));
         if (k.power === 'active') ups.push(...(c.killer.power.upkeep ?? []));
         if (k.finale) ups.push(...(c.killer.finale.upkeep ?? []));

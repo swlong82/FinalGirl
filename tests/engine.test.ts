@@ -110,6 +110,27 @@ describe('setup', () => {
     expect(c.actions.filter((a) => a.starter && a.cost > 0).length).toBe(3);
   });
 
+  it('a survivor wanders in every Upkeep, at least 2 steps from him, until the supply runs out', () => {
+    const c = C();
+    let s = quiet(c);
+    const count = (x: GameState) => Object.values(x.victims).reduce((n, v) => n + v, 0);
+    s = act(c, s, { type: 'endAction' });
+    s = act(c, s, { type: 'endPlanning' });
+    for (let i = 0; i < 20 && s.phase !== 'upkeep'; i++) s = dispatch(c, s, s.pending?.kind === 'reaction' ? { type: 'takeHit' } : { type: 'endUpkeep' });
+    expect(s.phase).toBe('upkeep');
+    const d = distances(c, s.killer.loc);
+    const placed = Object.entries(s.victims).filter(([, v]) => v > 0);
+    expect(count(s)).toBeGreaterThanOrEqual(1);
+    for (const [at] of placed) expect(d[at]).toBeGreaterThanOrEqual(1);
+    // With the supply empty, nobody new arrives.
+    let e = quiet(c);
+    e.victimPool = 0;
+    e = act(c, e, { type: 'endAction' });
+    e = act(c, e, { type: 'endPlanning' });
+    for (let i = 0; i < 20 && e.phase !== 'upkeep'; i++) e = dispatch(c, e, e.pending?.kind === 'reaction' ? { type: 'takeHit' } : { type: 'endUpkeep' });
+    expect(count(e)).toBe(0);
+  });
+
   it('places two survivors on every setup-card spot', () => {
     for (const l of LOCATIONS) {
       const c = buildContent(l.id, 'the-projectionist', 'june');

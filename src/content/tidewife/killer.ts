@@ -6,7 +6,7 @@ export const tidewife: KillerPack = {
   name: 'The Tidewife',
   epithet: 'Hester Crane, who is still waiting',
   art: 'tidewife',
-  health: 7,
+  health: 8,
   horror: 2,
   bloodlust: {
     revealAt: 4,

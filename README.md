@@ -16,6 +16,7 @@ Runs in any modern browser on desktop or mobile, with no install. Headphones rec
 - **Feature Four: Whiteout**. Killer: *The Snowblind*. Location: *Kettle Peak Lodge*.
 - **Feature Five: Dead Air**. Killer: *The Caller*. Location: *KXRL Hilltop Studio*.
 - **Season 1 is complete**: 5 features, 7 heroines, and a signature rule for every location (tide, blackouts, cold, ringing phones, intermission).
+- **v1.0.5: harder fights, fuller nights.** She has less health and he has more, a survivor wanders in every Upkeep, and the feature and heroine pickers fit on one screen however many seasons arrive.
 - **v1.0.4: fewer freebies, more people.** No limit on buys, but only Walk, Look Around and Duck are free. Six survivors are on the board from the start, so your rescue track (and ability) fills early.
 - **v1.0: the five‑phase night.** Each turn is Action → Planning → Killer → Panic → Upkeep. You spend **nerve** on action cards, buy new ones from an open tableau, and make **Horror Rolls** where 3–4 is a partial you can buy up with cards. A **10‑card Terror deck** counts down to the **Finale**. His **bloodlust** sets how far he moves and how hard he hits, and both of you carry a hidden **final‑health token**. The only way to win is to kill him.
 - **Double Bill builder**: put any killer in any location (25 pairings), with live VHS‑poster previews and a random pick. Three difficulty modes and a stats screen.

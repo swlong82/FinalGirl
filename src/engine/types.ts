@@ -13,7 +13,7 @@ export type Who = 'npc' | 'heroine' | 'any';
 /** Atomic, data-driven effect operations used by every card, item, track and rule. */
 export type Effect =
   // ── board & survivors
-  | { op: 'spawn'; at: NodeId | 'random' | 'farFromKiller' | 'nearKiller'; n: number }
+  | { op: 'spawn'; at: NodeId | 'random' | 'farFromKiller' | 'nearKiller' | 'awayFromKiller'; n: number }
   | { op: 'rally'; n: number } // pull up to n survivors from adjacent locations into hers
   | { op: 'panic'; at: 'killer' | 'heroine' } // survivors there panic right now
   | { op: 'spawnSpecial'; id: string; at: NodeId | 'random' | 'farFromKiller' | 'nearKiller' } // a named survivor joins the board

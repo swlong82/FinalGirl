@@ -2,11 +2,12 @@
 import { it } from 'vitest';
 import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
 import { dispatch, newGame } from '../src/engine/rules';
-import { simulate } from '../src/engine/bot';
+import { setBotStyle, simulate, type BotStyle } from '../src/engine/bot';
 import type { Difficulty } from '../src/engine/types';
 
 const N = Number(process.env.N ?? 30);
 const D = (process.env.D ?? 'standard') as Difficulty;
+setBotStyle((process.env.STYLE ?? 'balanced') as BotStyle); // STYLE=rush: ignore survivors, go for him
 
 it('balance report', () => {
   const pct = (a: number, t: number) => `${Math.round((a / t) * 100)}%`;

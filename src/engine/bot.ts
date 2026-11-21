@@ -57,12 +57,24 @@ function armed(c: Content, s: GameState) {
   return !!bestWeapon(c, s, 0) || s.foundLore.length > 0 || s.heroine.resolve > 0;
 }
 
+/**
+ * Play style for the balance sim. 'balanced' saves people and fights once armed;
+ * 'rush' ignores survivors and goes straight for him (the all-in combat line a
+ * human can take), so we can check that rushing isn't the dominant strategy.
+ */
+export type BotStyle = 'balanced' | 'rush';
+let style: BotStyle = 'balanced';
+export function setBotStyle(x: BotStyle) {
+  style = x;
+}
+
 /** Where she wants to be right now. */
 export function botGoal(c: Content, s: GameState): { node: NodeId; brave: boolean } {
   const h = s.heroine;
   const k = s.killer;
   const withHer = npcAt(s, h.loc);
   const ex = exits(c);
+  if (style === 'rush' && tagged(c, s, 'attack').length > 0 && totalHealth(s) >= 2 && (armed(c, s) || s.round >= 3 || k.finale)) return { node: k.loc, brave: true };
   if (withHer > 0 && !ex.includes(h.loc)) {
     const d = safeDist(c, s, h.loc);
     const exit = [...ex].sort((a, b) => (d[a] ?? 99) - (d[b] ?? 99))[0];
@@ -155,7 +167,7 @@ function buy(c: Content, s: GameState): Action {
   const fight = s.killer.finale || gear;
   const piles = Object.values(s.piles).some((p) => p.cards.length > 0);
   const deficit: Partial<Record<CardTag | 'react', number>> = {
-    attack: (fight ? 3 : 2) - has('attack'),
+    attack: (fight || style === 'rush' ? 3 : 2) - has('attack'),
     move: 2 - has('move'),
     react: (s.killer.finale ? 2 : 1) - count((d) => d.kind === 'reaction'),
     search: piles && !s.killer.finale ? 1 - has('search') : 0,
@@ -163,7 +175,7 @@ function buy(c: Content, s: GameState): Action {
     calm: h.horror >= 3 ? 1 - has('calm') : 0,
     rally: npcNodes(s).length ? 1 - has('rally') : 0,
   };
-  const priority: Partial<Record<CardTag | 'react', number>> = { attack: fight ? 9 : 6, move: 6, react: 5, search: 4, heal: 4, calm: 3, rally: 2 };
+  const priority: Partial<Record<CardTag | 'react', number>> = { attack: fight || style === 'rush' ? 9 : 6, move: 6, react: 5, search: 4, heal: 4, calm: 3, rally: 2 };
   const value = (d: ActionCardDef): number => {
     let v = 0;
     const tags: (CardTag | 'react')[] = d.kind === 'reaction' ? ['react'] : d.tags;
@@ -271,7 +283,7 @@ export function botAction(c: Content, s: GameState): Action {
     const e = c.heroine.ability.effects;
     const useful =
       hasOp(e, 'killerDamage') ||
-      (hasOp(e, 'killerMove') && killerNear) ||
+      (hasOp(e, 'killerMove') && killerNear && !botGoal(c, s).brave) || // don't push him off when she wants the fight
       (hasOp(e, 'barricade') && killerNear && !killerHere) ||
       (hasOp(e, 'rally') && neighbors(c, h.loc).some((n) => npcAt(s, n) > 0)) ||
       (calms(e) && h.horror >= 2) ||
@@ -290,7 +302,7 @@ export function botAction(c: Content, s: GameState): Action {
   }
   if (canReach(c, s) && k.stunned === 0 || killerHere) {
     const theirHit = killerAttack(c, s);
-    const brave = k.finale || armed(c, s) || totalHealth(s) > theirHit + 1 || k.health <= 2;
+    const brave = style === 'rush' || k.finale || armed(c, s) || totalHealth(s) > theirHit + 1 || k.health <= 2;
     const atk = playable('attack', true, false);
     if (atk && brave && (nerve >= 0)) return atk;
     if (killerHere && (withHer > 0 || !brave)) {

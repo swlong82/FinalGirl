@@ -21,6 +21,7 @@ export interface Feature {
   location: string;
   killer: string;
   available: boolean;
+  season?: number; // shelf grouping on the Now Showing screen (default 1)
 }
 
 export const LOCATIONS: LocationPack[] = [holloway, tideCabins, saintAgatha, whiteoutLodge, deadAir];
