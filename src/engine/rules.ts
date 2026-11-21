@@ -26,9 +26,11 @@ export const MAX_HORROR = 6;
 export const DEFAULT_ESCORT = 3;
 export const VICTIM_POOL = 12;
 export const DAWN_ROUND = 14;
-export const ACTION_HAND = 5; // hand cap for drafting
-export const LINEUP_SIZE = 6;
-export const PICKS = 3;
+export const KIT = ['ac-walk', 'ac-search', 'ac-hide', 'ac-lead'];
+export const KIT_COPIES = 2;
+export const MARKET_SIZE = 4;
+export const SHOP_SIZE = 3;
+export const JUNK_PENALTY_CAP = 2;
 export const PANIC_AT = 4;
 
 export interface Tier {
@@ -181,8 +183,10 @@ export function newGame(c: Content, seed: number, difficulty: Difficulty = 'stan
     actionDeck: [],
     actionDiscard: [],
     actionHand: [],
-    lineup: [],
-    picksLeft: 0,
+    market: [],
+    shop: [],
+    shopDeck: [],
+    shopDiscard: [],
     panic: {},
     foundLore: [],
     log: [],
@@ -192,13 +196,9 @@ export function newGame(c: Content, seed: number, difficulty: Difficulty = 'stan
   s.itemDeck = shuffle(s, expand(allItems(c)));
   s.instinctDeck = shuffle(s, expand(allInstincts(c)));
   s.terrorDeck = shuffle(s, expand(c.killer.terror));
-  s.actionDeck = shuffle(s, expand(c.actions.filter((a) => !a.junk)));
-  // Starter kit: two Walk cards in hand so the first round is never stranded.
-  for (let i = 0; i < 2; i++) {
-    const j = s.actionDeck.indexOf('ac-walk');
-    if (j >= 0) s.actionDeck.splice(j, 1);
-    s.actionHand.push({ uid: s.uid++, id: 'ac-walk' });
-  }
+  s.actionDeck = shuffle(s, expand(c.actions.filter((a) => a.tier === 'market')));
+  s.shopDeck = shuffle(s, expand(c.actions.filter((a) => a.tier === 'special')));
+  refillMarket(s);
   for (const at of c.location.setupVictims) placeVictims(c, s, at, 1);
   drawInstinct(s, 2);
   log(s, `The feature begins. ${c.heroine.name} arrives at ${nodeName(c, s.heroine.loc)}.`, 'info');
@@ -234,38 +234,48 @@ function drawInstinct(s: GameState, n: number) {
 }
 
 // ── Action deck ─────────────────────────────────────────────────────────────
-/** Deal a fresh face-up lineup; last round's leftovers go to the discard. */
-export function dealLineup(c: Content, s: GameState) {
-  for (const x of s.lineup) s.actionDiscard.push(x.id);
-  s.lineup = [];
-  const draw = () => {
-    if (!s.actionDeck.length) {
-      if (!s.actionDiscard.length) return undefined;
-      s.actionDeck = shuffle(s, s.actionDiscard);
-      s.actionDiscard = [];
-    }
-    return s.actionDeck.pop();
-  };
-  while (s.lineup.length < LINEUP_SIZE) {
-    const id = draw();
-    if (!id) break;
-    s.lineup.push({ uid: s.uid++, id });
+function drawFrom(s: GameState, deck: 'actionDeck' | 'shopDeck', discard: 'actionDiscard' | 'shopDiscard'): string | undefined {
+  if (!s[deck].length) {
+    if (!s[discard].length) return undefined;
+    s[deck] = shuffle(s, s[discard]);
+    s[discard] = [];
   }
-  // Never a dead lineup: guarantee at least one Lead and one way to deal with him.
-  const has = (base: string) => s.lineup.some((x) => actionDef(c, x.id).base === base) || s.actionHand.some((x) => actionDef(c, x.id).base === base);
-  for (const [need, alt] of [['move', 'move'], ['lead', 'lead'], ['hide', 'fight']] as const) {
-    if (has(need) || has(alt) || !s.lineup.length) continue;
-    const i = s.actionDeck.findIndex((id) => actionDef(c, id).base === need);
-    if (i < 0) continue;
-    const [id] = s.actionDeck.splice(i, 1);
-    const out = s.lineup.pop()!;
-    s.actionDeck.unshift(out.id);
-    s.lineup.push({ uid: s.uid++, id });
-  }
-  s.picksLeft = PICKS;
+  return s[deck].pop();
 }
 
-/** Junk goes straight into the hand, taking up a slot. */
+/** The market always shows MARKET_SIZE cards. */
+export function refillMarket(s: GameState) {
+  while (s.market.length < MARKET_SIZE) {
+    const id = drawFrom(s, 'actionDeck', 'actionDiscard');
+    if (!id) return;
+    s.market.push({ uid: s.uid++, id });
+  }
+}
+
+/** Free basic kit: top the hand up to KIT_COPIES of each basic card. */
+export function topUpKit(s: GameState) {
+  for (const id of KIT) {
+    const have = s.actionHand.filter((x) => x.id === id).length;
+    for (let i = have; i < KIT_COPIES; i++) s.actionHand.push({ uid: s.uid++, id });
+  }
+}
+
+/** Deal the last-chance shop (fresh each time you end a turn with nerve left). */
+function dealShop(s: GameState) {
+  for (const x of s.shop) s.shopDiscard.push(x.id);
+  s.shop = [];
+  while (s.shop.length < SHOP_SIZE) {
+    const id = drawFrom(s, 'shopDeck', 'shopDiscard');
+    if (!id) break;
+    s.shop.push({ uid: s.uid++, id });
+  }
+}
+
+export function cardPrice(c: Content, id: string) {
+  return actionDef(c, id).price ?? 0;
+}
+
+/** Junk goes straight into the hand. */
 function addJunk(s: GameState, id: string) {
   s.actionHand.push({ uid: s.uid++, id });
 }
@@ -281,9 +291,9 @@ export function junkCount(s: GameState, id: string) {
   return s.actionHand.filter((x) => x.id === id).length;
 }
 
-/** Free hand slots. Bleeding and Panic cards take up slots too. */
-export function handRoom(s: GameState) {
-  return ACTION_HAND - s.actionHand.length;
+/** Nerve lost at round start for Bleeding/Panic cards held. */
+export function junkPenalty(s: GameState) {
+  return Math.min(JUNK_PENALTY_CAP, s.actionHand.filter((x) => x.id.startsWith('junk-')).length);
 }
 
 function gainItem(c: Content, s: GameState, id: string) {
@@ -891,13 +901,16 @@ export function baseCheck(c: Content, s: GameState, d: ActionCardDef): { ok: boo
       if (h.health >= h.maxHealth && h.horror === 0 && junkCount(s, 'junk-wound') === 0) return { ok: false, why: 'Nothing to recover' };
       return { ok: true };
     case 'effect':
+      if (d.needsKiller && !killerHere) return { ok: false, why: 'The killer must be here' };
+      return { ok: true };
     case 'junk':
       return { ok: true };
   }
 }
 
 export function check(c: Content, s: GameState, a: Action): Check {
-  if (!canAct(s) && a.type !== 'resolveEvent' && a.type !== 'resolveKiller') return { ok: false, why: 'Not now', cost: 0 };
+  if (s.phase === 'shop' && a.type !== 'buy' && a.type !== 'closeShop') return { ok: false, why: 'Finish shopping first', cost: 0 };
+  if (!canAct(s) && s.phase !== 'shop' && a.type !== 'resolveEvent' && a.type !== 'resolveKiller') return { ok: false, why: 'Not now', cost: 0 };
   const h = s.heroine;
   const killerHere = s.killer.loc === h.loc;
   switch (a.type) {
@@ -913,12 +926,14 @@ export function check(c: Content, s: GameState, a: Action): Check {
     case 'answer':
       if (s.env.ringing !== h.loc) return { ok: false, why: 'No phone ringing here', cost: 1 };
       return afford(s, c.heroine.traits.freeAnswer ? 0 : 1);
-    case 'draft': {
-      if (!s.lineup.some((x) => x.uid === a.uid)) return { ok: false, why: 'Not in the lineup', cost: 0 };
-      if (s.picksLeft <= 0) return { ok: false, why: 'No picks left this round', cost: 0 };
-      if (handRoom(s) <= 0) return { ok: false, why: `Hand full (${ACTION_HAND})`, cost: 0 };
-      return { ok: true, cost: 0 };
+    case 'buy': {
+      const pool = s.phase === 'shop' ? s.shop : s.market;
+      const x = pool.find((y) => y.uid === a.uid);
+      if (!x) return { ok: false, why: 'Not for sale right now', cost: 0 };
+      return afford(s, cardPrice(c, x.id));
     }
+    case 'closeShop':
+      return { ok: s.phase === 'shop', cost: 0 };
     case 'playCard': {
       const card = s.actionHand.find((x) => x.uid === a.uid);
       if (!card) return { ok: false, why: 'Not in hand', cost: 0 };
@@ -997,8 +1012,11 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       const ev = eventDef(c, s.currentEvent!);
       log(s, `◆ ${ev.name}`, ev.tone === 'calm' ? 'info' : 'killer');
       s.phase = 'action';
-      h.nerve = Math.max(1, horrorTier(h.horror).nerve + (s.mods.nerve ?? 0));
-      dealLineup(c, s);
+      const pen = junkPenalty(s);
+      h.nerve = Math.max(1, horrorTier(h.horror).nerve + (s.mods.nerve ?? 0) - pen);
+      if (pen) log(s, `Pain and panic sap her: −${pen} nerve.`, 'bad');
+      topUpKit(s);
+      refillMarket(s);
       applyEffects(c, s, ev.effects);
       s.eventDiscard.push(ev.id);
       s.currentEvent = undefined;
@@ -1018,8 +1036,10 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       if (plan.uid !== undefined) {
         const i = s.actionHand.findIndex((x) => x.uid === plan.uid);
         const card = s.actionHand.splice(i, 1)[0];
-        s.actionDiscard.push(card.id);
-        sneak = !!actionDef(c, card.id).sneak;
+        const cd = actionDef(c, card.id);
+        if (cd.tier === 'market') s.actionDiscard.push(card.id);
+        else if (cd.tier === 'special') s.shopDiscard.push(card.id);
+        sneak = !!cd.sneak;
       } else h.freeMoves--;
       spend(plan.cost);
       breakCover();
@@ -1041,14 +1061,27 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       }
       break;
     }
-    case 'draft': {
-      const i = s.lineup.findIndex((x) => x.uid === a.uid);
-      const [card] = s.lineup.splice(i, 1);
+    case 'buy': {
+      const inShop = s.phase === 'shop';
+      const pool = inShop ? s.shop : s.market;
+      const i = pool.findIndex((x) => x.uid === a.uid);
+      const [card] = pool.splice(i, 1);
+      spend(cardPrice(c, card.id));
       s.actionHand.push(card);
-      s.picksLeft--;
-      log(s, `Took ${actionDef(c, card.id).name}.`);
+      log(s, `Bought ${actionDef(c, card.id).name}.`, 'good');
+      if (!inShop) refillMarket(s);
+      if (inShop && (h.nerve <= 0 || !s.shop.some((x) => cardPrice(c, x.id) <= h.nerve))) {
+        s.phase = 'killer';
+        ruleBeforeKiller(c, s);
+        killerTurn(c, s);
+      }
       break;
     }
+    case 'closeShop':
+      s.phase = 'killer';
+      ruleBeforeKiller(c, s);
+      killerTurn(c, s);
+      break;
     case 'playCard': {
       const idx = s.actionHand.findIndex((x) => x.uid === a.uid);
       const card = s.actionHand[idx];
@@ -1059,7 +1092,8 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
         log(s, 'She forces the panic down.', 'good');
         break;
       }
-      s.actionDiscard.push(card.id);
+      if (d.tier === 'market') s.actionDiscard.push(card.id);
+      else if (d.tier === 'special') s.shopDiscard.push(card.id);
       const bonus = d.dice ?? 0;
       const cost = cardCost(c, d);
       switch (d.base) {
@@ -1188,6 +1222,11 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       break;
     }
     case 'endTurn':
+      dealShop(s);
+      if (h.nerve > 0 && s.shop.some((x) => cardPrice(c, x.id) <= h.nerve)) {
+        s.phase = 'shop';
+        break;
+      }
       s.phase = 'killer';
       ruleBeforeKiller(c, s);
       killerTurn(c, s);
@@ -1224,7 +1263,7 @@ function killerTurn(c: Content, s: GameState) {
   let exposed = !h.hidden;
   if (k.loc === h.loc && h.hidden) {
     // He searches the room. Hiding buys a chance, not a guarantee.
-    const need = k.finale ? 4 : 5;
+    const need = k.finale ? 3 : 4;
     const r = rollD6(s);
     if (r >= need) {
       h.hidden = false;

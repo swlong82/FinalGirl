@@ -27,11 +27,6 @@ export function tutorialGame(c: Content): GameState {
     pull(s.itemDeck, id);
     s.itemDeck.push(id);
   }
-  // Opening hand: Search, Lead, Hide, Catch Your Breath, Fight (drawn from the top = end).
-  for (const id of ['ac-fight', 'ac-rest', 'ac-hide', 'ac-lead', 'ac-search']) {
-    pull(s.actionDeck, id);
-    s.actionDeck.push(id);
-  }
   // A survivor right next door, and the killer busy for two rounds.
   s.victims = Object.fromEntries(Object.keys(s.victims).map((k) => [k, 0]));
   s.victims.lotA = 1;

@@ -13,8 +13,6 @@ import {
   COST,
   actionDef,
   junkCount,
-  handRoom,
-  ACTION_HAND,
   HAND_SLOTS,
   READY_COST,
   resolve,
@@ -392,7 +390,8 @@ function buildBoard() {
 
 let lastFinale = false;
 let recorded = false;
-let draftClosedRound = -1;
+let marketOpen = false;
+let handGroups: { id: string; uids: number[] }[] = [];
 
 function renderStats() {
   const stats = load<GameRecord[]>(STATS_KEY, []);
@@ -487,15 +486,19 @@ function updateGame() {
     } else if (d.kind !== 'lore' || d.fightDice) {
       const full = h.items.length >= HAND_SLOTS;
       const free = s.pendingFind === it.uid;
-      btns += `<button class="btn small" data-ready="${it.uid}" ${s.phase === 'action' ? '' : 'disabled'} title="${full ? 'Hands full: you will choose what to put away' : 'Take it out'}">Ready · ${free ? 'free' : `${READY_COST}◉`}</button>`;
+      btns += `<button class="pt-ready" data-ready="${it.uid}" ${s.phase === 'action' ? '' : 'disabled'} title="${full ? 'Hands full: you will choose what to put away' : 'Take it out'}">Ready ${free ? '· free' : `· ${READY_COST}◉`}</button>`;
     }
+    if (where === 'pack')
+      return `<div class="packtile ${d.kind}" title="${esc(d.lore ?? d.text)}">${itemIcon(d)}<div class="pt-name">${esc(d.name)}${uses}</div><div class="pt-txt">${esc(d.text)}</div>${btns}</div>`;
     return `<div class="item ${d.kind} ${where}" title="${esc(d.lore ?? d.text)}">${itemIcon(d)}<div class="grow"><div class="name">${esc(d.name)}${uses}</div><div class="txt">${esc(d.text)}</div></div><div class="acts">${btns}</div></div>`;
   };
   const slots = Array.from({ length: HAND_SLOTS }, (_, i) => (h.items[i] ? itemRow(h.items[i], 'hand') : '<div class="item slot-empty">Empty hand slot</div>')).join('');
   const packRows = h.pack.map((it) => itemRow(it, 'pack')).join('');
   const items = `<div class="items">${slots}</div>
-    <h4 class="pack-h">${glyph('pack')} Backpack <span class="h4-note">${h.pack.length} item${h.pack.length === 1 ? '' : 's'} · inactive until readied</span></h4>
-    <div class="items pack">${packRows || '<div class="empty-note">Nothing stored yet.</div>'}</div>`;
+    <div class="packbox">
+      <div class="pack-head">${glyph('pack')}<b>Backpack</b><span>${h.pack.length} stored · ready one for ${READY_COST} nerve</span></div>
+      <div class="packgrid">${packRows || '<div class="empty-note">Nothing stored yet. Extra items land here.</div>'}</div>
+    </div>`;
   document.getElementById('heroine-panel')!.innerHTML = `
     <div class="who">${heroinePortrait(c.heroine, { grim: h.horror / 6, hurt: 1 - h.health / h.maxHealth })}
       <div><h3>${esc(c.heroine.name)}</h3><div class="sub">${esc(c.heroine.title)}</div><div class="hearts" title="Health">${hearts}</div></div>
@@ -641,14 +644,28 @@ function updateBottom() {
         return d.text;
     }
   };
-  const cards = s.actionHand
-    .map((card, i) => {
-      const d = actionDef(c, card.id);
-      const chk = check(c, s, { type: 'playCard', uid: card.uid });
+  // Group identical cards (the kit gives pairs) into one ticket with a count.
+  const groups: { id: string; uids: number[] }[] = [];
+  for (const x of s.actionHand) {
+    const g = groups.find((y) => y.id === x.id);
+    if (g) g.uids.push(x.uid);
+    else groups.push({ id: x.id, uids: [x.uid] });
+  }
+  const order = (id: string) => ['basic', 'market', 'special', 'junk'].indexOf(actionDef(c, id).tier);
+  groups.sort((a, b) => order(a.id) - order(b.id));
+  handGroups = groups;
+  const cards = groups
+    .map((g, i) => {
+      const d = actionDef(c, g.id);
+      const chk = check(c, s, { type: 'playCard', uid: g.uids[0] });
       const junk = d.junk ? `junk ${d.junk}` : '';
-      return `<button class="act ${junk}" data-card="${card.uid}" data-kind="${d.base}" ${chk.ok ? '' : 'disabled'} title="${esc(chk.why ? `${chk.why}. ${d.text}` : d.text)}">
-        <span class="n">${esc(d.name)} <kbd>${i + 1}</kbd></span>
-        <span class="c"><b>${chk.cost}◉</b> ${esc(d.junk ? d.text : descFor(d))}</span>
+      const moveHint = d.base === 'move' ? 'Click a glowing location' : '';
+      const cost = d.tier === 'basic' || d.junk ? `<b>${d.cost}◉</b>` : '<b class="paid">paid</b>';
+      const isMove = d.base === 'move';
+      const usable = chk.ok || (isMove && s.phase === 'action');
+      return `<button class="act tier-${d.tier} ${junk} ${isMove ? 'movecard' : ''}" ${isMove ? 'data-movecard="1"' : `data-card="${g.uids[0]}"`} data-kind="${d.base}" ${usable ? '' : 'disabled'} title="${esc(isMove ? `${d.text} Click a glowing location on the map to use it.` : chk.why ? `${chk.why}. ${d.text}` : d.text)}">
+        <span class="n">${esc(d.name)}${g.uids.length > 1 ? ` <em class="cnt">×${g.uids.length}</em>` : ''} <kbd>${i + 1}</kbd></span>
+        <span class="c">${cost} ${esc(d.junk ? d.text : moveHint || descFor(d))}</span>
       </button>`;
     })
     .join('');
@@ -661,9 +678,10 @@ function updateBottom() {
       : '';
   const bleeding = junkCount(s, 'junk-wound');
   const panicN = junkCount(s, 'junk-panic');
-  const pile = `<div class="pile" title="Your hand holds up to ${ACTION_HAND} cards, including Bleeding and Panic">
-    <button class="btn small lineup-btn ${s.picksLeft > 0 && s.lineup.length && handRoom(s) > 0 ? 'hot' : ''}" data-go="openDraft" ${s.phase === 'action' && s.lineup.length ? '' : 'disabled'}>Lineup · ${s.picksLeft} pick${s.picksLeft === 1 ? '' : 's'}</button>
-    <span><b>${s.actionHand.length}</b>/${ACTION_HAND} in hand</span>
+  const canBuy = s.phase === 'action' && s.market.some((x) => check(c, s, { type: 'buy', uid: x.uid }).ok);
+  const pile = `<div class="pile">
+    <button class="btn small market-btn ${canBuy ? 'hot' : ''}" data-go="openMarket" ${s.phase === 'action' ? '' : 'disabled'} title="Buy more cards with nerve (M)">${glyph('cart')} Market</button>
+    <span title="Free every round: 2 each of Walk, Search, Hide, Lead">kit refills each round</span>
     ${bleeding ? `<span class="pile-bad"><b>${bleeding}</b> bleeding</span>` : ''}${panicN ? `<span class="pile-bad"><b>${panicN}</b> panic</span>` : ''}</div>`;
   const btns = pile + cards + answer;
   const hand = s.heroine.hand
@@ -765,19 +783,29 @@ function updateOverlay() {
     </div></div>`;
     return;
   }
-  if (s.phase === 'action' && s.lineup.length && s.picksLeft > 0 && handRoom(s) > 0 && draftClosedRound !== s.round) {
-    const cardHtml = (x: { uid: number; id: string }, take: boolean) => {
-      const d = actionDef(c, x.id);
-      return `<button class="act draftcard ${d.junk ? `junk ${d.junk}` : ''}" ${take ? `data-draft="${x.uid}"` : 'disabled'} data-kind="${d.base}">
-        <span class="n">${esc(d.name)}</span><span class="cost"><b>${d.cost}</b> nerve to play</span><span class="c">${esc(d.text)}</span></button>`;
-    };
-    root.innerHTML = `<div class="overlay draft-ov"><div class="draft">
-      <div class="kind">Round ${s.round} · The lineup</div>
-      <h2>Take up to ${s.picksLeft} card${s.picksLeft === 1 ? '' : 's'}</h2>
-      <p>Taking is free. You pay nerve when you <b>play</b> a card. Your hand holds ${ACTION_HAND} (${handRoom(s)} free). Cards you don't take are gone at the end of the round.</p>
-      <div class="draft-row">${s.lineup.map((x) => cardHtml(x, true)).join('')}</div>
-      ${s.actionHand.length ? `<div class="draft-hand"><span>In your hand:</span> ${s.actionHand.map((x) => `<i class="${actionDef(c, x.id).junk ? 'j' : ''}">${esc(actionDef(c, x.id).name)}</i>`).join('')}</div>` : ''}
-      <button class="btn primary" data-go="closeDraft">Done — to the map <small>(space)</small></button>
+  const shopCard = (x: { uid: number; id: string }) => {
+    const d = actionDef(c, x.id);
+    const chk = check(c, s, { type: 'buy', uid: x.uid });
+    return `<button class="act shopcard tier-${d.tier}" data-buy="${x.uid}" data-kind="${d.base}" ${chk.ok ? '' : `disabled title="${esc(chk.why ?? '')}"`}>
+      <span class="price"><b>${d.price}</b> nerve</span><span class="n">${esc(d.name)}</span><span class="c">${esc(d.text)}</span></button>`;
+  };
+  if (s.phase === 'shop') {
+    root.innerHTML = `<div class="overlay market-ov"><div class="market shop">
+      <div class="kind">Before he moves · last-chance shop</div>
+      <h2>You have ${s.heroine.nerve} nerve left</h2>
+      <p>Special cards are expensive but powerful, and you keep them until you play them (free). Any nerve you don't spend now is lost.</p>
+      <div class="market-row">${s.shop.map(shopCard).join('')}</div>
+      <button class="btn primary" data-act="closeShop">Done — let him move <small>(space)</small></button>
+    </div></div>`;
+    return;
+  }
+  if (s.phase === 'action' && marketOpen) {
+    root.innerHTML = `<div class="overlay market-ov"><div class="market">
+      <div class="kind">Round ${s.round} · The market · refills as you buy</div>
+      <h2>${s.heroine.nerve} nerve to spend</h2>
+      <p>Pay a card's price once; after that it's <b>free to play</b>, now or in a later round. Your basic kit (Walk, Search, Hide, Lead) refills for free each round.</p>
+      <div class="market-row">${s.market.map(shopCard).join('')}</div>
+      <button class="btn primary" data-go="closeMarket">Back to the map <small>(space)</small></button>
     </div></div>`;
     return;
   }
@@ -835,9 +863,7 @@ function updateOverlay() {
 // ── Dispatch + FX ───────────────────────────────────────────────────────────
 function act(a: Action) {
   if (!game || !content || overlayLocked) return;
-  if (a.type === 'endTurn' && game.heroine.nerve > 0 && game.phase === 'action') {
-    if (!confirmEnd()) return;
-  }
+
   if (a.type === 'endTurn') killerLogStart = game.log.length;
   swapFor = null;
   const prev = game;
@@ -852,13 +878,6 @@ function act(a: Action) {
   contextualTips();
 }
 
-let endWarned = -1;
-function confirmEnd(): boolean {
-  if (endWarned === game!.round) return true;
-  endWarned = game!.round;
-  toast(`You still have ${game!.heroine.nerve} nerve. Press End Turn again to let him move.`);
-  return false;
-}
 
 let swapFor: number | null = null;
 function readyItem(uid: number) {
@@ -943,9 +962,9 @@ function showHint() {
       txt = card ? `Play <b>${esc(actionDef(c, card.id).name)}</b>.` : 'Play a card.';
       break;
     }
-    case 'draft': {
-      const card = s.lineup.find((i) => i.uid === a.uid);
-      txt = card ? `Take <b>${esc(actionDef(c, card.id).name)}</b> from the lineup.` : 'Take a card from the lineup.';
+    case 'buy': {
+      const card = [...s.market, ...s.shop].find((i) => i.uid === a.uid);
+      txt = card ? `Buy <b>${esc(actionDef(c, card.id).name)}</b>.` : 'Buy a card.';
       break;
     }
     case 'endTurn':
@@ -1154,8 +1173,8 @@ function showRules() {
   <h3>1 · Event</h3><p>Draw an event card: new survivors stumble in, the fog rolls, or the killer makes his move.</p>
   <h3>2 · Your actions</h3>
   <p><b>Nerve</b> pays for everything and <b>resets every round</b> (Steady 5, Uneasy 4, Terrified 4, Breaking 3). Spend it or lose it.</p>
-  <p>Your actions are <b>cards</b>. Each round 6 are dealt face up as <b>the lineup</b>: take up to 3 for free (hand max ${ACTION_HAND}), then pay nerve to play them. You start the night with 2 Walk cards.</p>
-  <table><tr><th>Card</th><th>Cost</th><th>What it does</th></tr>
+  <p>Your actions are <b>cards</b>. Every round your <b>basic kit</b> refills for free: 2 each of <b>Walk, Search, Hide and Lead</b> (1 nerve to play). Spare nerve buys more from the <b>Market</b>: 4 cards face up that refill as you buy (open with the Market button or M). A bought card's price is paid once; then it's free to play, now or later. After <b>End Turn</b>, leftover nerve can buy powerful <b>specials</b> in the last-chance shop.</p>
+  <table><tr><th>Card</th><th>Cost / price</th><th>What it does</th></tr>
   <tr><td>Walk / Run / Slip Away</td><td>1 / 2 / 1</td><td>Move 1, up to 2, or 1 step and hide. Click a glowing location; the cheapest card that reaches it is used. +1 to flee his room, +1 into flooding, +1 with 3+ in tow.</td></tr>
   <tr><td>Search / Ransack</td><td>1 / 2</td><td>Roll dice (Ransack +2); each success finds an item (max 2).</td></tr>
   <tr><td>Lead</td><td>1</td><td>Survivors here follow you. Bring them to the exit.</td></tr>
@@ -1165,7 +1184,7 @@ function showRules() {
   <tr><td>Catch Your Breath</td><td>2</td><td>Heal or calm, and clear a Bleeding card.</td></tr></table>
   <p><b>Saving survivors</b> is how you get strong enough to win: each one gives <b>Resolve</b> (+1 fight die, max ${RESOLVE_CAP}), hands you an item, and gives you an Instinct card.</p>
   <p><b>Items:</b> you hold ${HAND_SLOTS} in hand, and only those work. Everything else goes in your <b>backpack</b> (unlimited). Readying an item from the backpack costs ${READY_COST} nerve, except right when you find it, when the swap is free.</p>
-  <p><b>Bleeding</b> cards go into your hand when you're hit and take up a slot until you rest or heal. <b>Panic</b> cards appear at high horror; pay 1 nerve to shake one off. <b>Survivors panic</b> when left alone; after ${PANIC_AT} rounds one may bolt.</p>
+  <p><b>Bleeding</b> (when hit) and <b>Panic</b> (at high horror) cards sit in your hand, and each costs you 1 nerve at the start of every round (max 2). Rest or heal clears Bleeding; pay 1 nerve to shake off Panic. <b>Survivors panic</b> when left alone; after ${PANIC_AT} rounds one may bolt.</p>
   <h3>3 · The killer</h3><p>If he's with you and you're not hidden, he <b>attacks</b>. Otherwise, if survivors are with him, he <b>kills one</b> (bloodlust +2). Otherwise he hunts toward the nearest prey.</p>
   <h3>Horror</h3><p>Fear makes dice harder and slows your nerve. Steady and Uneasy: +3 nerve, 4+. Terrified: +3, 5+. Breaking: +2, 5+. Past the top, terror becomes wounds.</p>
   <h3>Winning</h3><p><b>The only win is killing him.</b> At high bloodlust, if you "kill" him early (he gets back up), or in the last 3 rounds, the Finale begins and he comes for you. Finish every Finale phase before <b>dawn</b>, or he gets away and you lose.</p>
@@ -1262,8 +1281,16 @@ app.addEventListener('click', (e) => {
   if (item) return act({ type: 'useItem', uid: +item });
   const drop = t.closest<HTMLElement>('[data-drop]')?.dataset.drop;
   if (drop) return act({ type: 'dropItem', uid: +drop });
-  const draftUid = t.closest<HTMLElement>('[data-draft]')?.dataset.draft;
-  if (draftUid) return act({ type: 'draft', uid: +draftUid });
+  if (t.closest('[data-movecard]')) {
+    const b = document.getElementById('board');
+    b?.classList.remove('pulse-reach');
+    void b?.offsetWidth;
+    b?.classList.add('pulse-reach');
+    toast('Move cards are used by clicking a <b>glowing location</b> on the map. The cheapest card that reaches it is used.', 3500);
+    return;
+  }
+  const buyUid = t.closest<HTMLElement>('[data-buy]')?.dataset.buy;
+  if (buyUid) return act({ type: 'buy', uid: +buyUid });
   const stowUid = t.closest<HTMLElement>('[data-stow]')?.dataset.stow;
   if (stowUid) return act({ type: 'stow', uid: +stowUid });
   const readyUid = t.closest<HTMLElement>('[data-ready]')?.dataset.ready;
@@ -1279,8 +1306,8 @@ document.body.addEventListener('click', (e) => {
   // overlays live outside #app on the game screen root
   const t = e.target as HTMLElement;
   if (app.contains(t)) return;
-  const dr = t.closest<HTMLElement>('#overlay-root [data-draft]')?.dataset.draft;
-  if (dr) return act({ type: 'draft', uid: +dr });
+  const by = t.closest<HTMLElement>('#overlay-root [data-buy]')?.dataset.buy;
+  if (by) return act({ type: 'buy', uid: +by });
   const a = t.closest<HTMLElement>('#overlay-root [data-act]')?.dataset.act;
   if (a) act({ type: a } as Action);
   const go = t.closest<HTMLElement>('#overlay-root [data-go]')?.dataset.go;
@@ -1301,11 +1328,11 @@ function navigate(go: string) {
       swapFor = null;
       if (game) game.pendingFind = undefined;
       return updateOverlay();
-    case 'closeDraft':
-      if (game) draftClosedRound = game.round;
+    case 'closeMarket':
+      marketOpen = false;
       return updateOverlay();
-    case 'openDraft':
-      draftClosedRound = -1;
+    case 'openMarket':
+      marketOpen = true;
       return updateOverlay();
     case 'mapkey':
       return showMapKey();
@@ -1367,15 +1394,18 @@ window.addEventListener('keydown', (e) => {
   if (e.key === ' ' || e.key === 'Enter') {
     e.preventDefault();
     if (cardQueue.length) return navigate('ackTerror');
-    if (document.querySelector('.draft-ov')) return navigate('closeDraft');
+    if (game.phase === 'shop') return act({ type: 'closeShop' });
+    if (marketOpen) return navigate('closeMarket');
     if (game.phase === 'event') return act({ type: 'resolveEvent' });
     if (game.phase === 'killer') return act({ type: 'resolveKiller' });
   }
   if (/^[1-9]$/.test(e.key)) {
-    const card = game.actionHand[Number(e.key) - 1];
-    if (card) act({ type: 'playCard', uid: card.uid });
+    const g = handGroups[Number(e.key) - 1];
+    if (g && content && actionDef(content, g.id).base === 'move') (document.querySelector('[data-movecard]') as HTMLElement | null)?.click();
+    else if (g) act({ type: 'playCard', uid: g.uids[0] });
     return;
   }
+  if (e.key === 'm' || e.key === 'M') return navigate(marketOpen ? 'closeMarket' : 'openMarket');
   if (e.key === 'a' || e.key === 'A') return act({ type: 'answer' });
   if (e.key === 'e' || e.key === 'E') return act({ type: 'endTurn' });
 });

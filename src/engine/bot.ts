@@ -119,34 +119,46 @@ export function botAction(c: Content, s: GameState): Action {
     if (hasOp(e, 'drawItem') && h.items.length + h.pack.length < 8) return a;
   }
 
-  // ── Draft: take what this situation needs ──
-  if (s.picksLeft > 0 && s.actionHand.length < 5 && s.lineup.length) {
-    const want = (d: ActionCardDef): number => {
-      const have = (b: string) => s.actionHand.filter((x) => actionDef(c, x.id).base === b).length;
-      const victimsAround = Object.values(s.victims).some((n) => n > 0);
-      switch (d.base) {
-        case 'move':
-          return 9 - have('move') * 3 + (d.range ?? 1) - (d.sneak && !killerNear ? 1 : 0);
-        case 'fight':
-          return (killerNear || k.finale || s.round >= s.dawnAt - 6 ? 10 : 5) - have('fight') * 3 + (d.dice ?? 0);
-        case 'hide':
-          return (killerNear ? 7 : 3) - have('hide') * 3 + (d.auto ? 2 : 0);
-        case 'lead':
-          return (victimsAround ? 8 : 1) - have('lead') * 4;
-        case 'search':
-          return (h.items.length < 3 ? 6 : 3) - have('search') * 3 + (d.dice ?? 0) / 2;
-        case 'rest':
-          return (wounded > 0 || h.horror >= 3 || s.actionHand.some((x) => actionDef(c, x.id).junk) ? 7 : 1) - have('rest') * 4;
-        case 'effect':
-          return h.escorting > 0 || killerNear ? 5 : 2;
-        case 'barricade':
-          return killerNear ? 4 : 1;
-        default:
-          return 0;
-      }
-    };
-    const best = s.lineup.map((x) => ({ x, v: want(actionDef(c, x.id)) })).sort((p, q) => q.v - p.v)[0];
-    if (best && best.v > 1) return { type: 'draft', uid: best.x.uid };
+  // ── Buying: market during the turn, specials in the last-chance shop ──
+  const value = (d: ActionCardDef): number => {
+    const have = (b: string) => s.actionHand.filter((x) => { const y = actionDef(c, x.id); return y.base === b && y.tier !== 'basic'; }).length;
+    switch (d.base) {
+      case 'fight':
+        return (killerNear || k.finale || s.round >= s.dawnAt - 6 ? 10 : 6) - have('fight') * 3 + (d.dice ?? 0);
+      case 'hide':
+        return killerNear ? 5 : 1;
+      case 'move':
+        return (d.range ?? 1) >= 2 ? 4 - have('move') * 2 : d.sneak && killerNear ? 5 : 2;
+      case 'search':
+        return h.items.length < 3 ? 4 : 2;
+      case 'rest':
+        return wounded > 0 || h.horror >= 3 || s.actionHand.some((x) => actionDef(c, x.id).junk === 'wound') ? 7 : 1;
+      case 'barricade':
+        return killerNear ? 4 : 1;
+      case 'effect':
+        if (d.needsKiller) return 9;
+        if (d.effects?.some((e) => e.op === 'heal')) return wounded >= 2 ? 8 : 2;
+        if (d.effects?.some((e) => e.op === 'horror')) return h.horror >= 3 ? 7 : 2;
+        if (d.effects?.some((e) => e.op === 'nerve')) return 5;
+        return 4;
+      default:
+        return 0;
+    }
+  };
+  if (s.phase === 'shop') {
+    const best = s.shop
+      .filter((x) => check(c, s, { type: 'buy', uid: x.uid }).ok)
+      .map((x) => ({ x, v: value(actionDef(c, x.id)) }))
+      .sort((p, q) => q.v - p.v)[0];
+    return best && best.v >= 3 ? { type: 'buy', uid: best.x.uid } : { type: 'closeShop' };
+  }
+  {
+    // Buy from the market when it matters now, keeping 2 nerve for moving/acting.
+    const best = s.market
+      .filter((x) => check(c, s, { type: 'buy', uid: x.uid }).ok)
+      .map((x) => ({ x, v: value(actionDef(c, x.id)) }))
+      .sort((p, q) => q.v - p.v)[0];
+    if (best && best.v >= 5 && h.nerve - actionDef(c, best.x.id).price! >= 1) return { type: 'buy', uid: best.x.uid };
   }
 
   // ── Deck upkeep ──

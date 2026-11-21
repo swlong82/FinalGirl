@@ -187,6 +187,9 @@ export interface ItemDef {
 export interface ActionCardDef {
   id: string;
   name: string;
+  tier: 'basic' | 'market' | 'special' | 'junk';
+  price?: number; // nerve to buy (market / special)
+  needsKiller?: boolean;
   base: 'move' | 'search' | 'lead' | 'fight' | 'hide' | 'barricade' | 'rest' | 'effect' | 'junk';
   range?: number; // move cards: steps
   sneak?: boolean; // move card ends hidden
@@ -209,7 +212,7 @@ export interface InstinctDef {
 
 // ── Runtime state ────────────────────────────────────────────────────────────
 
-export type Phase = 'event' | 'action' | 'killer' | 'over';
+export type Phase = 'event' | 'action' | 'shop' | 'killer' | 'over';
 export type Outcome = 'slain' | 'escaped' | 'died';
 
 export interface HeldItem {
@@ -317,8 +320,10 @@ export interface GameState {
   actionDeck: string[];
   actionDiscard: string[];
   actionHand: HeldInstinct[];
-  lineup: HeldInstinct[]; // face-up cards to draft from this round
-  picksLeft: number;
+  market: HeldInstinct[]; // face-up, refills on purchase
+  shop: HeldInstinct[]; // last-chance specials after End Turn
+  shopDeck: string[];
+  shopDiscard: string[];
   panic: Record<NodeId, number>;
   pendingFind?: number; // uid of an item just found with full hands: readying it is free // rounds a node's survivors have been left alone
   env: { tideHigh: boolean; dark: boolean; ringing?: NodeId; cold: number };
@@ -340,7 +345,8 @@ export type Action =
   | { type: 'playInstinct'; uid: number }
   | { type: 'answer' }
   | { type: 'playCard'; uid: number }
-  | { type: 'draft'; uid: number }
+  | { type: 'buy'; uid: number }
+  | { type: 'closeShop' }
   | { type: 'endTurn' }
   | { type: 'resolveKiller' };
 

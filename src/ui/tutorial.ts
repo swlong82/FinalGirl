@@ -32,14 +32,13 @@ export const STEPS: TutStep[] = [
     target: '#killer-panel',
   },
   {
-    title: 'The lineup',
-    text: 'Each round, 6 action cards are dealt face up. <b>Take up to 3, for free.</b> You pay nerve later, when you play them. Take <b>Search</b>, <b>Lead</b> and one more you like.',
-    target: '.draft',
-    done: (s) => s.picksLeft === 0 || s.round > 1,
+    title: 'Your kit',
+    text: 'Every round your hand refills for free with <b>2 each of Walk, Search, Hide and Lead</b>. Each costs 1 nerve to play. Spare nerve can buy more cards from the <b>Market</b> (this button) at any time.',
+    target: '.market-btn',
   },
   {
     title: 'Your hand',
-    text: 'Your cards wait down here, ready to play. You start with <b>2 Walk cards</b>; moving always uses a move card. Getting hurt puts <b>Bleeding</b> cards in your hand, and they take up slots until you rest. Every marker on the map is explained under <b>Map key</b>, and you can hover any location for details.',
+    text: 'Your cards wait down here, stacked by type. Moving always uses a move card. Fights need a <b>Fight</b> card from the Market, so buy one before you go after him. Getting hurt adds <b>Bleeding</b> cards, and each costs you 1 nerve a round until you rest. Every marker on the map is explained under <b>Map key</b>, and you can hover any location for details.',
     target: '.actions',
   },
   {
@@ -75,7 +74,13 @@ export const STEPS: TutStep[] = [
     title: 'End your turn',
     text: 'Click <b>End Turn</b>. Any nerve you didn’t spend stays in the bank for next round. Then the killer acts.',
     target: '[data-act=endTurn]',
-    done: (s) => s.phase === 'killer' || s.round > 1,
+    done: (s) => s.phase !== 'action' || s.round > 1,
+  },
+  {
+    title: 'The last-chance shop',
+    text: 'Had nerve left over? Before he moves, you can spend it on powerful <b>special cards</b>. You keep them until you play them. Buy one or click <b>Done</b>.',
+    target: '#overlay-root .market',
+    done: (s) => s.phase !== 'shop',
   },
   {
     title: 'His turn',
