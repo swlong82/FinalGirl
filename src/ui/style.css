@@ -984,3 +984,53 @@ b.ok { color: #2f6b3a; font-weight: 400; }
   .side.right .log-panel { flex: 0 0 clamp(150px, 24vh, 240px); min-height: 0; }
 }
 @media (min-width: 901px) { .side.right #killer-panel { margin-top: 0; border-radius: 6px; } .side.right #killer-panel::before { display: none; } }
+
+/* ══ v1.0.3: the numbers that matter, where you look ══ */
+/* Boss health on his map token */
+.token.killer .tok-hp { position: relative; width: 150%; min-width: 46px; height: 12px; margin-top: 3px; border-radius: 3px; background: rgba(0, 0, 0, .78); border: 1px solid rgba(255, 51, 85, .8); overflow: hidden; box-shadow: 0 2px 6px rgba(0, 0, 0, .7); }
+.token.killer .tok-hp i { position: absolute; top: 0; bottom: 0; left: 0; }
+.token.killer .tok-hp i.hp { background: linear-gradient(90deg, #8a0b22, #ff3355); transition: width .5s; }
+.token.killer .tok-hp i.tmp { left: auto; right: 0; background: repeating-linear-gradient(45deg, rgba(200, 214, 227, .75) 0 3px, rgba(120, 140, 160, .75) 3px 6px); }
+.token.killer .tok-hp span { position: relative; display: block; text-align: center; font: 600 9.5px/12px var(--ui); letter-spacing: .04em; color: #fff; text-shadow: 0 1px 1px #000; }
+.token.killer .tok-hp.low { animation: breathe 1.2s infinite; border-color: #fff; }
+/* Boss health in his file */
+.boss-hp { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 9px; border-radius: 4px; background: rgba(0, 0, 0, .3); border: 1px solid rgba(255, 51, 85, .35); }
+.boss-hp .bh-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.boss-hp .bh-l { font-family: var(--ui); font-size: var(--fs-micro); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.boss-hp .bh-n { font-family: var(--ui); font-weight: 600; font-size: 30px; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.boss-hp .bh-n small { font-size: 14px; font-weight: 400; color: var(--muted); }
+.boss-hp .bh-tmp { font-family: var(--ui); font-size: 11px; color: #c9d6e3; }
+.boss-hp .bh-tok { margin-left: auto; font-family: var(--ui); font-size: 11px; letter-spacing: .04em; color: #ffb3c0; border: 1px dashed rgba(255, 179, 192, .6); border-radius: 10px; padding: 0 7px; }
+.boss-hp .bh-tok.used { border-style: solid; opacity: .5; }
+.boss-hp .bh-bar { position: relative; height: 14px; border-radius: 3px; background: #231a22; overflow: hidden; }
+.boss-hp .bh-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #6b0c1d, var(--blood)); transition: width .6s; }
+.boss-hp .bh-bar b { position: absolute; top: 0; bottom: 0; right: 0; background: repeating-linear-gradient(45deg, rgba(200, 214, 227, .7) 0 3px, rgba(120, 140, 160, .7) 3px 6px); }
+.boss-hp .bh-bar::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(100% / var(--n) - 1px), rgba(0, 0, 0, .55) calc(100% / var(--n) - 1px) calc(100% / var(--n))); pointer-events: none; }
+.boss-hp.low { border-color: #ff3355; box-shadow: 0 0 14px rgba(255, 51, 85, .4); }
+.vitals.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Horror, dice, nerve beside the hand */
+.bottombar .status { flex: 0 0 auto; width: 128px; display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; margin-right: 6px; border-radius: 6px; background: rgba(12, 9, 16, .82); border: 1px solid rgba(255, 220, 230, .14); font-family: var(--ui); color: var(--ink); align-self: stretch; justify-content: center; }
+.status .st-h { display: flex; align-items: baseline; justify-content: space-between; }
+.status .st-l { font-size: var(--fs-micro); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.status .st-v { font-weight: 600; font-size: 26px; line-height: 1; color: #fff; }
+.status .st-v small { font-size: 12px; font-weight: 400; color: var(--muted); }
+.status .st-v.bad { color: #ff5a76; }
+.status .st-m { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; }
+.status .st-m i:first-child { display: none; }
+.status .st-m i { height: 7px; border-radius: 1px; background: rgba(255, 255, 255, .1); }
+.status .st-m i.on { background: linear-gradient(90deg, #7a3fc7, #ff3355); }
+.status .st-m i.cur { box-shadow: 0 0 6px rgba(255, 51, 85, .8); }
+.status .st-row { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; letter-spacing: .03em; color: var(--muted); }
+.status .st-row b { font-weight: 600; font-size: 15px; color: #fff; margin-right: 2px; }
+.status .st-row .bad b { color: #ff5a76; }
+.status .st-row.dim { font-size: 10.5px; }
+.status.up { animation: horrorUp .9s ease-out; }
+.status.down { animation: horrorDown .9s ease-out; }
+@keyframes horrorUp { 0% { box-shadow: 0 0 0 0 rgba(255, 51, 85, 0); border-color: #ff3355; } 30% { box-shadow: 0 0 24px 4px rgba(255, 51, 85, .8); background: rgba(90, 8, 24, .9); } 100% { box-shadow: 0 0 0 0 rgba(255, 51, 85, 0); } }
+@keyframes horrorDown { 30% { box-shadow: 0 0 18px 2px rgba(122, 224, 160, .6); border-color: var(--good); } }
+.act.fcard .cost .dn { border-bottom: 1px dotted rgba(60, 40, 20, .5); cursor: help; }
+.dicetray .why { font-family: var(--ui); font-size: 12px; letter-spacing: .03em; color: var(--muted); margin: -6px 0 10px; }
+@media (max-width: 900px) { .bottombar .status { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; } .status .st-m { flex: 1 1 100px; } }
+.bottombar > div:first-child { align-items: stretch; }
+.token.killer .tok-hp { height: 15px; width: 170%; min-width: 54px; }
+.token.killer .tok-hp span { font-size: 11px; line-height: 15px; }

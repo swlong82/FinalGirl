@@ -39,6 +39,7 @@ export interface DifficultyDef {
   label: string;
   text: string;
   nerve: number; // Nerve each Planning phase resets to
+  buys: number; // cards she may buy each Planning phase, free ones included
   track: number[]; // Horror Level 0..6 → dice in a Horror Roll
   heroineTokens: number[]; // her hidden final-health token is drawn from these (0 = blank)
   killerTokens: number[];
@@ -49,8 +50,9 @@ export interface DifficultyDef {
 export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   story: {
     label: 'Matinee',
-    text: '7 nerve a turn, a gentler Horror track, a better final-health token for her and a worse one for him.',
-    nerve: 7,
+    text: '6 nerve a turn, a gentler Horror track, a better final-health token for her and a worse one for him.',
+    nerve: 6,
+    buys: 5,
     track: [5, 5, 4, 4, 3, 3, 2],
     heroineTokens: [1, 2, 3],
     killerTokens: [0, 0, 2, 3],
@@ -59,8 +61,9 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   },
   standard: {
     label: 'Midnight Show',
-    text: 'The intended experience. 6 nerve a turn.',
-    nerve: 6,
+    text: 'The intended experience. 5 nerve a turn.',
+    nerve: 5,
+    buys: 4,
     track: [4, 4, 4, 3, 3, 2, 2],
     heroineTokens: [0, 1, 2, 3],
     killerTokens: [0, 2, 3, 4],
@@ -69,8 +72,9 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   },
   nightmare: {
     label: 'Nightmare',
-    text: '5 nerve a turn, a harsh Horror track, and he is very hard to keep down.',
-    nerve: 5,
+    text: '4 nerve a turn, a harsh Horror track, and he is very hard to keep down.',
+    nerve: 4,
+    buys: 3,
     track: [4, 4, 3, 3, 2, 2, 1],
     heroineTokens: [0, 1, 1, 2],
     killerTokens: [2, 2, 3, 4],
@@ -406,19 +410,49 @@ export function horrorDice(s: GameState): number {
   return track[Math.max(0, Math.min(track.length - 1, s.heroine.horror))];
 }
 
-export function rollPool(c: Content, s: GameState, d: ActionCardDef): number {
+/** Where every die in a Horror Roll comes from (for the roll and for the UI). */
+export function rollBreakdown(c: Content, s: GameState, d: ActionCardDef): { total: number; parts: [string, number][] } {
   const h = s.heroine;
   const t = c.heroine.traits;
-  let n = horrorDice(s) + (d.dice ?? 0) + mod(c, s, 'rollDice');
+  const parts: [string, number][] = [[`horror ${h.horror}`, horrorDice(s)]];
+  const add = (label: string, n: number) => {
+    if (n) parts.push([label, n]);
+  };
+  /** A modifier split into its named sources: each ongoing Event, plus this turn's effects. */
+  const addMod = (key: ModKey) => {
+    for (const id of s.events) add(eventDef(c, id).name, eventDef(c, id).ongoing?.[key] ?? 0);
+    add('this turn', s.mods[key] ?? 0);
+  };
+  add('card', d.dice ?? 0);
+  addMod('rollDice');
   if (d.tags.includes('search')) {
-    const tool = Math.max(0, ...s.heroine.items.map((i) => itemDef(c, i.id).searchDice ?? 0));
-    n += (t.searchDice ?? 0) + tool + mod(c, s, 'searchDice') + (s.env.dark ? -1 : 0);
+    add(c.heroine.passive.name, t.searchDice ?? 0);
+    add('tool', Math.max(0, ...s.heroine.items.map((i) => itemDef(c, i.id).searchDice ?? 0)));
+    addMod('searchDice');
+    add('blackout', s.env.dark ? -1 : 0);
   }
-  if (d.tags.includes('attack')) n += (t.attackDice ?? 0) + h.resolve + mod(c, s, 'attackDice');
-  if (d.tags.includes('hide')) n += (t.hideDice ?? 0) + mod(c, s, 'hideDice') + (s.env.dark ? 1 : 0);
-  if (d.kind === 'reaction') n += t.reactDice ?? 0;
-  if (d.tags.includes('move')) n += t.moveDice ?? 0;
-  return Math.max(1, n);
+  if (d.tags.includes('attack')) {
+    add(c.heroine.passive.name, t.attackDice ?? 0);
+    add('Resolve', h.resolve);
+    addMod('attackDice');
+  }
+  if (d.tags.includes('hide')) {
+    add(c.heroine.passive.name, t.hideDice ?? 0);
+    addMod('hideDice');
+    add('blackout', s.env.dark ? 1 : 0);
+  }
+  if (d.kind === 'reaction') add(c.heroine.passive.name, t.reactDice ?? 0);
+  if (d.tags.includes('move')) add(c.heroine.passive.name, t.moveDice ?? 0);
+  return { total: Math.max(1, parts.reduce((n, [, v]) => n + v, 0)), parts };
+}
+
+export function rollPool(c: Content, s: GameState, d: ActionCardDef): number {
+  return rollBreakdown(c, s, d).total;
+}
+
+/** Light attacks (Shove, Swing) take no weapon, lore or focus bonus: those reward the heavy cards. */
+function lightAttack(c: Content, s: GameState) {
+  return !!(s.rolling && actionDef(c, s.rolling.card).light);
 }
 
 function summarize(s: GameState, label: string, dice: number[], converted: number[], rerolled: boolean): DiceRoll {
@@ -446,7 +480,7 @@ function startRoll(c: Content, s: GameState, cardUid: number, d: ActionCardDef, 
   }
   const range = s.heroine.loc === s.killer.loc ? 0 : (distances(c, s.heroine.loc)[s.killer.loc] ?? 99);
   s.rolling = { uid: cardUid, dice, converted: [], card: d.id, reaction, range };
-  s.lastRoll = summarize(s, d.name, dice, [], rerolled);
+  s.lastRoll = { ...summarize(s, d.name, dice, [], rerolled), parts: rollBreakdown(c, s, d).parts };
   s.fx.push({ t: 'dice' });
   if (canConvert(s)) s.pending = { kind: 'roll', card: d.id, reaction };
   else finishRoll(c, s);
@@ -455,7 +489,7 @@ function startRoll(c: Content, s: GameState, cardUid: number, d: ActionCardDef, 
 function finishRoll(c: Content, s: GameState) {
   const r = s.rolling!;
   const d = actionDef(c, r.card);
-  const roll = summarize(s, d.name, r.dice, r.converted, !!s.lastRoll?.rerolled);
+  const roll = { ...summarize(s, d.name, r.dice, r.converted, !!s.lastRoll?.rerolled), parts: s.lastRoll?.parts };
   s.lastRoll = roll;
   s.pending = undefined;
   const effs = d[roll.band] ?? [];
@@ -580,11 +614,12 @@ function heroineAttack(c: Content, s: GameState, base: number) {
 }
 
 function hitKiller(c: Content, s: GameState, base: number, range: number) {
+  if (lightAttack(c, s)) return hurtKiller(c, s, base);
   let dmg = base;
   const w = bestWeapon(c, s, range);
   if (w) {
     dmg += itemDef(c, w.id).damage ?? 0;
-    spendUse(c, s, w);
+    if (!c.heroine.traits.durableWeapons) spendUse(c, s, w);
   }
   dmg += loreBonus(c, s) + (s.mods.damage ?? 0);
   s.mods.damage = 0;
@@ -933,6 +968,7 @@ function minionStep(c: Content, s: GameState, m: { loc: NodeId }, to: NodeId) {
 /** Her attack on the minions in her location: damage may be split between them; excess is lost. */
 /** Total damage an attack would deal to minions: base + a melee weapon + focus. Lore never applies. */
 export function minionDamage(c: Content, s: GameState, base: number) {
+  if (lightAttack(c, s)) return base;
   const w = bestWeapon(c, s, 0);
   return base + (w ? itemDef(c, w.id).damage ?? 0 : 0) + (s.mods.damage ?? 0);
 }
@@ -954,9 +990,11 @@ function hitMinions(c: Content, s: GameState, base: number, split?: Record<numbe
   const def = c.killer.minions!;
   const total = minionDamage(c, s, base);
   const plan = split ?? autoSplit(c, s, base);
-  const w = bestWeapon(c, s, 0);
-  if (w) spendUse(c, s, w);
-  s.mods.damage = 0;
+  if (!lightAttack(c, s)) {
+    const w = bestWeapon(c, s, 0);
+    if (w && !c.heroine.traits.durableWeapons) spendUse(c, s, w);
+    s.mods.damage = 0;
+  }
   let killed = 0;
   let used = 0;
   for (const m of minionsAt(s, s.heroine.loc)) {
@@ -1750,6 +1788,7 @@ export function check(c: Content, s: GameState, a: Action): Check {
       if (!d) return no('Unknown card');
       if ((s.tableau[a.id] ?? 0) <= 0) return no(s.discard.includes(a.id) ? 'Used this turn: back after Planning' : 'None left');
       if (h.hand.length >= HAND_LIMIT) return no(`Hand full (${HAND_LIMIT})`);
+      if ((s.bought ?? 0) >= DIFFICULTY[s.difficulty].buys) return no(`${DIFFICULTY[s.difficulty].buys} cards a Planning phase`);
       const cost = cardCost(c, d);
       if (cost > 0 && h.nerve - cost < 0) return no(`Needs ${cost} nerve`, cost);
       return yes(cost);
@@ -1817,7 +1856,7 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
     case 'convert': {
       for (const uid of a.discard) toDiscard(uid);
       s.rolling!.converted.push(a.die);
-      s.lastRoll = summarize(s, actionDef(c, s.rolling!.card).name, s.rolling!.dice, s.rolling!.converted, !!s.lastRoll?.rerolled);
+      s.lastRoll = { ...summarize(s, actionDef(c, s.rolling!.card).name, s.rolling!.dice, s.rolling!.converted, !!s.lastRoll?.rerolled), parts: s.lastRoll?.parts };
       if (!canConvert(s)) finishRoll(c, s);
       break;
     }
@@ -1912,10 +1951,12 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       s.tableau[a.id]--;
       h.nerve -= cardCost(c, d);
       h.hand.push({ uid: s.uid++, id: a.id });
+      s.bought = (s.bought ?? 0) + 1;
       log(s, `Bought ${d.name}${cardCost(c, d) ? ` for ${cardCost(c, d)} nerve` : ''}.`);
       break;
     }
     case 'endPlanning': {
+      s.bought = 0;
       h.nerve = DIFFICULTY[s.difficulty].nerve;
       for (const id of s.discard) s.tableau[id] = (s.tableau[id] ?? 0) + 1;
       s.discard = [];

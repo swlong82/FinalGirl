@@ -8,6 +8,7 @@ import {
   canReach,
   cardCost,
   check,
+  DIFFICULTY,
   distances,
   exits,
   HAND_LIMIT,
@@ -146,32 +147,36 @@ function rearrange(c: Content, s: GameState): Action | null {
 
 function buy(c: Content, s: GameState): Action {
   const h = s.heroine;
-  if (h.hand.length >= HAND_LIMIT) return { type: 'endPlanning' };
-  const count = (tag: CardTag) => h.hand.filter((x) => defOf(c, x).tags.includes(tag)).length;
-  const reactions = h.hand.filter((x) => defOf(c, x).kind === 'reaction').length;
-  const hurt = h.health < h.maxHealth || h.token === null;
-  const npcs = npcNodes(s).length > 0;
+  if (h.hand.length >= HAND_LIMIT || (s.bought ?? 0) >= DIFFICULTY[s.difficulty].buys) return { type: 'endPlanning' };
+  // Buys are scarce: fill what the hand is missing, strongest affordable card first.
+  const count = (pred: (d: ActionCardDef) => boolean) => h.hand.filter((x) => pred(defOf(c, x))).length;
+  const has = (tag: CardTag) => count((d) => d.tags.includes(tag) && d.kind === 'action');
+  const gear = armed(c, s);
+  const fight = s.killer.finale || gear;
   const piles = Object.values(s.piles).some((p) => p.cards.length > 0);
-  const want = (d: ActionCardDef): number => {
+  const deficit: Partial<Record<CardTag | 'react', number>> = {
+    attack: (fight ? 3 : 2) - has('attack'),
+    move: 2 - has('move'),
+    react: (s.killer.finale ? 2 : 1) - count((d) => d.kind === 'reaction'),
+    search: piles && !s.killer.finale ? 1 - has('search') : 0,
+    heal: h.health < h.maxHealth ? 1 - has('heal') : 0,
+    calm: h.horror >= 3 ? 1 - has('calm') : 0,
+    rally: npcNodes(s).length ? 1 - has('rally') : 0,
+  };
+  const priority: Partial<Record<CardTag | 'react', number>> = { attack: fight ? 9 : 6, move: 6, react: 5, search: 4, heal: 4, calm: 3, rally: 2 };
+  const value = (d: ActionCardDef): number => {
     let v = 0;
-    if (d.tags.includes('move')) v += 6 - count('move') * 2 + (d.always ? 1 : 0);
-    if (d.tags.includes('search')) v += piles ? 5 - count('search') * 3 : -5;
-    if (d.tags.includes('attack') && d.kind === 'action') v += (s.killer.finale || armed(c, s) ? 7 : 4) - count('attack') * 2 + d.cost;
-    if (d.kind === 'reaction') v += 5 - reactions * 2;
-    if (d.tags.includes('heal')) v += hurt ? 5 - count('heal') * 3 : -3;
-    if (d.tags.includes('calm')) v += h.horror >= 3 ? 4 - count('calm') * 2 : -2;
-    if (d.tags.includes('rally')) v += npcs ? 2 - count('rally') * 3 : -3;
-    if (d.tags.includes('focus')) v += 1 - count('focus') * 2;
-    if (d.tags.includes('hide')) v += 1 - count('hide') * 2;
-    if (d.tags.includes('barricade')) v -= 1;
-    if (d.tags.includes('lure') || d.tags.includes('nerve')) v -= 1;
-    if (d.cost === 0) v += 1; // free cards are also fuel for dice conversions
+    const tags: (CardTag | 'react')[] = d.kind === 'reaction' ? ['react'] : d.tags;
+    for (const t of tags) if ((deficit[t] ?? 0) > 0) v += priority[t] ?? 0;
+    if (v === 0) return 0;
+    v += d.cost * 1.2; // the strongest card that fills the gap
+    if (d.light && gear) v -= 4; // a weapon does nothing for a light attack
     return v;
   };
   const opts = c.actions
     .filter((d) => check(c, s, { type: 'buy', id: d.id }).ok)
-    .map((d) => ({ d, v: want(d) }))
-    .filter((x) => x.v > 0 || (x.d.cost === 0 && h.hand.length < 7))
+    .map((d) => ({ d, v: value(d) }))
+    .filter((x) => x.v > 1)
     .sort((a, b) => b.v - a.v || b.d.cost - a.d.cost);
   return opts[0] ? { type: 'buy', id: opts[0].d.id } : { type: 'endPlanning' };
 }

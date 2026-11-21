@@ -211,6 +211,7 @@ export interface HeroineTraits {
   reactDice?: number;
   coldImmune?: boolean;
   freeAnswer?: boolean;
+  durableWeapons?: boolean; // weapons don't spend uses
 }
 
 export interface RescueSlot {
@@ -277,6 +278,7 @@ export interface ActionCardDef {
   tags: CardTag[];
   roll: boolean; // false: resolve `always` with no Horror Roll
   dice?: number; // bonus dice
+  light?: boolean; // attack that weapons, lore and focus don't add to
   req?: 'killerHere' | 'killerAway' | 'searchSpace' | 'reach';
   great?: Effect[]; // two or more successes
   good?: Effect[]; // exactly one success
@@ -312,6 +314,7 @@ export interface DiceRoll {
   partials: number;
   band: 'great' | 'good' | 'fail';
   rerolled?: boolean;
+  parts?: [string, number][]; // where the dice came from
 }
 
 export type Pending =
@@ -416,6 +419,7 @@ export interface GameState {
 
   tableau: Record<string, number>; // copies available per action-card pile
   discard: string[]; // cards played or discarded since the last Planning phase
+  bought?: number; // cards bought this Planning phase
   terrorDeck: string[];
   terrorDiscard: string[];
   eventDeck: string[];

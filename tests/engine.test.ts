@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
-import { dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, TERROR_DEAL } from '../src/engine/rules';
+import { DIFFICULTY, dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, TERROR_DEAL } from '../src/engine/rules';
 import { simulate } from '../src/engine/bot';
 import type { Action, Content, GameState } from '../src/engine/types';
 
@@ -100,7 +100,7 @@ describe('setup', () => {
     for (const n of c.location.nodes.filter((x) => x.search)) expect(s.piles[n.id].cards.length).toBe(4);
     const dealt = Object.values(s.piles).flatMap((p) => p.cards);
     for (const lore of c.killer.items) expect(dealt).toContain(lore.id);
-    expect(s.heroine.nerve).toBe(6);
+    expect(s.heroine.nerve).toBe(DIFFICULTY.standard.nerve);
     expect(s.heroine.token).not.toBeUndefined();
   });
 });
@@ -160,7 +160,7 @@ describe('nerve & the action-card economy', () => {
     expect(dispatch(c, s, { type: 'buy', id: 'ac-run' })).toBe(s);
     s = act(c, s, { type: 'endPlanning' });
     expect(s.tableau['ac-run']).toBe(1);
-    expect(s.heroine.nerve).toBe(6);
+    expect(s.heroine.nerve).toBe(DIFFICULTY.standard.nerve);
   });
 
   it('zero-cost cards can be bought at negative nerve; costed ones cannot; hand limit 10', () => {
@@ -214,7 +214,7 @@ describe('the killer', () => {
     const hp = s.heroine.health;
     s = act(c, s, { type: 'react', uid: s.heroine.hand[0].uid });
     expect(s.heroine.health).toBe(hp);
-    expect(s.heroine.nerve).toBe(4); // Dodge costs 2 of next turn's nerve
+    expect(s.heroine.nerve).toBe(DIFFICULTY.standard.nerve - 2); // Dodge costs 2 of next turn's nerve
     expect(s.phase).toBe('upkeep');
   });
 
@@ -260,10 +260,10 @@ describe('health & final-health tokens', () => {
     s.heroine.health = 1;
     s.heroine.token = 2;
     s.heroine.hand = [];
-    const uid = giveCard(s, 'ac-fullswing');
+    const uid = giveCard(s, 'ac-desperate');
     s.killer.loc = s.heroine.loc;
-    s.rolling = { uid, dice: [1], converted: [], card: 'ac-fullswing', reaction: false, range: 0 };
-    s.pending = { kind: 'roll', card: 'ac-fullswing', reaction: false };
+    s.rolling = { uid, dice: [1], converted: [], card: 'ac-desperate', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-desperate', reaction: false };
     s.heroine.horror = 0;
     // Fail band: lose 1 health. 1 → 0 (token still hidden).
     s = act(c, s, { type: 'resolveRoll' });
@@ -271,9 +271,9 @@ describe('health & final-health tokens', () => {
     expect(s.heroine.token).toBe(2);
     expect(s.phase).toBe('action');
     // Any more damage reveals the token.
-    const uid2 = giveCard(s, 'ac-fullswing');
-    s.rolling = { uid: uid2, dice: [1], converted: [], card: 'ac-fullswing', reaction: false, range: 0 };
-    s.pending = { kind: 'roll', card: 'ac-fullswing', reaction: false };
+    const uid2 = giveCard(s, 'ac-desperate');
+    s.rolling = { uid: uid2, dice: [1], converted: [], card: 'ac-desperate', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-desperate', reaction: false };
     s = act(c, s, { type: 'resolveRoll' });
     expect(s.heroine.token).toBe(null);
     expect(s.heroine.health).toBe(2);
@@ -284,9 +284,9 @@ describe('health & final-health tokens', () => {
     t.heroine.health = 0;
     t.heroine.token = 0;
     t.killer.loc = t.heroine.loc;
-    const u = giveCard(t, 'ac-fullswing');
-    t.rolling = { uid: u, dice: [1], converted: [], card: 'ac-fullswing', reaction: false, range: 0 };
-    t.pending = { kind: 'roll', card: 'ac-fullswing', reaction: false };
+    const u = giveCard(t, 'ac-desperate');
+    t.rolling = { uid: u, dice: [1], converted: [], card: 'ac-desperate', reaction: false, range: 0 };
+    t.pending = { kind: 'roll', card: 'ac-desperate', reaction: false };
     t = act(c, t, { type: 'resolveRoll' });
     expect(t.outcome).toBe('died');
   });
@@ -630,5 +630,25 @@ describe('player choices: followers and damage split', () => {
     expect(dispatch(c, s, { type: 'aim', at: 'minions', split: { 701: 2, 702: 2 } })).toBe(s); // 4 > 3
     s = act(c, s, { type: 'aim', at: 'minions', split: { 701: 1, 702: 1 } });
     expect(s.minions.map((m) => m.health)).toEqual([1, 1]);
+  });
+});
+
+describe('light attacks', () => {
+  it('Swing takes no weapon or lore bonus; Full Swing takes both', () => {
+    const c = C();
+    const hit = (card: string) => {
+      let s = quiet(c);
+      s.killer.loc = s.heroine.loc;
+      s.heroine.items = [{ uid: 990, id: 'tire-iron' }];
+      s.foundLore = ['lore-logbook'];
+      const uid = giveCard(s, card);
+      s.rolling = { uid, dice: [6, 6], converted: [], card, reaction: false, range: 0 };
+      s.pending = { kind: 'roll', card, reaction: false };
+      const hp = s.killer.health;
+      s = act(c, s, { type: 'resolveRoll' });
+      return hp - s.killer.health;
+    };
+    expect(hit('ac-swing')).toBe(2); // 2 flat
+    expect(hit('ac-fullswing')).toBe(5); // 3 + tire iron 1 + lore 1
   });
 });

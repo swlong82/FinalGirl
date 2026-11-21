@@ -38,6 +38,7 @@ import {
   killerAttack,
   killerMoveValue,
   loreBonus,
+  rollBreakdown,
   autoSplit,
   minionDamage,
   minionsAt,
@@ -51,7 +52,6 @@ import {
   panicTable,
   predictTarget,
   rating,
-  rollPool,
   score,
   TERROR_DEAL,
   terrorDef,
@@ -123,6 +123,7 @@ let convertPick: number[] = [];
 let searchPicks: number[] = [];
 let swapFor: number | null = null;
 let selItem: number | null = null;
+let lastHorrorShown: number | null = null;
 let aimMode: 'choose' | 'split' = 'choose';
 let splitDraft: Record<number, number> = {};
 
@@ -274,8 +275,16 @@ function describeEffects(effs: Effect[]): string {
   return effs.map(describeEffect).filter(Boolean).join(', ') || 'nothing';
 }
 
+/** "4 dice: horror 2 gives 4, Resolve +1, blackout −1" */
+function diceWhy(parts: [string, number][]): string {
+  const [first, ...rest] = parts;
+  const total = Math.max(1, parts.reduce((n, [, v]) => n + v, 0));
+  return `${total} dice: ${first[0]} gives ${first[1]}${rest.map(([l, v]) => `, ${l} ${v > 0 ? '+' : '−'}${Math.abs(v)}`).join('')}`;
+}
+
 function cardHtml(c: Content, s: GameState | null, d: ActionCardDef, attrs: string, extra = '', idx?: number): string {
-  const dice = s && d.roll ? `${rollPool(c, s, d)} dice` : d.roll ? 'Horror Roll' : 'no roll';
+  const bd = s && d.roll ? rollBreakdown(c, s, d) : null;
+  const dice = bd ? `<span class="dn" title="${esc(diceWhy(bd.parts))}">${bd.total} dice</span>` : d.roll ? 'Horror Roll' : 'no roll';
   const bands = d.roll
     ? `<span class="band"><i class="g">2+</i>${esc(describeEffects(d.great ?? []))}</span><span class="band"><i class="o">1</i>${esc(describeEffects(d.good ?? []))}</span><span class="band"><i class="x">✗</i>${esc(describeEffects(d.fail ?? []))}</span>`
     : `<span class="band"><i class="g">✓</i>${esc(describeEffects(d.always ?? []))}</span>`;
@@ -575,7 +584,7 @@ function buildBoard() {
       .join('')}
     <div class="token heroine" id="tok-h"><div class="pin">${heroineToken(c.heroine)}</div><span class="tag">${esc(c.heroine.name.split(' ')[0])}</span></div>
     <canvas class="particles" id="particles"></canvas>
-    <div class="token killer" id="tok-k"><div class="pin">${killerPortrait({ art: c.killer.art })}</div><span class="tag">${esc(c.killer.name.replace(/^The /, ''))}</span></div>
+    <div class="token killer" id="tok-k"><div class="pin">${killerPortrait({ art: c.killer.art })}</div><span class="tag">${esc(c.killer.name.replace(/^The /, ''))}</span><div class="tok-hp" id="tok-khp"><i class="hp"></i><i class="tmp"></i><span></span></div></div>
     <div class="board-hint" id="board-hint"></div>
     <button class="mapkey-btn" data-go="mapkey">${glyph('key')} Map key</button>
     <div class="inspect" id="inspect" hidden></div>`;
@@ -803,12 +812,14 @@ function renderKillerPanel(c: Content, s: GameState) {
   document.getElementById('killer-panel')!.innerHTML = `<div class="pane dark">
     <header class="p-id">${killerPortrait({ finale: k.finale, art: c.killer.art })}
       <div><div class="p-name">${esc(c.killer.name)}</div><div class="p-role">${esc(c.killer.epithet)}</div></div></header>
-    <div class="vitals">
-      ${vital('Health', `${k.health}<small>/${k.maxHealth}</small>`, k.token === null ? 'token used' : '+ hidden token', '', k.token === null ? 'His final-health token is used. Next time he hits zero, he is dead.' : 'When he runs out, his hidden final-health token is revealed: he may get back up.')}
-      ${vital('Move', String(killerMoveValue(c, s)), k.stunned ? 'stunned' : 'per turn', k.stunned ? 'good' : '')}
-      ${vital('Attack', String(killerAttack(c, s)), 'damage', '')}
+    <div class="boss-hp ${k.health <= k.maxHealth / 3 ? 'low' : ''}" title="${k.token === null ? 'His final-health token is used. Next time he hits zero, he is dead.' : 'When he runs out, his hidden final-health token is revealed: he may get back up.'}">
+      <div class="bh-top"><span class="bh-l">Health</span><span class="bh-n">${k.health}<small>/${k.maxHealth}</small></span>${k.power === 'active' && k.powerHealth ? `<span class="bh-tmp">+${k.powerHealth} shield</span>` : ''}<span class="bh-tok ${k.token === null ? 'used' : ''}">${k.token === null ? 'no token' : '+ ? token'}</span></div>
+      <div class="bh-bar" style="--n:${k.maxHealth}"><i style="width:${(k.health / Math.max(1, k.maxHealth)) * 100}%"></i>${k.power === 'active' ? `<b style="width:${Math.min(100, (k.powerHealth / Math.max(1, k.maxHealth)) * 100)}%"></b>` : ''}</div>
     </div>
-    <div class="hpbar" title="Health"><div style="width:${(k.health / Math.max(1, k.maxHealth)) * 100}%"></div></div>
+    <div class="vitals two">
+      ${vital('Move', String(killerMoveValue(c, s)), k.stunned ? 'stunned' : 'per turn', k.stunned ? 'good' : '')}
+      ${vital('Attack', String(killerAttack(c, s)), 'damage per attack', '')}
+    </div>
     ${sec(k.finale ? `Finale: ${esc(c.killer.finale.name)}` : 'His turn', `next: <b>${esc(target === h.loc ? 'you' : nodeName(c, target))}</b>`, `<p class="prose small">${esc(beh.text)}</p>`, `next ${k.finale ? 'fin' : ''}`)}
     ${sec(`Bloodlust ${k.bloodlust}`, esc(cur.name ?? ''), `<div class="btrack"><span class="bt-k"><b>move</b><b>attack</b></span>${btrack}</div>`)}
     ${sec(k.power === 'hidden' ? 'Power' : esc(c.killer.power.name), k.power === 'active' ? `${k.powerHealth} temp hp` : k.power === 'spent' ? 'spent' : 'hidden', power, `power ${k.power}`)}
@@ -879,6 +890,16 @@ function updateBoard() {
   tk.style.left = `${X(kp.x) + (same ? 3.4 : 0)}%`;
   tk.style.top = `${Y(kp.y) - 9}%`;
   tk.classList.toggle('stunned', s.killer.stunned > 0);
+  const khp = document.getElementById('tok-khp');
+  if (khp) {
+    const k = s.killer;
+    const max = Math.max(1, k.maxHealth);
+    (khp.querySelector('.hp') as HTMLElement).style.width = `${(k.health / max) * 100}%`;
+    (khp.querySelector('.tmp') as HTMLElement).style.width = k.power === 'active' ? `${Math.min(100, (k.powerHealth / max) * 100)}%` : '0';
+    khp.querySelector('span')!.textContent = `${k.health}/${k.maxHealth}${k.power === 'active' && k.powerHealth ? ` +${k.powerHealth}` : ''}`;
+    khp.title = `${c.killer.name}: ${k.health} of ${k.maxHealth} health${k.power === 'active' && k.powerHealth ? `, plus ${k.powerHealth} temporary` : ''}${k.token !== null ? ', and a hidden final-health token' : ''}`;
+    khp.classList.toggle('low', k.health <= max / 3);
+  }
   tk.classList.toggle('finale', s.killer.finale);
   const rk = document.getElementById('ring-k')!;
   rk.style.left = `${X(kp.x)}%`;
@@ -926,7 +947,16 @@ function updateBottom() {
           return `<button class="act answer" data-act="answer" data-kind="answer" ${chk.ok ? '' : 'disabled'} title="${esc(chk.why ?? 'Answer the ringing phone')}"><span class="n">Answer <kbd>A</kbd></span><span class="c"><b>${chk.cost}◉</b> ${esc(s.env.ringing ? `ringing at ${nodeName(c, s.env.ringing)}` : 'no phone ringing')}</span></button>`;
         })()
       : '';
-  const pile = `<div class="pile" title="Your hand holds up to ${HAND_LIMIT} action cards"><span><b>${h.hand.length}</b>/${HAND_LIMIT} cards</span><span><b>${s.discard.length}</b> used this turn</span></div>`;
+  const track = DIFFICULTY[s.difficulty].track;
+  const rose = lastHorrorShown !== null && h.horror > lastHorrorShown;
+  const fell = lastHorrorShown !== null && h.horror < lastHorrorShown;
+  lastHorrorShown = h.horror;
+  const pile = `<div class="status ${rose ? 'up' : fell ? 'down' : ''}" title="Horror ${h.horror}: every Horror Roll uses ${horrorDice(s)} dice before bonuses">
+    <div class="st-h"><span class="st-l">Horror</span><span class="st-v ${h.horror >= 4 ? 'bad' : ''}">${h.horror}<small>/${MAX_HORROR}</small></span></div>
+    <div class="st-m">${track.map((_, i) => `<i class="${i <= h.horror && i > 0 ? 'on' : ''} ${i === h.horror ? 'cur' : ''}"></i>`).join('')}</div>
+    <div class="st-row"><span><b>${horrorDice(s)}</b> dice</span><span class="${h.nerve < 0 ? 'bad' : ''}"><b>${h.nerve}</b> nerve</span></div>
+    <div class="st-row dim"><span>${h.hand.length}/${HAND_LIMIT} cards</span>${s.phase === 'planning' ? `<span>${Math.max(0, DIFFICULTY[s.difficulty].buys - (s.bought ?? 0))} buys left</span>` : `<span>${s.discard.length} used</span>`}</div>
+  </div>`;
   let main = '';
   if (s.pending?.kind === 'move')
     main = `<button class="endturn stop" data-act="stopMove">Stop here <small style="display:block;font-size:10px;opacity:.8">${(s.pending as { left: number }).left} step${(s.pending as { left: number }).left > 1 ? 's' : ''} unused · S</small></button>`;
@@ -938,7 +968,7 @@ function updateBottom() {
     main = `<button class="endturn" data-act="endUpkeep" ${check(c, s, { type: 'endUpkeep' }).ok ? '' : 'disabled'}>Next turn <small style="display:block;font-size:10px;opacity:.7">E</small></button>`;
   else main = `<button class="endturn" disabled>His turn…</button>`;
   document.getElementById('bottombar')!.innerHTML = `
-    <div><div class="actions hand-row">${pile}${cards}${answer}</div></div>
+    <div>${pile}<div class="actions hand-row">${cards}${answer}</div></div>
     <div class="endcol"><div class="endtools"><button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo (Z): not after dice rolls or draws">${glyph('undo')} Undo</button><button class="btn small" data-go="hint" ${s.phase === 'action' || s.phase === 'planning' ? '' : 'disabled'} title="What would a survivor do? (H)">${glyph('bulb')} Hint</button></div>
     ${main}</div>`;
 }
@@ -1025,6 +1055,7 @@ function updateOverlay() {
           : '';
     root.innerHTML = `<div class="overlay"><div class="dicetray live ${r.reaction ? 'react' : ''}">
       <h5>${esc(d.name)} · 5–6 hit · 3–4 partial</h5>
+      ${s.lastRoll?.parts ? `<div class="why">${esc(diceWhy(s.lastRoll.parts))}</div>` : ''}
       <div class="dice">${dice}</div>
       <div class="res">${succ} success${succ === 1 ? '' : 'es'} → <b>${esc(describeEffects(d[band] ?? []))}</b></div>
       ${pickHand}
@@ -1119,7 +1150,7 @@ function updateOverlay() {
     root.innerHTML = `<div class="overlay draft-ov"><div class="draft tableau">
       <div class="kind">Turn ${s.round} · Planning</div>
       <h2>The tableau</h2>
-      <p>Spend leftover nerve (<b>${h.nerve}</b>) on cards; 0-cost cards are free. Hand <b>${h.hand.length}/${HAND_LIMIT}</b>. Cards you used this turn come back after Planning. Then your nerve resets to ${DIFFICULTY[s.difficulty].nerve}.</p>
+      <p><b>${Math.max(0, DIFFICULTY[s.difficulty].buys - (s.bought ?? 0))} of ${DIFFICULTY[s.difficulty].buys}</b> buys left. Spend leftover nerve (<b>${h.nerve}</b>) on cards; 0-cost cards are free but still use a buy. Hand <b>${h.hand.length}/${HAND_LIMIT}</b>. Cards you used this turn come back after Planning. Then your nerve resets to ${DIFFICULTY[s.difficulty].nerve}.</p>
       <div class="draft-row">${piles}</div>
       <div class="row-btns"><button class="btn" data-go="hidePlan">Look at the board</button><button class="btn primary" data-act="endPlanning">Done: his turn <small>(E)</small></button></div>
     </div></div>`;
@@ -1461,7 +1492,7 @@ function showDice(s: GameState) {
   overlayLocked = true;
   const el = document.createElement('div');
   el.className = 'dicetray';
-  el.innerHTML = `<h5>${esc(r.label)} · 5–6 hit · 3–4 partial${r.rerolled ? ' · rerolled' : ''}</h5>
+  el.innerHTML = `<h5>${esc(r.label)} · 5–6 hit · 3–4 partial${r.rerolled ? ' · rerolled' : ''}</h5>${r.parts ? `<div class="why">${esc(diceWhy(r.parts))}</div>` : ''}
     <div class="dice">${r.dice.map((d, i) => `<div class="die ${d >= 5 || r.converted.includes(i) ? 'hit' : d >= 3 ? 'part' : 'miss'}" style="animation-delay:${i * 0.08}s">${pip(d)}</div>`).join('')}</div>
     <div class="res">${r.successes} success${r.successes === 1 ? '' : 'es'}<small>click to continue</small></div>`;
   document.body.appendChild(el);
@@ -1562,7 +1593,7 @@ function showRules() {
   <p><b>Goal: kill the killer.</b> You win if he dies, you lose if you do, and if you both fall in the same moment, you win. There is no dawn: the night ends when one of you does.</p>
   <h3>A turn has five phases</h3>
   <p><b>1 · Action.</b> Play action cards from your hand, paying their nerve cost. You may also discard any card for +1 nerve. If nerve drops below zero, finish that card and your Action phase ends. Items and your ability can be used here too.<br>
-  <b>2 · Planning.</b> Spend leftover nerve buying cards from the face-up <b>tableau</b> (hand limit ${HAND_LIMIT}; 0-cost cards are always free). Cards you played or discarded this turn are locked until Planning ends, then return to their piles. Nerve resets to ${DIFFICULTY.standard.nerve}.<br>
+  <b>2 · Planning.</b> Spend leftover nerve buying up to ${DIFFICULTY[game?.difficulty ?? 'standard'].buys} cards from the face-up <b>tableau</b> (hand limit ${HAND_LIMIT}; 0-cost cards cost no nerve but still use a buy). Cards you played or discarded this turn are locked until Planning ends, then return to their piles. Nerve resets to ${DIFFICULTY.standard.nerve}.<br>
   <b>3 · Killer.</b> He follows his <b>behavior</b> (pick a target, move, attack), then a <b>Terror</b> card is drawn.<br>
   <b>4 · Panic.</b> If anyone died this turn, survivors in his location roll a die and run along that location's panic table.<br>
   <b>5 · Upkeep.</b> The location's rule and ongoing Events resolve, and you may rearrange your items.</p>
@@ -1575,7 +1606,7 @@ function showRules() {
   <h3>Survivors</h3>
   <p>When you leave a location, up to 2 survivors there come with you, but they won't walk into his location. Anywhere you stand on an <b>exit</b> during your Action phase, survivors with you are rescued. Each rescue fills a <b>rescue slot</b> and pays its reward; fill them all to unlock your heroine's ability. When he attacks, survivors in his location are attacked <b>before you</b>.</p>
   <h3>Attacking, damage, and final health</h3>
-  <p>Attack cards need him in your location, unless a weapon in hand reaches farther. If an attack deals at least 1, your best reaching weapon and each lore item you've found add damage. Both of you have a hidden <b>final-health token</b>: when health runs out it's revealed. A number means getting back up with that much health, and the current phase ends at once. A blank means death.</p>
+  <p>Attack cards need him in your location, unless a weapon in hand reaches farther. If a <b>heavy</b> attack (Full Swing, Desperate Strike) deals at least 1, your best reaching weapon, each lore item you've found, and focus add damage. <b>Light</b> attacks (Shove, Swing) are flat. Both of you have a hidden <b>final-health token</b>: when health runs out it's revealed. A number means getting back up with that much health, and the current phase ends at once. A blank means death.</p>
   <h3>Named survivors and minions</h3>
   <p>Some survivors have names. They follow all the survivor rules except one printed exception (hover them on the map), come along before the crowd, and pay an extra reward when rescued, or cost you when they die. Some killers also bring <b>minions</b> with their own health, move and attack. If he and his minions are both in reach, an attack hits one or the other: him (weapon and lore add damage) or the minions (weapon adds damage, split between them, leftovers lost). Survivors will follow you into a room with minions, never into his.</p>
   <h3>Reactions</h3>
