@@ -1,54 +1,88 @@
-import { nextRand, pick, rollD6, shuffle } from './rng';
+import { pick, rollD6, shuffle } from './rng';
 import type {
   Action,
-  Difficulty,
+  ActionCardDef,
   Condition,
   Content,
+  Difficulty,
   DiceRoll,
   Effect,
-  GameState,
-  ItemDef,
-  InstinctDef,
   EventDef,
-  ActionCardDef,
+  GameState,
+  HeldItem,
+  ItemDef,
   LogEntry,
+  ModKey,
   NodeId,
   NodeTag,
+  TieBreak,
 } from './types';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// LAST LIGHT v1.0 rules engine.
+// Turn = Action → Planning → Killer → Panic → Upkeep. Every effect runs through
+// one ordered queue; a player decision (move route, dice conversion, search
+// pick, reaction) pauses the queue as `pending` until the player answers.
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ── Tunables ────────────────────────────────────────────────────────────────
-export const COST = { move: 1, flee: 2, search: 1, lead: 1, fight: 2, hide: 1, barricade: 2, rest: 2 };
-export const BASE_DICE = { search: 2, fight: 3, hide: 2, rest: 2 };
-export const HAND_SLOTS = 3; // items in hand; the backpack is unlimited
-export const READY_COST = 1; // nerve to take an item out of the backpack
-export const MAX_HAND = 4;
+export const HAND_LIMIT = 10;
+export const HAND_SLOTS = 2;
 export const MAX_HORROR = 6;
-export const DEFAULT_ESCORT = 3;
+export const DEFAULT_ESCORT = 2;
 export const VICTIM_POOL = 12;
-export const DAWN_ROUND = 14;
-export const ACTION_HAND = 5; // hand cap for drafting
-export const LINEUP_SIZE = 6;
-export const PICKS = 3;
-export const PANIC_AT = 4;
+export const TERROR_DEAL = 10;
+export const PILE_SIZE = 4;
+export const CONVERT_COST = 2; // cards discarded to turn a partial into a success
 
-export interface Tier {
-  name: string;
-  nerve: number; // nerve each round (resets; unspent nerve is lost)
-  threshold: number;
+export interface DifficultyDef {
+  label: string;
+  text: string;
+  nerve: number; // Nerve each Planning phase resets to
+  track: number[]; // Horror Level 0..6 → dice in a Horror Roll
+  heroineTokens: number[]; // her hidden final-health token is drawn from these (0 = blank)
+  killerTokens: number[];
+  killerHp: number;
+  attack: number;
 }
 
-export function horrorTier(h: number): Tier {
-  if (h <= 1) return { name: 'Steady', nerve: 5, threshold: 4 };
-  if (h <= 3) return { name: 'Uneasy', nerve: 4, threshold: 4 };
-  if (h <= 5) return { name: 'Terrified', nerve: 4, threshold: 5 };
-  return { name: 'Breaking', nerve: 3, threshold: 5 };
-}
+export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
+  story: {
+    label: 'Matinee',
+    text: '7 nerve a turn, a gentler Horror track, a better final-health token for her and a worse one for him.',
+    nerve: 7,
+    track: [5, 5, 4, 4, 3, 3, 2],
+    heroineTokens: [1, 2, 3],
+    killerTokens: [0, 0, 2, 3],
+    killerHp: -2,
+    attack: 0,
+  },
+  standard: {
+    label: 'Midnight Show',
+    text: 'The intended experience. 6 nerve a turn.',
+    nerve: 6,
+    track: [4, 4, 4, 3, 3, 2, 2],
+    heroineTokens: [0, 1, 2, 3],
+    killerTokens: [0, 2, 3, 4],
+    killerHp: 0,
+    attack: 0,
+  },
+  nightmare: {
+    label: 'Nightmare',
+    text: '5 nerve a turn, a harsh Horror track, and he is very hard to keep down.',
+    nerve: 5,
+    track: [4, 4, 3, 3, 2, 2, 1],
+    heroineTokens: [0, 1, 1, 2],
+    killerTokens: [2, 2, 3, 4],
+    killerHp: 1,
+    attack: 0,
+  },
+};
 
-export function actionDef(c: Content, id: string): ActionCardDef {
-  const d = c.actions.find((a) => a.id === id);
-  if (!d) throw new Error(`Unknown action card ${id}`);
-  return d;
-}
+export const TIEBREAK: Record<TieBreak, { label: string; text: string }> = {
+  adverse: { label: 'Player-adverse', text: 'When the rules leave a genuine tie, he picks whatever is worst for you.' },
+  random: { label: 'Unpredictable', text: 'Genuine ties are settled by a seeded coin flip (still replayable).' },
+};
 
 // ── Lookups ─────────────────────────────────────────────────────────────────
 export function allItems(c: Content): ItemDef[] {
@@ -59,26 +93,47 @@ export function itemDef(c: Content, id: string): ItemDef {
   if (!d) throw new Error(`Unknown item ${id}`);
   return d;
 }
-export function allInstincts(c: Content): InstinctDef[] {
-  return [...c.instincts, c.heroine.signature];
-}
-export function instinctDef(c: Content, id: string): InstinctDef {
-  const d = allInstincts(c).find((i) => i.id === id);
-  if (!d) throw new Error(`Unknown instinct ${id}`);
+export function actionDef(c: Content, id: string): ActionCardDef {
+  const d = c.actions.find((a) => a.id === id);
+  if (!d) throw new Error(`Unknown action card ${id}`);
   return d;
 }
-export function allEvents(c: Content): EventDef[] {
-  return [...c.location.events, ...c.killer.events];
+export function allTerror(c: Content): EventDef[] {
+  return [...c.location.terror, ...c.killer.terror];
+}
+export function terrorDef(c: Content, id: string): EventDef {
+  const d = allTerror(c).find((e) => e.id === id);
+  if (!d) throw new Error(`Unknown terror card ${id}`);
+  return d;
 }
 export function eventDef(c: Content, id: string): EventDef {
-  const d = [...allEvents(c), ...c.killer.terror].find((e) => e.id === id);
+  const d = c.location.events.find((e) => e.id === id);
   if (!d) throw new Error(`Unknown event ${id}`);
   return d;
 }
 export function nodeName(c: Content, id: NodeId): string {
   return c.location.nodes.find((n) => n.id === id)?.name ?? id;
 }
+export function nodeDef(c: Content, id: NodeId) {
+  return c.location.nodes.find((n) => n.id === id)!;
+}
+export function hasTag(c: Content, node: NodeId, tag: NodeTag) {
+  return !!nodeDef(c, node)?.tags?.includes(tag);
+}
+export function isExit(c: Content, node: NodeId) {
+  return !!nodeDef(c, node)?.exit;
+}
+export function exits(c: Content): NodeId[] {
+  return c.location.nodes.filter((n) => n.exit).map((n) => n.id);
+}
+export function isSearch(c: Content, node: NodeId) {
+  return !!nodeDef(c, node)?.search;
+}
+export function isFlooded(c: Content, s: GameState, node: NodeId) {
+  return c.location.rule.kind === 'tide' && s.env.tideHigh && hasTag(c, node, 'shore');
+}
 
+// ── Graph ───────────────────────────────────────────────────────────────────
 export function neighbors(c: Content, id: NodeId): NodeId[] {
   const out: NodeId[] = [];
   for (const [a, b] of c.location.edges) {
@@ -104,12 +159,13 @@ export function distances(c: Content, from: NodeId): Record<NodeId, number> {
   return d;
 }
 
-/** Next step on a shortest path from → to. */
-export function stepToward(c: Content, from: NodeId, to: NodeId): NodeId {
-  if (from === to) return from;
-  const d = distances(c, to);
-  const opts = neighbors(c, from).filter((n) => d[n] !== undefined && d[n] < d[from]);
-  return opts.sort()[0] ?? from;
+/** Panic table for a location: die face 1–6 → neighbor (null = the survivor freezes). */
+export function panicTable(c: Content, node: NodeId): (NodeId | null)[] {
+  const def = nodeDef(c, node);
+  if (def.panic) return def.panic;
+  const nb = neighbors(c, node).sort();
+  if (!nb.length) return [null, null, null, null, null, null];
+  return [null, ...Array.from({ length: 5 }, (_, i) => nb[i % nb.length])];
 }
 
 // ── Setup ───────────────────────────────────────────────────────────────────
@@ -117,99 +173,110 @@ function expand<T extends { id: string; copies?: number }>(defs: T[]): string[] 
   return defs.flatMap((d) => Array(d.copies ?? 1).fill(d.id));
 }
 
-export const DIFFICULTY: Record<Difficulty, { label: string; text: string; killerHp: number; attack: number; dawn: number }> = {
-  story: { label: 'Matinee', text: 'Killer −3 health, dawn comes a round earlier.', killerHp: -3, attack: 0, dawn: -1 },
-  standard: { label: 'Midnight Show', text: 'The intended experience.', killerHp: 0, attack: 0, dawn: 0 },
-  nightmare: { label: 'Nightmare', text: 'Killer +3 health and +1 attack die.', killerHp: 3, attack: 1, dawn: 0 },
-};
-
-export function newGame(c: Content, seed: number, difficulty: Difficulty = 'standard'): GameState {
+export function newGame(c: Content, seed: number, difficulty: Difficulty = 'standard', tiebreak: TieBreak = 'adverse'): GameState {
   const dm = DIFFICULTY[difficulty];
+  const kHp = c.killer.health + dm.killerHp - 1;
   const s: GameState = {
-    version: 1,
+    version: 2,
     seed,
     rng: seed >>> 0,
     uid: 1,
     packs: { location: c.location.id, killer: c.killer.id, heroine: c.heroine.id },
     difficulty,
+    tiebreak,
     round: 1,
-    dawnAt: DAWN_ROUND + dm.dawn,
-    phase: 'event',
+    phase: 'action',
     heroine: {
-      loc: c.location.heroineStart,
-      health: c.heroine.health,
-      maxHealth: c.heroine.health,
-      horror: 0,
-      nerve: 0,
+      loc: c.location.setups[0].heroine,
+      health: c.heroine.health - 1,
+      maxHealth: c.heroine.health - 1,
+      token: 0,
+      horror: c.killer.horror,
+      nerve: dm.nerve,
+      hand: [],
       items: [],
       pack: [],
-      hand: [],
-      escorting: 0,
       hidden: false,
-      movedThisRound: 0,
-      horrorTakenThisRound: 0,
-      freeMoves: 0,
-      spentThisRound: 0,
+      rescued: 0,
+      resolve: 0,
+      abilityUsed: false,
+      movesThisTurn: 0,
+      horrorTakenThisTurn: 0,
+      broke: false,
+      bring: c.heroine.traits.escortCap ?? DEFAULT_ESCORT,
     },
     killer: {
       loc: c.location.lair,
-      health: c.killer.health + dm.killerHp,
-      maxHealth: c.killer.health + dm.killerHp,
-      armor: c.killer.armor,
+      health: kHp,
+      maxHealth: kHp,
+      token: 0,
       bloodlust: 0,
       stunned: 0,
       finale: false,
-      frenzy: false,
-      risen: false,
-      finalePhase: -1,
+      power: 'hidden',
+      powerHealth: 0,
       attackBonus: dm.attack,
     },
     victims: Object.fromEntries(c.location.nodes.map((n) => [n.id, 0])),
-    searches: Object.fromEntries(c.location.nodes.map((n) => [n.id, n.searches])),
     barricades: Object.fromEntries(c.location.nodes.map((n) => [n.id, 0])),
     saved: 0,
     slain: 0,
+    slainThisTurn: 0,
     victimPool: VICTIM_POOL,
     mods: {},
-    eventDeck: [],
-    eventDiscard: [],
-    itemDeck: [],
-    instinctDeck: [],
-    instinctDiscard: [],
+    tableau: {},
+    discard: [],
     terrorDeck: [],
+    terrorDiscard: [],
+    eventDeck: [],
+    events: [],
+    piles: {},
+    spare: [],
+    queue: [],
+    rearrange: false,
     env: { tideHigh: false, dark: false, cold: 0 },
-    actionDeck: [],
-    actionDiscard: [],
-    actionHand: [],
-    lineup: [],
-    picksLeft: 0,
-    panic: {},
     foundLore: [],
     log: [],
     fx: [],
   };
-  s.eventDeck = shuffle(s, expand(allEvents(c)));
-  s.itemDeck = shuffle(s, expand(allItems(c)));
-  s.instinctDeck = shuffle(s, expand(allInstincts(c)));
-  s.terrorDeck = shuffle(s, expand(c.killer.terror));
-  s.actionDeck = shuffle(s, expand(c.actions.filter((a) => !a.junk)));
-  // Starter kit: two Walk cards in hand so the first round is never stranded.
-  for (let i = 0; i < 2; i++) {
-    const j = s.actionDeck.indexOf('ac-walk');
-    if (j >= 0) s.actionDeck.splice(j, 1);
-    s.actionHand.push({ uid: s.uid++, id: 'ac-walk' });
+  // Setup card, hidden final-health tokens.
+  const setup = pick(s, c.location.setups);
+  s.heroine.loc = setup.heroine;
+  s.killer.loc = setup.killer;
+  s.heroine.token = pick(s, dm.heroineTokens);
+  s.killer.token = pick(s, dm.killerTokens);
+  // Action cards: starters in hand, everything else in the tableau.
+  for (const a of c.actions) {
+    s.tableau[a.id] = a.copies;
+    if (a.starter) {
+      s.tableau[a.id]--;
+      s.heroine.hand.push({ uid: s.uid++, id: a.id });
+    }
   }
-  for (const at of c.location.setupVictims) placeVictims(c, s, at, 1);
-  drawInstinct(s, 2);
-  log(s, `The feature begins. ${c.heroine.name} arrives at ${nodeName(c, s.heroine.loc)}.`, 'info');
-  startRound(c, s);
+  // Terror deck: 10 of the killer + location cards.
+  s.terrorDeck = shuffle(s, expand(allTerror(c))).slice(0, TERROR_DEAL);
+  // Item piles: one per search location, lore always included.
+  const searchNodes = c.location.nodes.filter((n) => n.search).map((n) => n.id);
+  const lore = expand(c.killer.items);
+  const pool = shuffle(s, expand(c.location.items));
+  const dealt = shuffle(s, [...pool.slice(0, Math.max(0, searchNodes.length * PILE_SIZE - lore.length)), ...lore]);
+  s.spare = pool.slice(Math.max(0, searchNodes.length * PILE_SIZE - lore.length));
+  searchNodes.forEach((n, i) => (s.piles[n] = { cards: dealt.filter((_, j) => j % searchNodes.length === i), up: true }));
+  for (const at of setup.npcs) placeVictims(c, s, at, 1);
+  ruleSetup(c, s);
+  log(s, `The feature begins. ${c.heroine.name} is at ${nodeName(c, s.heroine.loc)}. ${c.killer.name} waits at ${nodeName(c, s.killer.loc)}.`, 'info');
+  // Reveal one ongoing Event.
+  s.eventDeck = shuffle(s, expand(c.location.events));
+  revealEvent(c, s);
+  drain(c, s);
+  s.fx = [];
   return s;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function log(s: GameState, text: string, tone?: LogEntry['tone']) {
   s.log.push({ round: s.round, text, tone });
-  if (s.log.length > 200) s.log.splice(0, s.log.length - 200);
+  if (s.log.length > 240) s.log.splice(0, s.log.length - 240);
 }
 
 function placeVictims(c: Content, s: GameState, at: NodeId, n: number): number {
@@ -217,260 +284,470 @@ function placeVictims(c: Content, s: GameState, at: NodeId, n: number): number {
   if (k <= 0) return 0;
   s.victimPool -= k;
   s.victims[at] = (s.victims[at] ?? 0) + k;
-  log(s, `${k === 1 ? 'A survivor' : `${k} survivors`} stumble into ${nodeName(c, at)}.`, 'info');
+  log(s, `${k === 1 ? 'A survivor stumbles' : `${k} survivors stumble`} into ${nodeName(c, at)}.`, 'info');
   return k;
 }
 
-function drawInstinct(s: GameState, n: number) {
-  for (let i = 0; i < n && s.heroine.hand.length < MAX_HAND; i++) {
-    if (!s.instinctDeck.length) {
-      s.instinctDeck = shuffle(s, s.instinctDiscard);
-      s.instinctDiscard = [];
-    }
-    const id = s.instinctDeck.pop();
-    if (!id) return;
-    s.heroine.hand.push({ uid: s.uid++, id });
-  }
+export function mod(c: Content, s: GameState, key: ModKey): number {
+  let n = s.mods[key] ?? 0;
+  for (const id of s.events) n += eventDef(c, id).ongoing?.[key] ?? 0;
+  return n;
 }
 
-// ── Action deck ─────────────────────────────────────────────────────────────
-/** Deal a fresh face-up lineup; last round's leftovers go to the discard. */
-export function dealLineup(c: Content, s: GameState) {
-  for (const x of s.lineup) s.actionDiscard.push(x.id);
-  s.lineup = [];
-  const draw = () => {
-    if (!s.actionDeck.length) {
-      if (!s.actionDiscard.length) return undefined;
-      s.actionDeck = shuffle(s, s.actionDiscard);
-      s.actionDiscard = [];
-    }
-    return s.actionDeck.pop();
-  };
-  while (s.lineup.length < LINEUP_SIZE) {
-    const id = draw();
-    if (!id) break;
-    s.lineup.push({ uid: s.uid++, id });
-  }
-  // Never a dead lineup: guarantee at least one Lead and one way to deal with him.
-  const has = (base: string) => s.lineup.some((x) => actionDef(c, x.id).base === base) || s.actionHand.some((x) => actionDef(c, x.id).base === base);
-  for (const [need, alt] of [['move', 'move'], ['lead', 'lead'], ['hide', 'fight']] as const) {
-    if (has(need) || has(alt) || !s.lineup.length) continue;
-    const i = s.actionDeck.findIndex((id) => actionDef(c, id).base === need);
-    if (i < 0) continue;
-    const [id] = s.actionDeck.splice(i, 1);
-    const out = s.lineup.pop()!;
-    s.actionDeck.unshift(out.id);
-    s.lineup.push({ uid: s.uid++, id });
-  }
-  s.picksLeft = PICKS;
+function pushFront(s: GameState, effs: Effect[]) {
+  if (effs.length) s.queue.unshift(...effs);
 }
 
-/** Junk goes straight into the hand, taking up a slot. */
-function addJunk(s: GameState, id: string) {
-  s.actionHand.push({ uid: s.uid++, id });
+export function canAct(s: GameState) {
+  return s.phase === 'action' && !s.outcome && !s.pending;
 }
 
-function removeJunk(s: GameState, id: string): boolean {
-  const hi = s.actionHand.findIndex((x) => x.id === id);
-  if (hi < 0) return false;
-  s.actionHand.splice(hi, 1);
-  return true;
+export function escortCap(c: Content) {
+  return c.heroine.traits.escortCap ?? DEFAULT_ESCORT;
 }
 
-export function junkCount(s: GameState, id: string) {
-  return s.actionHand.filter((x) => x.id === id).length;
+export function abilityUnlocked(c: Content, s: GameState) {
+  return s.heroine.rescued >= c.heroine.rescue.slots.length;
 }
 
-/** Free hand slots. Bleeding and Panic cards take up slots too. */
-export function handRoom(s: GameState) {
-  return ACTION_HAND - s.actionHand.length;
+// ── Items & inventory ───────────────────────────────────────────────────────
+export function handsUsed(c: Content, items: HeldItem[]) {
+  return items.reduce((n, i) => n + itemDef(c, i.id).hands, 0);
+}
+
+/** Items that work right now: anything in hand, plus anything that needs no hands. */
+export function activeItems(c: Content, s: GameState): HeldItem[] {
+  return [...s.heroine.items, ...s.heroine.pack.filter((i) => itemDef(c, i.id).hands === 0)];
 }
 
 function gainItem(c: Content, s: GameState, id: string) {
   const d = itemDef(c, id);
-  const it = { uid: s.uid++, id, usesLeft: d.uses };
-  if (d.kind === 'lore') s.heroine.pack.push(it); // lore works the moment it's found
-  else if (s.heroine.items.length < HAND_SLOTS) s.heroine.items.push(it);
-  else {
-    s.heroine.pack.push(it);
-    s.pendingFind = it.uid;
-  }
+  const it: HeldItem = { uid: s.uid++, id, usesLeft: d.uses };
+  if (d.hands > 0 && handsUsed(c, s.heroine.items) + d.hands <= HAND_SLOTS) s.heroine.items.push(it);
+  else s.heroine.pack.push(it);
+  s.rearrange = true; // gaining an item is one of the two moments she may rearrange
   log(s, `Found: ${d.name}.`, 'good');
   s.fx.push({ t: 'item' });
   if (d.lore && !s.foundLore.includes(d.id)) s.foundLore.push(d.id);
-  if (d.onGain) applyEffects(c, s, d.onGain);
+  if (d.onGain) pushFront(s, d.onGain);
 }
 
-export function canAct(s: GameState) {
-  return s.phase === 'action' && !s.outcome;
+function spendUse(c: Content, s: GameState, it: HeldItem) {
+  if (it.usesLeft === undefined) return;
+  it.usesLeft--;
+  if (it.usesLeft <= 0) {
+    s.heroine.items = s.heroine.items.filter((x) => x.uid !== it.uid);
+    s.heroine.pack = s.heroine.pack.filter((x) => x.uid !== it.uid);
+    log(s, `${itemDef(c, it.id).name} is used up.`);
+  }
 }
 
-export function rollDice(s: GameState, label: string, n: number, threshold: number): DiceRoll {
-  n = Math.max(1, n);
+/** Best weapon in hand that reaches `range`. */
+export function bestWeapon(c: Content, s: GameState, range: number): HeldItem | undefined {
+  return s.heroine.items
+    .filter((i) => {
+      const d = itemDef(c, i.id);
+      return d.damage && (d.range ?? [0]).includes(range) && (i.usesLeft === undefined || i.usesLeft > 0);
+    })
+    .sort((a, b) => (itemDef(c, b.id).damage ?? 0) - (itemDef(c, a.id).damage ?? 0))[0];
+}
+
+export function loreBonus(c: Content, s: GameState) {
+  return c.killer.items.filter((i) => s.foundLore.includes(i.id)).length;
+}
+
+// ── Horror Rolls ────────────────────────────────────────────────────────────
+export function horrorDice(s: GameState): number {
+  const track = DIFFICULTY[s.difficulty].track;
+  return track[Math.max(0, Math.min(track.length - 1, s.heroine.horror))];
+}
+
+export function rollPool(c: Content, s: GameState, d: ActionCardDef): number {
+  const h = s.heroine;
+  const t = c.heroine.traits;
+  let n = horrorDice(s) + (d.dice ?? 0) + mod(c, s, 'rollDice');
+  if (d.tags.includes('search')) {
+    const tool = Math.max(0, ...s.heroine.items.map((i) => itemDef(c, i.id).searchDice ?? 0));
+    n += (t.searchDice ?? 0) + tool + mod(c, s, 'searchDice') + (s.env.dark ? -1 : 0);
+  }
+  if (d.tags.includes('attack')) n += (t.attackDice ?? 0) + h.resolve + mod(c, s, 'attackDice');
+  if (d.tags.includes('hide')) n += (t.hideDice ?? 0) + mod(c, s, 'hideDice') + (s.env.dark ? 1 : 0);
+  if (d.kind === 'reaction') n += t.reactDice ?? 0;
+  if (d.tags.includes('move')) n += t.moveDice ?? 0;
+  return Math.max(1, n);
+}
+
+function summarize(s: GameState, label: string, dice: number[], converted: number[], rerolled: boolean): DiceRoll {
+  const successes = dice.filter((d) => d >= 5).length + converted.length;
+  const partials = dice.filter((d, i) => d >= 3 && d <= 4 && !converted.includes(i)).length;
+  const band = successes >= 2 ? 'great' : successes === 1 ? 'good' : 'fail';
+  return { id: s.uid++, label, dice, converted, successes, partials, band, rerolled };
+}
+
+export function canConvert(s: GameState): boolean {
+  const r = s.rolling;
+  if (!r) return false;
+  const any = r.dice.some((d, i) => d >= 3 && d <= 4 && !r.converted.includes(i));
+  return any && s.heroine.hand.length >= CONVERT_COST;
+}
+
+function startRoll(c: Content, s: GameState, cardUid: number, d: ActionCardDef, reaction: boolean) {
+  const n = rollPool(c, s, d);
   let dice = Array.from({ length: n }, () => rollD6(s));
   let rerolled = false;
   if ((s.mods.rerollNext ?? 0) > 0) {
     s.mods.rerollNext = (s.mods.rerollNext ?? 1) - 1;
-    dice = dice.map((d) => (d >= threshold ? d : rollD6(s)));
+    dice = dice.map((x) => (x >= 5 ? x : rollD6(s)));
     rerolled = true;
   }
-  const successes = dice.filter((d) => d >= threshold).length;
-  const roll = { id: s.uid++, label, dice, threshold, successes, rerolled };
-  s.lastRoll = roll;
+  const range = s.heroine.loc === s.killer.loc ? 0 : (distances(c, s.heroine.loc)[s.killer.loc] ?? 99);
+  s.rolling = { uid: cardUid, dice, converted: [], card: d.id, reaction, range };
+  s.lastRoll = summarize(s, d.name, dice, [], rerolled);
   s.fx.push({ t: 'dice' });
-  return roll;
+  if (canConvert(s)) s.pending = { kind: 'roll', card: d.id, reaction };
+  else finishRoll(c, s);
 }
 
+function finishRoll(c: Content, s: GameState) {
+  const r = s.rolling!;
+  const d = actionDef(c, r.card);
+  const roll = summarize(s, d.name, r.dice, r.converted, !!s.lastRoll?.rerolled);
+  s.lastRoll = roll;
+  s.pending = undefined;
+  const effs = d[roll.band] ?? [];
+  log(s, `${d.name}: ${roll.successes} success${roll.successes === 1 ? '' : 'es'}${r.converted.length ? ` (${r.converted.length} bought with cards)` : ''}.`, roll.band === 'fail' ? 'bad' : 'info');
+  pushFront(s, [...effs, ...(r.reaction ? [{ op: '_reactDone' } as Effect] : [])]);
+  // Keep the range for damage resolution until the card's effects are done.
+}
+
+// ── Horror, health, damage ──────────────────────────────────────────────────
 export function addHorror(c: Content, s: GameState, n: number) {
   const h = s.heroine;
-  if (n > 0 && c.heroine.traits.ignoreFirstHorror && h.horrorTakenThisRound === 0) {
-    h.horrorTakenThisRound++;
+  if (n > 0 && c.heroine.traits.ignoreFirstHorror && h.horrorTakenThisTurn === 0 && s.phase === 'hunter') {
+    h.horrorTakenThisTurn++;
     n -= 1;
-    log(s, `${c.heroine.name} steadies herself — she's seen this movie before.`, 'good');
+    log(s, `${c.heroine.name} steadies herself. She's seen this movie before.`, 'good');
     if (n <= 0) return;
   }
-  if (n > 0) h.horrorTakenThisRound++;
+  if (n > 0 && s.phase === 'hunter') h.horrorTakenThisTurn++;
   const before = h.horror;
   const raw = h.horror + n;
   h.horror = Math.max(0, Math.min(MAX_HORROR, raw));
   if (h.horror !== before) s.fx.push({ t: 'horror', n: h.horror - before });
-  // Fear seeps into her hand: Panic cards at horror 5 and 6, gone again once calm (≤2).
-  for (const mark of [5, 6]) if (before < mark && h.horror >= mark) {
-    addJunk(s, 'junk-panic');
-    log(s, 'Panic sets in. (A Panic card joins her deck.)', 'bad');
-  }
-  if (h.horror <= 2 && before > 2) while (removeJunk(s, 'junk-panic')) log(s, 'The panic fades.', 'good');
   if (raw > MAX_HORROR) {
-    log(s, 'Terror overwhelms her body.', 'bad');
-    wound(c, s, raw - MAX_HORROR);
+    log(s, 'Her terror spills over, and he feeds on it. (Bloodlust +1.)', 'killer');
+    addBloodlust(c, s, raw - MAX_HORROR);
+  } else if (raw < 0) {
+    log(s, 'Perfectly calm. (+1 nerve.)', 'good');
+    h.nerve += -raw;
   }
 }
 
-export function wound(c: Content, s: GameState, n: number) {
+function hurtHeroine(c: Content, s: GameState, n: number) {
+  const h = s.heroine;
   if (n <= 0) return;
-  s.heroine.health -= n;
+  h.health -= n;
   s.fx.push({ t: 'wound', n });
-  addJunk(s, 'junk-wound'); // one Bleeding card per hit, however hard
-  if (s.heroine.health <= 0) {
-    s.heroine.health = 0;
-    endGame(c, s, 'died');
+  if (h.health > 0) return;
+  const over = -h.health;
+  h.health = 0;
+  if (h.token === null) {
+    s.down = { ...s.down, heroine: true };
+    return;
   }
+  if (over <= 0) {
+    log(s, 'She is down to her last ounce of strength.', 'bad');
+    return;
+  }
+  const t = h.token;
+  h.token = null;
+  if (t <= 0) {
+    log(s, 'Her final-health token is blank.', 'bad');
+    s.down = { ...s.down, heroine: true };
+    return;
+  }
+  h.health = Math.min(h.maxHealth, t);
+  log(s, `She should be dead. She gets up anyway. (Final health: ${t}.) The phase ends.`, 'good');
+  s.fx.push({ t: 'revive', who: 'heroine', n: t });
+  endCurrentPhase(c, s);
+}
+
+function hurtKiller(c: Content, s: GameState, n: number) {
+  const k = s.killer;
+  if (n <= 0) return;
+  if (k.power === 'active' && k.powerHealth > 0) {
+    const a = Math.min(n, k.powerHealth);
+    k.powerHealth -= a;
+    n -= a;
+    log(s, `${c.killer.power.name} absorbs ${a}.`, 'info');
+    if (k.powerHealth <= 0) {
+      k.power = 'spent';
+      log(s, `${c.killer.power.name} is broken. He loses that power.`, 'good');
+    }
+    s.fx.push({ t: 'hit', n: a });
+    if (n <= 0) return;
+  }
+  k.health -= n;
+  s.fx.push({ t: 'hit', n });
+  log(s, `${c.killer.name} takes ${n} damage.`, 'good');
+  if (k.health > 0) return;
+  const over = -k.health;
+  k.health = 0;
+  if (k.token === null) {
+    s.down = { ...s.down, killer: true };
+    return;
+  }
+  if (over <= 0) {
+    log(s, `${c.killer.name} staggers. One more hit.`, 'good');
+    return;
+  }
+  const t = k.token;
+  k.token = null;
+  if (t <= 0) {
+    s.down = { ...s.down, killer: true };
+    return;
+  }
+  k.health = t;
+  k.maxHealth = Math.max(k.maxHealth, t);
+  log(s, `${c.killer.revive.name.toUpperCase()}: ${c.killer.revive.text} (Final health: ${t}.) The phase ends.`, 'killer');
+  s.fx.push({ t: 'revive', who: 'killer', n: t });
+  endCurrentPhase(c, s);
+  pushFront(s, c.killer.revive.effects);
+}
+
+/** Her attack: a weapon that reaches, lore and focus add to it, but only if it deals at least 1. */
+function heroineAttack(c: Content, s: GameState, base: number) {
+  if (base <= 0) {
+    log(s, 'No damage.', 'bad');
+    return;
+  }
+  const range = s.rolling?.range ?? (s.heroine.loc === s.killer.loc ? 0 : 99);
+  if (range > 0 && !bestWeapon(c, s, range)) {
+    log(s, 'Out of reach.', 'bad');
+    return;
+  }
+  let dmg = base;
+  const w = bestWeapon(c, s, range);
+  if (w) {
+    dmg += itemDef(c, w.id).damage ?? 0;
+    spendUse(c, s, w);
+  }
+  dmg += loreBonus(c, s) + (s.mods.damage ?? 0);
+  s.mods.damage = 0;
+  hurtKiller(c, s, dmg);
+}
+
+const SEQUENCING = new Set<Effect['op']>(['_strike', '_reactDone', '_clearMods', '_terror', '_phase', '_behavior', '_finaleCheck', '_rule', 'target', 'hunt', 'attack', 'move', 'search']);
+
+function settle(c: Content, s: GameState) {
+  if (!s.down || s.outcome) return;
+  if (s.down.heroine && !s.down.killer) {
+    // She is down, but the rest of the card or effect she is in still resolves:
+    // if it takes him down too, both fell in the same resolution and she wins.
+    s.pending = undefined;
+    let guard = 0;
+    while (s.queue.length && !SEQUENCING.has(s.queue[0].op) && !s.down.killer && guard++ < 50) exec(c, s, s.queue.shift()!);
+  }
+  endGame(c, s, s.down.killer ? 'slain' : 'died');
 }
 
 function endGame(c: Content, s: GameState, o: GameState['outcome']) {
   if (s.outcome) return;
   s.outcome = o;
   s.phase = 'over';
+  s.pending = undefined;
+  s.queue = [];
   if (o === 'died') {
     log(s, `${c.heroine.name} has fallen. The credits roll in silence.`, 'bad');
     s.fx.push({ t: 'lose' });
-  } else if (o === 'slain') {
+  } else {
     log(s, `${c.killer.name} is finished. The reel runs out.`, 'good');
     s.fx.push({ t: 'win' });
-  } else {
-    log(s, `Dawn breaks over ${c.location.name}. ${c.killer.name} is gone, and he will kill again.`, 'bad');
-    s.fx.push({ t: 'lose' });
   }
 }
 
-export function killerAttackDice(c: Content, s: GameState) {
-  return (s.killer.finale ? c.killer.finale.attackDice : c.killer.attackDice) + s.killer.attackBonus + (s.mods.killerAttackDice ?? 0);
+// ── Killer stats ────────────────────────────────────────────────────────────
+export function bloodlustLevel(c: Content, s: GameState) {
+  const lv = c.killer.bloodlust.levels;
+  return lv[Math.max(0, Math.min(lv.length - 1, s.killer.bloodlust))];
 }
-export function killerSpeed(c: Content, s: GameState) {
-  return c.killer.speed + (s.killer.frenzy ? 1 : 0) + (s.killer.finale ? 1 : 0) + (s.env.dark ? 1 : 0);
+export function killerAttack(c: Content, s: GameState) {
+  const k = s.killer;
+  return Math.max(
+    0,
+    bloodlustLevel(c, s).attack +
+      (k.finale ? c.killer.finale.attack ?? 0 : 0) +
+      (k.power === 'active' ? c.killer.power.attack ?? 0 : 0) +
+      mod(c, s, 'killerAttack') +
+      k.attackBonus,
+  );
+}
+export function killerMoveValue(c: Content, s: GameState) {
+  const k = s.killer;
+  return Math.max(
+    0,
+    bloodlustLevel(c, s).move +
+      (k.finale ? c.killer.finale.move ?? 0 : 0) +
+      (k.power === 'active' ? c.killer.power.move ?? 0 : 0) +
+      mod(c, s, 'killerMove') +
+      (s.env.dark ? 1 : 0),
+  );
 }
 
 function addBloodlust(c: Content, s: GameState, n: number) {
   const k = s.killer;
-  const before = k.bloodlust;
-  k.bloodlust = Math.max(0, Math.min(c.killer.bloodlustMax, k.bloodlust + n));
-  const every = c.killer.terrorEvery;
-  if (every > 0) {
-    const crossed = Math.floor(k.bloodlust / every) - Math.floor(before / every);
-    for (let i = 0; i < crossed && !s.outcome; i++) drawTerror(c, s);
+  const tr = c.killer.bloodlust;
+  const effs: Effect[] = [];
+  if (n < 0) {
+    k.bloodlust = Math.max(0, k.bloodlust + n);
+    return;
   }
-  if (!k.frenzy && k.bloodlust >= c.killer.frenzyAt) {
-    k.frenzy = true;
-    log(s, `${c.killer.name} enters a FRENZY. He moves faster now.`, 'killer');
-  }
-  if (!k.finale && k.bloodlust >= c.killer.finaleAt) triggerFinale(c, s, 'bloodlust');
-}
-
-function drawTerror(c: Content, s: GameState) {
-  const id = s.terrorDeck.pop();
-  if (!id) return;
-  const t = eventDef(c, id);
-  log(s, `TERROR — ${t.name}`, 'killer');
-  s.fx.push({ t: 'terror', id });
-  applyEffects(c, s, t.effects);
-}
-
-export function triggerFinale(c: Content, s: GameState, why: 'bloodlust' | 'clock' | 'risen') {
-  const k = s.killer;
-  if (k.finale) return;
-  k.finale = true;
-  k.armor = Math.max(0, c.killer.finale.armor - weaknessFound(c, s));
-  const reason =
-    why === 'risen' ? 'He gets back up.' : why === 'clock' ? 'The last reel begins.' : 'His hunger is sated — now he wants her.';
-  log(s, `FINALE — ${c.killer.finale.name}. ${reason}`, 'killer');
-  s.fx.push({ t: 'finale' });
-  applyEffects(c, s, c.killer.finale.effects);
-}
-
-export function weaknessFound(c: Content, s: GameState) {
-  return c.killer.items.filter((i) => i.kind === 'lore' && s.foundLore.includes(i.id)).length;
-}
-
-function damageKiller(c: Content, s: GameState, n: number, ignoreArmor = false) {
-  const k = s.killer;
-  const dmg = Math.max(0, n - (ignoreArmor ? 0 : k.armor));
-  if (n > 0 && dmg === 0) log(s, `The blow glances off. ${c.killer.name} barely flinches.`, 'bad');
-  if (dmg <= 0) return 0;
-  k.health -= dmg;
-  s.fx.push({ t: 'hit', n: dmg });
-  log(s, `${c.killer.name} takes ${dmg} damage.`, 'good');
-  if (k.health <= 0) {
-    if (!k.finale) {
-      k.risen = true;
-      k.health = Math.min(4, k.maxHealth);
-      log(s, `${c.killer.name} collapses… and then, slowly, sits up.`, 'killer');
-      triggerFinale(c, s, 'risen');
-    } else {
-      const phases = c.killer.finale.phases ?? [];
-      const next = phases[k.finalePhase + 1];
-      if (next) {
-        k.finalePhase++;
-        k.health = next.health;
-        k.maxHealth = Math.max(k.maxHealth, next.health);
-        log(s, `${next.name.toUpperCase()} — ${next.text}`, 'killer');
-        s.fx.push({ t: 'phase', name: next.name });
-        applyEffects(c, s, next.effects);
-      } else {
-        k.health = 0;
-        endGame(c, s, 'slain');
-      }
-    }
-  }
-  return dmg;
-}
-
-function saveEscorted(c: Content, s: GameState) {
-  const h = s.heroine;
-  if (h.loc !== c.location.exit || h.escorting <= 0) return;
-  const n = h.escorting;
-  h.escorting = 0;
-  s.saved += n;
-  log(s, `${n === 1 ? 'A survivor flees' : `${n} survivors flee`} down the highway. Saved!`, 'good');
-  s.fx.push({ t: 'saved', n });
-  addHorror(c, s, -(c.heroine.traits.saveHorror ?? 1) * n);
-  drawInstinct(s, 1 + (c.heroine.traits.saveDraw ?? 0));
-  // Survivors pay you back: each one presses something useful into your hands.
   for (let i = 0; i < n; i++) {
-    const id = s.itemDeck.pop();
-    if (id) {
-      log(s, 'A survivor hands her something on the way out.', 'good');
-      gainItem(c, s, id);
+    if (k.bloodlust < tr.levels.length - 1) {
+      k.bloodlust++;
+      const lv = tr.levels[k.bloodlust];
+      s.fx.push({ t: 'bloodlust', level: k.bloodlust });
+      log(s, `Bloodlust ${k.bloodlust}${lv.name ? `: ${lv.name}` : ''}. ${lv.text ?? ''} (Move ${lv.move}, attack ${lv.attack}.)`, 'killer');
+      effs.push(...(lv.effects ?? []));
+      if (k.bloodlust === tr.revealAt && k.power === 'hidden') effs.push({ op: 'revealPower' });
+    } else {
+      log(s, `His bloodlust is already at its peak. ${tr.max.text}`, 'killer');
+      effs.push(...tr.max.effects);
     }
+  }
+  pushFront(s, effs);
+}
+
+function revealEvent(c: Content, s: GameState) {
+  const id = s.eventDeck.shift();
+  if (!id) return;
+  const ev = eventDef(c, id);
+  s.events.push(id);
+  log(s, `EVENT: ${ev.name}. ${ev.text}`, ev.tone === 'calm' ? 'good' : 'killer');
+  s.fx.push({ t: 'event', id });
+  pushFront(s, ev.effects);
+}
+
+// ── Survivors ───────────────────────────────────────────────────────────────
+function eliminate(c: Content, s: GameState, at: NodeId) {
+  if ((s.victims[at] ?? 0) <= 0) return;
+  s.victims[at]--;
+  s.slain++;
+  s.slainThisTurn++;
+  log(s, `${c.killer.name} kills a survivor at ${nodeName(c, at)}.`, 'killer');
+  s.fx.push({ t: 'victimSlain', at });
+  if (s.heroine.loc === at) pushFront(s, [{ op: 'horror', n: 1 }]);
+  addBloodlust(c, s, 1);
+}
+
+/** On an exit during the Action phase: everyone there with her is rescued. */
+function checkRescue(c: Content, s: GameState) {
+  const h = s.heroine;
+  if (s.phase !== 'action' || s.outcome || !isExit(c, h.loc)) return;
+  const n = s.victims[h.loc] ?? 0;
+  if (n <= 0) return;
+  s.victims[h.loc] = 0;
+  s.saved += n;
+  log(s, `${n === 1 ? 'A survivor gets' : `${n} survivors get`} out through ${nodeName(c, h.loc)}. Rescued!`, 'good');
+  s.fx.push({ t: 'saved', n });
+  const slots = c.heroine.rescue.slots;
+  const effs: Effect[] = [];
+  for (let i = 0; i < n; i++) {
+    const slot = h.rescued < slots.length ? slots[h.rescued] : c.heroine.rescue.repeat;
+    h.rescued++;
+    log(s, `Rescue reward: ${slot.text}`, 'good');
+    effs.push(...slot.effects);
+    if (h.rescued === slots.length) {
+      log(s, `Every rescue slot is full. ${c.heroine.ability.name} is unlocked.`, 'good');
+      s.fx.push({ t: 'unlock' });
+    }
+  }
+  runNow(c, s, effs);
+}
+
+function panicAt(c: Content, s: GameState, at: NodeId) {
+  const n = s.victims[at] ?? 0;
+  if (n <= 0) return;
+  const table = panicTable(c, at);
+  for (let i = 0; i < n; i++) {
+    const r = rollD6(s);
+    const to = table[r - 1];
+    if (!to) {
+      log(s, `A survivor at ${nodeName(c, at)} freezes in terror (rolled ${r}).`, 'info');
+      continue;
+    }
+    s.victims[at]--;
+    s.victims[to] = (s.victims[to] ?? 0) + 1;
+    log(s, `A survivor panics (rolled ${r}) and runs from ${nodeName(c, at)} to ${nodeName(c, to)}.`, 'bad');
+  }
+}
+
+/** How many survivors would come with her from `from` to `to`. */
+export function followers(c: Content, s: GameState, from: NodeId, to: NodeId) {
+  if (to === s.killer.loc) return 0; // they won't walk into him
+  return Math.max(0, Math.min(s.heroine.bring, escortCap(c), s.victims[from] ?? 0));
+}
+
+function moveHeroine(c: Content, s: GameState, to: NodeId) {
+  const h = s.heroine;
+  const from = h.loc;
+  const bring = followers(c, s, from, to);
+  s.victims[from] -= bring;
+  s.victims[to] = (s.victims[to] ?? 0) + bring;
+  h.loc = to;
+  h.hidden = false;
+  s.fx.push({ t: 'move' });
+  log(s, `Moved to ${nodeName(c, to)}${bring ? ` with ${bring} survivor${bring > 1 ? 's' : ''}` : ''}.`);
+  if (s.killer.loc === to) {
+    s.fx.push({ t: 'killerAppears' });
+    log(s, `${c.killer.name} is HERE.`, 'killer');
+  }
+}
+
+// ── Effect queue ────────────────────────────────────────────────────────────
+/** Run effects right now, ahead of anything queued (rescue rewards). */
+function runNow(c: Content, s: GameState, effs: Effect[]) {
+  const savedQ = s.queue;
+  const savedP = s.pending;
+  s.queue = [...effs];
+  s.pending = undefined;
+  let guard = 0;
+  while (!s.outcome && !s.pending && s.queue.length && guard++ < 200) {
+    exec(c, s, s.queue.shift()!);
+    settle(c, s);
+  }
+  s.queue = [...s.queue, ...savedQ];
+  if (!s.pending) s.pending = savedP;
+}
+
+export function drain(c: Content, s: GameState) {
+  let guard = 0;
+  while (!s.outcome && !s.pending && s.queue.length && guard++ < 1000) {
+    exec(c, s, s.queue.shift()!);
+    settle(c, s);
+  }
+  if (s.outcome || s.pending) return;
+  if (s.queue.length === 0) s.rolling = undefined;
+  if (s.phase === 'action') {
+    checkRescue(c, s);
+    if ((s.heroine.nerve < 0 || s.heroine.broke) && !s.pending) {
+      log(s, 'Out of nerve. Her turn is over.', 'bad');
+      endActionPhase(c, s);
+    }
+  }
+}
+
+/** Revival, or an "end the phase" effect: skip straight to the next phase. */
+function endCurrentPhase(c: Content, s: GameState) {
+  s.pending = undefined;
+  s.attack = undefined;
+  s.rolling = undefined;
+  if (s.phase === 'action') {
+    s.queue = [];
+    endActionPhase(c, s);
+  } else {
+    const i = s.queue.findIndex((q) => q.op === '_phase');
+    s.queue = i >= 0 ? s.queue.slice(i) : [];
   }
 }
 
@@ -484,17 +761,20 @@ function checkCond(c: Content, s: GameState, cond: Condition): boolean {
     case 'heroineAt':
       return h.loc === cond.node;
     case 'alone':
-      return h.escorting === 0 && (s.victims[h.loc] ?? 0) === 0;
-    case 'escorting':
-      return h.escorting > 0;
+      return (s.victims[h.loc] ?? 0) === 0;
+    case 'survivorsHere':
+      return (s.victims[h.loc] ?? 0) > 0;
     case 'finale':
       return s.killer.finale;
+    case 'hurt':
+      return h.health < h.maxHealth;
     case 'horrorAtLeast':
       return h.horror >= cond.n;
   }
 }
 
-function moveKiller(c: Content, s: GameState, to: NodeId) {
+/** One movement point: a step, or 1 off the barricade in his way. */
+function killerStep(c: Content, s: GameState, to: NodeId) {
   if (to === s.killer.loc) return true;
   if ((s.barricades[to] ?? 0) > 0) {
     s.barricades[to]--;
@@ -505,34 +785,125 @@ function moveKiller(c: Content, s: GameState, to: NodeId) {
   return true;
 }
 
-export function applyEffects(c: Content, s: GameState, effects: Effect[]) {
-  for (const e of effects) {
-    if (s.outcome) return;
-    applyEffect(c, s, e);
-  }
+/** Shortest-path step; ties broken by the tie-break policy. */
+function stepToward(c: Content, s: GameState, from: NodeId, to: NodeId): NodeId {
+  if (from === to) return from;
+  const d = distances(c, to);
+  const opts = neighbors(c, from)
+    .filter((n) => d[n] !== undefined && d[n] < d[from])
+    .sort();
+  if (opts.length <= 1) return opts[0] ?? from;
+  if (s.tiebreak === 'random') return pick(s, opts);
+  const dh = distances(c, s.heroine.loc);
+  return opts.sort((a, b) => (dh[a] ?? 99) - (dh[b] ?? 99) || a.localeCompare(b))[0];
 }
 
-function applyEffect(c: Content, s: GameState, e: Effect) {
+/** Closest valid target; ties → most survivors → tie-break policy. */
+function selectTarget(c: Content, s: GameState, who: 'npc' | 'heroine' | 'any', logTie = true): NodeId {
+  const k = s.killer;
+  const h = s.heroine;
+  const d = distances(c, k.loc);
+  const npcNodes = Object.entries(s.victims)
+    .filter(([, n]) => n > 0)
+    .map(([id]) => id);
+  const heroine = h.hidden ? [] : [h.loc];
+  let cands: NodeId[];
+  if (who === 'npc') cands = npcNodes.length ? npcNodes : heroine;
+  else if (who === 'heroine') cands = heroine.length ? heroine : npcNodes;
+  else cands = [...new Set([...npcNodes, ...heroine])];
+  if (!cands.length) return k.loc;
+  const best = Math.min(...cands.map((n) => d[n] ?? 99));
+  let tied = cands.filter((n) => (d[n] ?? 99) === best);
+  if (tied.length > 1) {
+    const most = Math.max(...tied.map((n) => s.victims[n] ?? 0));
+    tied = tied.filter((n) => (s.victims[n] ?? 0) === most);
+  }
+  if (tied.length === 1) return tied[0];
+  let chosen: NodeId;
+  if (s.tiebreak === 'random') chosen = pick(s, tied.sort());
+  else {
+    const dh = distances(c, h.loc);
+    chosen = tied.sort((a, b) => Number(b === h.loc) - Number(a === h.loc) || (dh[a] ?? 99) - (dh[b] ?? 99) || a.localeCompare(b))[0];
+  }
+  if (logTie) log(s, `Tie-break (${TIEBREAK[s.tiebreak].label.toLowerCase()}): he goes for ${chosen === h.loc ? 'her' : nodeName(c, chosen)}.`, 'info');
+  return chosen;
+}
+
+/** Where he is heading next (for the UI). */
+export function predictTarget(c: Content, s: GameState): NodeId {
+  if (s.killer.lured) return s.killer.lured;
+  const beh = (s.killer.finale ? c.killer.finale.behavior : c.killer.behavior).effects;
+  const t = beh.find((e) => e.op === 'target') as (Effect & { op: 'target' }) | undefined;
+  const probe = structuredClone(s);
+  return selectTarget(c, probe, t?.who ?? 'any', false);
+}
+
+function exec(c: Content, s: GameState, e: Effect) {
   const h = s.heroine;
   const k = s.killer;
   switch (e.op) {
+    // ── board
     case 'spawn': {
+      const ex = exits(c);
       let at = e.at;
-      if (at === 'random') {
-        const opts = c.location.nodes.map((n) => n.id).filter((id) => id !== k.loc && id !== c.location.exit);
-        at = pick(s, opts);
-      } else if (at === 'nearKiller') {
-        const opts = neighbors(c, k.loc).filter((id) => id !== c.location.exit && id !== h.loc);
-        at = opts.length ? pick(s, opts) : stepAwayFrom(c, s, k.loc);
+      if (at === 'random') at = pick(s, c.location.nodes.map((n) => n.id).filter((id) => id !== k.loc && !ex.includes(id)));
+      else if (at === 'nearKiller') {
+        const opts = neighbors(c, k.loc).filter((id) => !ex.includes(id) && id !== h.loc);
+        at = opts.length ? pick(s, opts) : k.loc;
       } else if (at === 'farFromKiller') {
         const d = distances(c, k.loc);
         at = c.location.nodes
           .map((n) => n.id)
-          .filter((id) => id !== c.location.exit)
-          .sort((a, b) => (d[b] ?? 0) - (d[a] ?? 0))[0];
+          .filter((id) => !ex.includes(id))
+          .sort((a, b) => (d[b] ?? 0) - (d[a] ?? 0) || a.localeCompare(b))[0];
       }
-      if (at === k.loc) at = stepAwayFrom(c, s, at);
+      if (at === k.loc) {
+        const opts = neighbors(c, at).filter((n) => !ex.includes(n));
+        if (opts.length) at = pick(s, opts);
+      }
       placeVictims(c, s, at, e.n);
+      if (s.phase === 'action') checkRescue(c, s);
+      break;
+    }
+    case 'rally': {
+      if (h.loc === k.loc) {
+        log(s, 'Nobody will come into a room with him in it.', 'bad');
+        break;
+      }
+      let left = e.n;
+      const from = neighbors(c, h.loc).sort((a, b) => (s.victims[b] ?? 0) - (s.victims[a] ?? 0));
+      for (const n of from) {
+        const m = Math.min(left, s.victims[n] ?? 0);
+        if (m <= 0) continue;
+        s.victims[n] -= m;
+        s.victims[h.loc] += m;
+        left -= m;
+        log(s, `"Over here!" ${m} survivor${m > 1 ? 's' : ''} run${m > 1 ? '' : 's'} to her from ${nodeName(c, n)}.`, 'good');
+      }
+      if (left === e.n) log(s, 'Nobody close enough to hear her.');
+      if (s.phase === 'action') checkRescue(c, s);
+      break;
+    }
+    case 'panic':
+      panicAt(c, s, e.at === 'killer' ? k.loc : h.loc);
+      break;
+    // ── heroine
+    case 'move': {
+      const bonus = h.movesThisTurn === 0 ? c.heroine.traits.moveBonus ?? 0 : 0;
+      h.movesThisTurn++;
+      const n = e.n + bonus;
+      if (n > 0) s.pending = { kind: 'move', left: n };
+      break;
+    }
+    case 'search': {
+      const pile = s.piles[h.loc];
+      if (!pile || !pile.cards.length) {
+        log(s, 'Nothing left to find here.');
+        break;
+      }
+      const drawn = pile.cards.splice(0, Math.min(e.draw, pile.cards.length));
+      pile.up = false;
+      s.pending = { kind: 'search', node: h.loc, drawn, keep: Math.min(e.keep, drawn.length) };
       break;
     }
     case 'horror':
@@ -542,34 +913,100 @@ function applyEffect(c: Content, s: GameState, e: Effect) {
       const before = h.health;
       h.health = Math.min(h.maxHealth, h.health + e.n);
       if (h.health > before) log(s, `Recovered ${h.health - before} health.`, 'good');
-      for (let i = 0; i < e.n; i++) removeJunk(s, 'junk-wound');
       break;
     }
     case 'wound':
-      wound(c, s, e.n);
+      log(s, `She loses ${e.n} health.`, 'bad');
+      hurtHeroine(c, s, e.n);
       break;
     case 'nerve':
-      h.nerve = Math.max(0, h.nerve + e.n);
+      h.nerve += e.n;
+      if (e.n) log(s, `${e.n > 0 ? '+' : ''}${e.n} nerve.`, e.n > 0 ? 'good' : 'bad');
       break;
+    case 'hide':
+      h.hidden = true;
+      s.fx.push({ t: 'hide' });
+      log(s, 'She slips out of sight. Hidden until he has passed.', 'good');
+      break;
+    case 'barricade': {
+      const at = e.at === 'here' ? h.loc : e.at;
+      if (isExit(c, at)) {
+        log(s, 'You cannot barricade an exit.');
+        break;
+      }
+      // Barricades don't stack: a new one only replaces a weaker one.
+      const str = e.strength + (c.heroine.traits.barricadeStrength ?? 0);
+      s.barricades[at] = Math.max(s.barricades[at] ?? 0, str);
+      log(s, `Barricade raised at ${nodeName(c, at)} (holds ${s.barricades[at]}).`, 'good');
+      break;
+    }
+    case 'teleportHeroine': {
+      let to = e.to;
+      if (to === 'exit') {
+        const d = distances(c, h.loc);
+        to = exits(c).sort((a, b) => (d[a] ?? 99) - (d[b] ?? 99))[0];
+      }
+      moveHeroine(c, s, to);
+      if (s.phase === 'action') checkRescue(c, s);
+      break;
+    }
+    case 'drawItem':
+      for (let i = 0; i < e.n; i++) {
+        const id = s.spare.shift();
+        if (id) gainItem(c, s, id);
+        else log(s, 'There is nothing more to hand her.');
+      }
+      break;
+    case 'resolve':
+      h.resolve += e.n;
+      log(s, `Resolve +${e.n}: her attacks roll +${h.resolve} dice for the rest of the night.`, 'good');
+      break;
+    case 'mod':
+      s.mods[e.key] = (s.mods[e.key] ?? 0) + e.n;
+      break;
+    case 'warm':
+      if (s.env.cold > 0) log(s, 'Warmth floods back into her hands.', 'good');
+      s.env.cold = 0;
+      break;
+    case 'endPhase':
+      log(s, 'The phase ends.', 'info');
+      endCurrentPhase(c, s);
+      break;
+    // ── attacks
+    case 'damage':
+      heroineAttack(c, s, e.n);
+      break;
+    case 'killerDamage':
+      hurtKiller(c, s, e.n);
+      break;
+    case 'block':
+      if (s.attack) {
+        const before = s.attack.damage;
+        s.attack.damage = Math.max(0, before - e.n);
+        log(s, s.attack.damage === 0 ? 'She avoids the blow completely.' : `She softens the blow (${before} → ${s.attack.damage}).`, 'good');
+      }
+      break;
+    // ── killer
     case 'bloodlust':
       addBloodlust(c, s, e.n);
       break;
-    case 'killerHeal':
+    case 'killerHeal': {
+      const before = k.health;
       k.health = Math.min(k.maxHealth, k.health + e.n);
+      if (k.health > before) log(s, `${c.killer.name} recovers ${k.health - before}.`, 'killer');
       break;
-    case 'killerDamage':
-      damageKiller(c, s, e.n, e.ignoreArmor);
-      break;
+    }
     case 'killerStun':
       k.stunned += e.n;
       s.fx.push({ t: 'stun' });
-      log(s, `${c.killer.name} is stunned.`, 'good');
+      log(s, `${c.killer.name} is stunned. He will lose his next move.`, 'good');
       break;
     case 'killerMove': {
       for (let i = 0; i < e.steps; i++) {
         const target = e.toward === 'heroine' ? h.loc : e.toward === 'lair' ? c.location.lair : e.toward;
-        if (!moveKiller(c, s, stepToward(c, k.loc, target))) break;
+        killerStep(c, s, stepToward(c, s, k.loc, target));
       }
+      log(s, `${c.killer.name} moves to ${nodeName(c, k.loc)}.`, 'killer');
       if (k.loc === h.loc) s.fx.push({ t: 'killerAppears' });
       break;
     }
@@ -577,401 +1014,426 @@ function applyEffect(c: Content, s: GameState, e: Effect) {
       let to = e.to;
       if (to === 'lair') to = c.location.lair;
       else if (to === 'heroine') to = h.loc;
-      else if (to === 'random') to = pick(s, c.location.nodes.map((n) => n.id).filter((id) => id !== c.location.exit));
+      else if (to === 'random') to = pick(s, c.location.nodes.map((n) => n.id).filter((id) => !isExit(c, id)));
       k.loc = to;
       log(s, `${c.killer.name} vanishes… and is now at ${nodeName(c, to)}.`, 'killer');
       if (k.loc === h.loc) s.fx.push({ t: 'killerAppears' });
       break;
     }
-    case 'killerArmor':
-      k.armor = Math.max(0, k.armor + e.n);
-      break;
-    case 'clock':
-      s.dawnAt = Math.max(s.round, s.dawnAt - e.n);
-      break;
-    case 'mod':
-      s.mods[e.key] = (s.mods[e.key] ?? 0) + e.n;
-      if (e.key === 'nerve') h.nerve = Math.max(0, h.nerve + e.n);
-      break;
-    case 'freeMove':
-      h.freeMoves++;
-      break;
-    case 'drawItem':
-      for (let i = 0; i < e.n; i++) {
-        const id = s.itemDeck.pop();
-        if (id) gainItem(c, s, id);
-      }
-      break;
-    case 'drawInstinct':
-      drawInstinct(s, e.n);
-      break;
-    case 'barricade': {
-      const at = e.at === 'here' ? h.loc : e.at;
-      s.barricades[at] = (s.barricades[at] ?? 0) + e.strength;
-      log(s, `Barricade raised at ${nodeName(c, at)}.`, 'good');
+    case 'target': {
+      if (k.lured) {
+        k.target = k.lured;
+        log(s, `${c.killer.name} heads for the ringing at ${nodeName(c, k.lured)}.`, 'killer');
+        k.lured = undefined;
+      } else k.target = selectTarget(c, s, e.who);
       break;
     }
-    case 'teleportHeroine':
-      h.loc = e.to;
-      s.fx.push({ t: 'move' });
-      saveEscorted(c, s);
+    case 'hunt': {
+      const target = k.target ?? k.loc;
+      const steps = killerMoveValue(c, s) + (e.extra ?? 0);
+      const start = k.loc;
+      // Each movement point either takes a step or knocks 1 off a barricade.
+      for (let i = 0; i < steps && k.loc !== target; i++) killerStep(c, s, stepToward(c, s, k.loc, target));
+      if (k.loc !== start) log(s, `${c.killer.name} prowls to ${nodeName(c, k.loc)}.`, 'killer');
+      if (k.loc === h.loc && start !== h.loc && !h.hidden) {
+        s.fx.push({ t: 'killerAppears' });
+        log(s, `He's found her.`, 'killer');
+        pushFront(s, [{ op: 'horror', n: 1 }]);
+      }
       break;
-    case 'saveEscorted':
-      saveEscorted(c, s);
+    }
+    case 'attack':
+      pushFront(s, Array.from({ length: e.n ?? 1 }, () => ({ op: '_strike', who: e.who }) as Effect));
+      break;
+    case '_strike': {
+      const here = k.loc;
+      const npcs = s.victims[here] ?? 0;
+      const herHere = h.loc === here;
+      if (npcs > 0 && (e.who !== 'heroine' || !herHere)) {
+        eliminate(c, s, here);
+        break;
+      }
+      if (!herHere) break;
+      if (h.hidden) {
+        const need = k.finale ? 4 : 5;
+        const r = rollD6(s);
+        if (r < need) {
+          log(s, `${c.killer.name} stands inches away… and passes her by. (Searched: ${r}, needed ${need}+.)`, 'good');
+          break;
+        }
+        h.hidden = false;
+        log(s, `${c.killer.name} tears the room apart… and finds her. (Searched: ${r}.)`, 'killer');
+      }
+      const dmg = killerAttack(c, s);
+      s.attack = { damage: dmg };
+      log(s, `${c.killer.name} attacks her (${dmg} damage).`, 'killer');
+      if (canReact(c, s)) s.pending = { kind: 'reaction' };
+      else takeAttack(c, s);
+      break;
+    }
+    case '_reactDone':
+      if (!s.attack) break;
+      if (s.attack.damage <= 0) s.attack = undefined;
+      else if (canReact(c, s)) s.pending = { kind: 'reaction' };
+      else takeAttack(c, s);
+      break;
+    case 'revealPower':
+      if (k.power !== 'hidden') break;
+      k.power = 'active';
+      k.powerHealth = c.killer.power.health;
+      log(s, `POWER: ${c.killer.power.name}. ${c.killer.power.text}`, 'killer');
+      s.fx.push({ t: 'power' });
+      pushFront(s, c.killer.power.effects ?? []);
+      break;
+    case 'event':
+      revealEvent(c, s);
       break;
     case 'if':
-      applyEffects(c, s, checkCond(c, s, e.cond) ? e.then : e.else ?? []);
-      break;
-    case 'warm':
-      if (s.env.cold > 0) log(s, 'Warmth floods back into her hands.', 'good');
-      s.env.cold = 0;
+      pushFront(s, checkCond(c, s, e.cond) ? e.then : e.else ?? []);
       break;
     case 'log':
       log(s, e.text, 'info');
       break;
+    // ── sequencing
+    case '_behavior': {
+      if (k.stunned > 0) {
+        k.stunned--;
+        log(s, `${c.killer.name} staggers, dazed. He loses his move.`, 'good');
+        break;
+      }
+      pushFront(s, (k.finale ? c.killer.finale.behavior : c.killer.behavior).effects);
+      break;
+    }
+    case '_clearMods':
+      s.mods = {};
+      break;
+    case '_terror': {
+      if (k.finale) break;
+      const id = s.terrorDeck.shift();
+      if (!id) break;
+      const t = terrorDef(c, id);
+      s.lastTerror = id;
+      s.terrorDiscard.push(id);
+      log(s, `TERROR: ${t.name}. ${t.text}`, 'killer');
+      s.fx.push({ t: 'terror', id });
+      pushFront(s, t.effects);
+      break;
+    }
+    case '_phase':
+      if (e.to === 'panic') {
+        s.phase = 'panic';
+        h.hidden = false;
+        if (s.slainThisTurn > 0 && (s.victims[k.loc] ?? 0) > 0) {
+          log(s, 'Blood has been spilled tonight. Survivors near him panic.', 'killer');
+          panicAt(c, s, k.loc);
+        }
+        pushFront(s, [{ op: '_phase', to: 'upkeep' }]);
+      } else {
+        s.phase = 'upkeep';
+        s.rearrange = true;
+        const ups: Effect[] = [{ op: '_finaleCheck' }, { op: '_rule', when: 'upkeep' }];
+        for (const id of s.events) ups.push(...(eventDef(c, id).upkeep ?? []));
+        if (k.power === 'active') ups.push(...(c.killer.power.upkeep ?? []));
+        if (k.finale) ups.push(...(c.killer.finale.upkeep ?? []));
+        pushFront(s, ups);
+      }
+      break;
+    case '_finaleCheck':
+      if (!k.finale && s.terrorDeck.length === 0) {
+        k.finale = true;
+        log(s, `FINALE: ${c.killer.finale.name}. ${c.killer.finale.text}`, 'killer');
+        s.fx.push({ t: 'finale' });
+        pushFront(s, [...c.killer.finale.effects, ...(k.power === 'hidden' ? [{ op: 'revealPower' } as Effect] : [])]);
+      }
+      break;
+    case '_rule':
+      ruleUpkeep(c, s);
+      break;
   }
 }
 
-function stepAwayFrom(c: Content, s: GameState, at: NodeId): NodeId {
-  const opts = neighbors(c, at).filter((n) => n !== c.location.exit);
-  return opts.length ? pick(s, opts) : at;
-}
-
-// ── Round flow ──────────────────────────────────────────────────────────────
-function startRound(c: Content, s: GameState) {
-  if (s.round > s.dawnAt) {
-    endGame(c, s, 'escaped');
-    return;
+function takeAttack(c: Content, s: GameState) {
+  const dmg = s.attack?.damage ?? 0;
+  s.attack = undefined;
+  s.pending = undefined;
+  if (dmg > 0) {
+    log(s, `The blow lands: ${dmg} damage.`, 'bad');
+    hurtHeroine(c, s, dmg);
   }
-  if (!s.killer.finale && s.round >= s.dawnAt - 3) triggerFinale(c, s, 'clock');
-  if (s.outcome) return;
-  ruleRoundStart(c, s);
-  if (s.outcome) return;
-  if (!s.eventDeck.length) {
-    s.eventDeck = shuffle(s, s.eventDiscard);
-    s.eventDiscard = [];
-  }
-  const id = s.eventDeck.pop()!;
-  s.currentEvent = id;
-  s.phase = 'event';
-  s.fx.push({ t: 'card' });
 }
 
 // ── Location rules ──────────────────────────────────────────────────────────
-export function hasTag(c: Content, node: NodeId, tag: NodeTag) {
-  return !!c.location.nodes.find((n) => n.id === node)?.tags?.includes(tag);
-}
-export function isFlooded(c: Content, s: GameState, node: NodeId) {
-  return c.location.rule.kind === 'tide' && s.env.tideHigh && hasTag(c, node, 'shore');
+function ruleSetup(c: Content, s: GameState) {
+  if (c.location.rule.kind === 'calls') ringPhone(c, s);
 }
 
-function ruleRoundStart(c: Content, s: GameState) {
+function ringPhone(c: Content, s: GameState) {
+  const phones = c.location.nodes.filter((n) => n.tags?.includes('phone') && n.id !== s.heroine.loc).map((n) => n.id);
+  s.env.ringing = phones.length ? pick(s, phones) : undefined;
+  if (s.env.ringing) {
+    log(s, `☎ The phone is ringing at ${nodeName(c, s.env.ringing)}.`, 'killer');
+    s.fx.push({ t: 'env', text: 'Phone ringing' });
+  }
+}
+
+/** Upkeep: the location's signature rule sets up next turn. */
+function ruleUpkeep(c: Content, s: GameState) {
   const r = c.location.rule;
   const env = s.env;
+  const h = s.heroine;
+  const next = s.round + 1;
   const period = r.period ?? 3;
   switch (r.kind) {
     case 'intermission':
       if (s.round % period === 0) {
-        s.mods.nerve = (s.mods.nerve ?? 0) + 1;
-        addHorror(c, s, -1);
-        log(s, `${r.name}: the projector stops. +1 nerve, horror −1.`, 'good');
+        log(s, `${r.name}: the projector stops. Horror −1, +1 nerve.`, 'good');
         s.fx.push({ t: 'env', text: r.name });
+        h.nerve += 1;
+        addHorror(c, s, -1);
       }
       break;
     case 'tide': {
-      const high = Math.floor((s.round - 1) / period) % 2 === 1;
+      const high = Math.floor((next - 1) / period) % 2 === 1;
       if (high !== env.tideHigh) {
         env.tideHigh = high;
-        log(s, high ? 'HIGH TIDE — the shore floods. Entering it costs +1 nerve.' : 'Low tide — the water draws back.', high ? 'killer' : 'good');
+        log(s, high ? 'HIGH TIDE: the shore floods. Moving into it costs +1 nerve.' : 'Low tide: the water draws back.', high ? 'killer' : 'good');
         s.fx.push({ t: 'env', text: high ? 'High Tide' : 'Low Tide' });
       }
       break;
     }
     case 'power': {
-      const dark = s.round >= 3 && (s.round % 4 === 3 || s.round % 4 === 0);
+      const dark = next >= 3 && (next % 4 === 3 || next % 4 === 0);
       if (dark !== env.dark) {
         env.dark = dark;
-        log(s, dark ? 'BLACKOUT — the power fails. Searching is harder, hiding is easier — and he knows these halls in the dark.' : 'The lights stutter back on.', dark ? 'killer' : 'good');
+        log(s, dark ? 'BLACKOUT: the power fails. Search −1 die, hide +1 die, and he moves +1.' : 'The lights stutter back on.', dark ? 'killer' : 'good');
         s.fx.push({ t: 'env', text: dark ? 'Blackout' : 'Power Restored' });
-      }
-      if (dark) {
-        s.mods.searchThreshold = (s.mods.searchThreshold ?? 0) + 1;
-        s.mods.hideDice = (s.mods.hideDice ?? 0) + 1;
       }
       break;
     }
     case 'cold':
+      if (c.heroine.traits.coldImmune) break;
+      if (hasTag(c, h.loc, 'warm')) {
+        if (env.cold > 0) log(s, 'She thaws out by the fire.', 'good');
+        env.cold = 0;
+      } else if (hasTag(c, h.loc, 'outdoor')) {
+        env.cold++;
+        log(s, `The cold bites. Cold ${env.cold}/3.`, 'bad');
+        if (env.cold >= 3) {
+          env.cold = 0;
+          log(s, 'Frostbite.', 'bad');
+          hurtHeroine(c, s, 1);
+        }
+      }
       if (env.cold >= 2) {
-        s.mods.nerve = (s.mods.nerve ?? 0) - 1;
+        h.nerve -= 1;
         log(s, 'Numb fingers, slow thoughts. −1 nerve from the cold.', 'bad');
       }
       break;
-    case 'calls': {
-      const phones = c.location.nodes.filter((n) => n.tags?.includes('phone') && n.id !== s.heroine.loc).map((n) => n.id);
-      env.ringing = phones.length ? pick(s, phones) : undefined;
-      if (env.ringing) {
-        log(s, `☎ The phone is ringing at ${nodeName(c, env.ringing)}.`, 'killer');
-        s.fx.push({ t: 'env', text: 'Phone ringing' });
-      }
+    case 'calls':
+      ringPhone(c, s);
       break;
-    }
   }
 }
 
-/** After the heroine's turn, before the killer acts. */
-function ruleBeforeKiller(c: Content, s: GameState) {
+/** End of her Action phase: an unanswered phone lures him. Then Planning. */
+function endActionPhase(c: Content, s: GameState) {
   const env = s.env;
   if (c.location.rule.kind === 'calls' && env.ringing) {
     const at = env.ringing;
     env.ringing = undefined;
-    log(s, `Nobody stopped the ringing at ${nodeName(c, at)}. Someone else picks up — and ${c.killer.name} hears where.`, 'killer');
+    log(s, `Nobody answered at ${nodeName(c, at)}. Someone else picks up, and ${c.killer.name} is on the line.`, 'killer');
     if (at !== s.killer.loc) placeVictims(c, s, at, 1);
-    s.killer.lured = at;
+    s.queue.push({ op: 'killerMove', toward: at, steps: 1 });
+    drain(c, s);
   }
+  s.rearrange = false;
+  s.pending = undefined;
+  // Once nerve has gone below zero it can't climb back above zero this turn.
+  if (s.heroine.broke) s.heroine.nerve = Math.min(0, s.heroine.nerve);
+  s.heroine.broke = false;
+  s.phase = 'planning';
 }
 
-function ruleRoundEnd(c: Content, s: GameState) {
-  const env = s.env;
+function startTurn(c: Content, s: GameState) {
   const h = s.heroine;
-  if (c.location.rule.kind === 'cold' && !c.heroine.traits.coldImmune) {
-    if (hasTag(c, h.loc, 'warm')) {
-      if (env.cold > 0) log(s, 'She thaws out by the fire.', 'good');
-      env.cold = 0;
-    } else if (hasTag(c, h.loc, 'outdoor')) {
-      env.cold++;
-      log(s, `The cold bites. Cold ${env.cold}/3.`, 'bad');
-      if (env.cold >= 3) {
-        log(s, 'Frostbite.', 'bad');
-        env.cold = 0;
-        wound(c, s, 1);
-      }
-    }
-  }
-}
-
-/** Survivors left alone get more frightened each round; at PANIC_AT one of them bolts. */
-function survivorClock(c: Content, s: GameState) {
-  const h = s.heroine;
-  const k = s.killer;
-  const moves: [NodeId, NodeId][] = [];
-  for (const [node, n] of Object.entries(s.victims)) {
-    if (n <= 0) {
-      s.panic[node] = 0;
-      continue;
-    }
-    if (node === h.loc) {
-      s.panic[node] = 0;
-      continue;
-    }
-    s.panic[node] = (s.panic[node] ?? 0) + 1;
-    if (s.panic[node] < PANIC_AT) continue;
-    s.panic[node] = 1;
-    if (nextRand(s) < 0.34) {
-      log(s, `The survivors at ${nodeName(c, node)} are holding it together. Barely.`, 'info');
-      continue;
-    }
-    const opts = neighbors(c, node).filter((x) => x !== c.location.exit);
-    if (!opts.length) continue;
-    moves.push([node, pick(s, opts)]);
-  }
-  for (const [from, to] of moves) {
-    s.victims[from]--;
-    if (to === k.loc) {
-      s.slain++;
-      log(s, `A survivor panics and runs from ${nodeName(c, from)} — straight into ${c.killer.name}.`, 'killer');
-      s.fx.push({ t: 'victimSlain', at: to });
-      addBloodlust(c, s, 2);
-    } else {
-      s.victims[to] = (s.victims[to] ?? 0) + 1;
-      log(s, `A survivor panics and bolts from ${nodeName(c, from)} to ${nodeName(c, to)}.`, 'bad');
-    }
-  }
-}
-
-function endRound(c: Content, s: GameState) {
-  const h = s.heroine;
-  ruleRoundEnd(c, s);
-  if (s.outcome) return;
-  survivorClock(c, s);
-  if (s.outcome) return;
-  h.spentThisRound = 0;
-  s.mods = {};
-  h.hidden = false;
-  h.movedThisRound = 0;
-  h.horrorTakenThisRound = 0;
-  h.freeMoves = 0;
   s.round++;
-  drawInstinct(s, 1);
-  // A quiet board breeds new trouble.
-  const onBoard = Object.values(s.victims).reduce((a, b) => a + b, 0);
-  if (onBoard === 0 && s.victimPool > 0 && nextRand(s) < 0.6) applyEffect(c, s, { op: 'spawn', at: 'farFromKiller', n: 1 });
-  startRound(c, s);
+  s.phase = 'action';
+  s.slainThisTurn = 0;
+  s.rearrange = false;
+  h.abilityUsed = false;
+  h.movesThisTurn = 0;
+  h.horrorTakenThisTurn = 0;
+  log(s, `── Turn ${s.round} ──`, 'info');
+  checkRescue(c, s);
+  if (h.nerve < 0) endActionPhase(c, s);
 }
 
-// ── Action legality (also used by the UI) ───────────────────────────────────
+// ── Legality (also used by the UI) ──────────────────────────────────────────
 export interface Check {
   ok: boolean;
   why?: string;
   cost: number;
 }
 
-function afford(s: GameState, cost: number): Check {
-  return s.heroine.nerve >= cost ? { ok: true, cost } : { ok: false, why: `Needs ${cost} nerve`, cost };
-}
-
-/** Extra nerve a move costs, on top of the card: fleeing, flooding, a big group. */
-export function moveExtra(c: Content, s: GameState, to?: NodeId): number {
-  const h = s.heroine;
-  const fleeing = s.killer.loc === h.loc && s.killer.stunned === 0 ? 1 : 0;
-  return fleeing + (to && isFlooded(c, s, to) ? 1 : 0) + (h.escorting >= 3 ? 1 : 0);
-}
-
-export interface MovePlan {
-  uid?: number; // card used (undefined = free step)
-  cost: number;
-}
-
-/** How she would reach `to` right now: a free step if she has one, else the cheapest move card in range. */
-export function planMove(c: Content, s: GameState, to: NodeId): MovePlan | null {
-  const h = s.heroine;
-  const d = distances(c, h.loc)[to];
-  if (d === undefined || d === 0) return null;
-  const extra = moveExtra(c, s, to);
-  if (d === 1 && h.freeMoves > 0) return { cost: extra };
-  if (d === 1 && c.heroine.traits.freeFirstMove && h.movedThisRound === 0) {
-    const walk = s.actionHand.find((x) => actionDef(c, x.id).base === 'move');
-    if (walk) return { uid: walk.uid, cost: extra };
-  }
-  const opts = s.actionHand
-    .map((x) => ({ x, def: actionDef(c, x.id) }))
-    .filter(({ def }) => def.base === 'move' && (def.range ?? 1) >= d)
-    .sort((a, b) => a.def.cost - b.def.cost || Number(!!b.def.sneak) - Number(!!a.def.sneak));
-  if (!opts.length) return null;
-  return { uid: opts[0].x.uid, cost: opts[0].def.cost + extra };
-}
-
-/** Back-compat for UI hints: cost of the cheapest way to step to a neighbor. */
-export function moveCost(c: Content, s: GameState, to?: NodeId): number {
-  if (!to) return 1 + moveExtra(c, s);
-  return planMove(c, s, to)?.cost ?? 99;
-}
-
 export function cardCost(c: Content, d: ActionCardDef): number {
-  if (d.base === 'barricade' && c.heroine.traits.barricadeCost !== undefined) return Math.min(d.cost, c.heroine.traits.barricadeCost);
+  if (d.tags.includes('barricade')) return Math.max(0, d.cost - (c.heroine.traits.barricadeDiscount ?? 0));
   return d.cost;
 }
 
-/** Is the action behind this card possible right now (ignoring cost)? */
-export function baseCheck(c: Content, s: GameState, d: ActionCardDef): { ok: boolean; why?: string } {
+/** Can a ranged weapon in hand reach him? */
+export function canReach(c: Content, s: GameState): boolean {
+  if (s.killer.loc === s.heroine.loc) return true;
+  const d = distances(c, s.heroine.loc)[s.killer.loc] ?? 99;
+  return !!bestWeapon(c, s, d);
+}
+
+export function reqCheck(c: Content, s: GameState, d: ActionCardDef): { ok: boolean; why?: string } {
   const h = s.heroine;
-  const killerHere = s.killer.loc === h.loc;
-  switch (d.base) {
-    case 'move':
-      return { ok: false, why: 'Click a glowing location on the map to move with this card' };
-    case 'search':
-      if ((s.searches[h.loc] ?? 0) <= 0) return { ok: false, why: 'Nothing left to find here' };
-      if (!s.itemDeck.length) return { ok: false, why: 'Nothing left anywhere' };
+  switch (d.req) {
+    case 'killerHere':
+      return s.killer.loc === h.loc ? { ok: true } : { ok: false, why: 'The killer must be here' };
+    case 'killerAway':
+      return s.killer.loc !== h.loc ? { ok: true } : { ok: false, why: 'Not with the killer in the room' };
+    case 'searchSpace':
+      if (!isSearch(c, h.loc)) return { ok: false, why: 'Only at a search location' };
+      if (!s.piles[h.loc]?.cards.length) return { ok: false, why: 'Nothing left to find here' };
       return { ok: true };
-    case 'lead': {
-      const cap = c.heroine.traits.escortCap ?? DEFAULT_ESCORT;
-      if ((s.victims[h.loc] ?? 0) <= 0) return { ok: false, why: 'No survivors here' };
-      if (h.escorting >= cap) return { ok: false, why: `Can escort ${cap} at most` };
-      return { ok: true };
-    }
-    case 'fight':
-      return killerHere ? { ok: true } : { ok: false, why: 'The killer is not here' };
-    case 'hide':
-      return h.hidden ? { ok: false, why: 'Already hidden' } : { ok: true };
-    case 'barricade':
-      if (killerHere) return { ok: false, why: 'Not with the killer in the room' };
-      if (h.loc === c.location.exit) return { ok: false, why: 'Cannot barricade the exit' };
-      return { ok: true };
-    case 'rest':
-      if (killerHere) return { ok: false, why: 'Not with the killer in the room' };
-      if (h.health >= h.maxHealth && h.horror === 0 && junkCount(s, 'junk-wound') === 0) return { ok: false, why: 'Nothing to recover' };
-      return { ok: true };
-    case 'effect':
-    case 'junk':
+    case 'reach':
+      return canReach(c, s) ? { ok: true } : { ok: false, why: 'He must be here (or in range of a weapon in hand)' };
+    default:
       return { ok: true };
   }
+}
+
+export function canReact(c: Content, s: GameState): boolean {
+  if (!s.attack || s.attack.damage <= 0) return false;
+  return s.heroine.hand.some((x) => {
+    const d = actionDef(c, x.id);
+    return d.kind === 'reaction' && s.heroine.nerve >= cardCost(c, d);
+  });
+}
+
+function itemUsable(c: Content, s: GameState, it: HeldItem): { ok: boolean; why?: string } {
+  const d = itemDef(c, it.id);
+  const h = s.heroine;
+  if (!d.use) return { ok: false, why: d.kind === 'weapon' ? 'Adds damage to your attack cards' : 'Passive' };
+  if (d.hands > 0 && !h.items.some((x) => x.uid === it.uid)) return { ok: false, why: 'Needs to be in hand' };
+  const dist = distances(c, h.loc)[s.killer.loc] ?? 99;
+  if (d.use.when === 'killerHere' && dist !== 0) return { ok: false, why: 'The killer must be here' };
+  if (d.use.when === 'killerNear' && dist > 1) return { ok: false, why: 'The killer must be within 1' };
+  if (d.use.when === 'atNode' && h.loc !== d.use.node) return { ok: false, why: `Only at ${nodeName(c, d.use.node!)}` };
+  return { ok: true };
 }
 
 export function check(c: Content, s: GameState, a: Action): Check {
-  if (!canAct(s) && a.type !== 'resolveEvent' && a.type !== 'resolveKiller') return { ok: false, why: 'Not now', cost: 0 };
   const h = s.heroine;
-  const killerHere = s.killer.loc === h.loc;
+  const no = (why: string, cost = 0): Check => ({ ok: false, why, cost });
+  const yes = (cost = 0): Check => ({ ok: true, cost });
+  if (s.outcome) return no('The night is over');
+  const p = s.pending;
   switch (a.type) {
-    case 'resolveEvent':
-      return { ok: s.phase === 'event', cost: 0 };
-    case 'resolveKiller':
-      return { ok: s.phase === 'killer', cost: 0 };
-    case 'move': {
-      const plan = planMove(c, s, a.to);
-      if (!plan) return { ok: false, why: 'You need a move card that reaches there', cost: 0 };
-      return afford(s, plan.cost);
-    }
-    case 'answer':
-      if (s.env.ringing !== h.loc) return { ok: false, why: 'No phone ringing here', cost: 1 };
-      return afford(s, c.heroine.traits.freeAnswer ? 0 : 1);
-    case 'draft': {
-      if (!s.lineup.some((x) => x.uid === a.uid)) return { ok: false, why: 'Not in the lineup', cost: 0 };
-      if (s.picksLeft <= 0) return { ok: false, why: 'No picks left this round', cost: 0 };
-      if (handRoom(s) <= 0) return { ok: false, why: `Hand full (${ACTION_HAND})`, cost: 0 };
-      return { ok: true, cost: 0 };
-    }
     case 'playCard': {
-      const card = s.actionHand.find((x) => x.uid === a.uid);
-      if (!card) return { ok: false, why: 'Not in hand', cost: 0 };
+      if (!canAct(s)) return no(p ? 'Finish the current card first' : 'Not now');
+      if (h.nerve < 0) return no('Out of nerve');
+      const card = h.hand.find((x) => x.uid === a.uid);
+      if (!card) return no('Not in hand');
       const d = actionDef(c, card.id);
-      if (d.junk === 'wound') return { ok: false, why: 'Bleeding: rest or heal to clear it', cost: 0 };
       const cost = cardCost(c, d);
-      const b = baseCheck(c, s, d);
-      if (!b.ok) return { ok: false, why: b.why, cost };
-      return afford(s, cost);
+      if (d.kind === 'reaction') return no('Reactions are played when he attacks you', cost);
+      const r = reqCheck(c, s, d);
+      if (!r.ok) return no(r.why!, cost);
+      return yes(cost);
     }
+    case 'discardForNerve':
+      if (!canAct(s)) return no('Not now');
+      if (h.nerve < 0) return no('Out of nerve');
+      return h.hand.some((x) => x.uid === a.uid) ? yes() : no('Not in hand');
+    case 'step': {
+      if (p?.kind !== 'move' || s.phase !== 'action') return no('Play a move card first');
+      if (!neighbors(c, h.loc).includes(a.to)) return no('Not adjacent');
+      return yes(isFlooded(c, s, a.to) ? 1 : 0);
+    }
+    case 'stopMove':
+      return p?.kind === 'move' ? yes() : no('Not moving');
+    case 'setBring':
+      return a.n >= 0 && a.n <= escortCap(c) ? yes() : no('Too many');
+    case 'convert': {
+      if (p?.kind !== 'roll' || !s.rolling) return no('No roll to adjust');
+      const v = s.rolling.dice[a.die];
+      if (v === undefined || v < 3 || v > 4 || s.rolling.converted.includes(a.die)) return no('Only a 3 or 4 can be bought up');
+      const [x, y] = a.discard;
+      if (x === y || !h.hand.some((q) => q.uid === x) || !h.hand.some((q) => q.uid === y)) return no(`Choose ${CONVERT_COST} cards from your hand`);
+      return yes();
+    }
+    case 'resolveRoll':
+      return p?.kind === 'roll' ? yes() : no('No roll');
+    case 'keep': {
+      if (p?.kind !== 'search') return no('Not searching');
+      const ok = a.picks.length <= p.keep && new Set(a.picks).size === a.picks.length && a.picks.every((i) => i >= 0 && i < p.drawn.length);
+      return ok ? yes() : no(`Keep up to ${p.keep}`);
+    }
+    case 'react': {
+      if (p?.kind !== 'reaction') return no('Only when he attacks you');
+      const card = h.hand.find((x) => x.uid === a.uid);
+      if (!card) return no('Not in hand');
+      const d = actionDef(c, card.id);
+      if (d.kind !== 'reaction') return no('Not a reaction');
+      const cost = cardCost(c, d);
+      return h.nerve >= cost ? yes(cost) : no(`Needs ${cost} nerve`, cost);
+    }
+    case 'takeHit':
+      return p?.kind === 'reaction' ? yes() : no('Nothing to take');
     case 'useItem': {
-      const it = h.items.find((i) => i.uid === a.uid);
-      if (!it) return { ok: false, why: 'No such item', cost: 0 };
-      const d = itemDef(c, it.id);
-      if (!d.use) return { ok: false, why: d.kind === 'weapon' ? 'Used automatically when you fight' : 'Passive', cost: 0 };
-      if (d.use.when === 'killerHere' && !killerHere) return { ok: false, why: 'The killer must be here', cost: 0 };
-      if (d.use.when === 'atNode' && h.loc !== d.use.node)
-        return { ok: false, why: `Only at ${nodeName(c, d.use.node!)}`, cost: 0 };
-      return { ok: true, cost: 0 };
+      if (!canAct(s)) return no('Not now');
+      const it = activeItems(c, s).find((i) => i.uid === a.uid);
+      if (!it) return no('Not usable from there');
+      const u = itemUsable(c, s, it);
+      return u.ok ? yes() : no(u.why!);
     }
-    case 'dropItem':
-      return { ok: h.items.some((i) => i.uid === a.uid) || h.pack.some((i) => i.uid === a.uid), cost: 0 };
-    case 'stow':
-      return { ok: h.items.some((i) => i.uid === a.uid), cost: 0 };
+    case 'useAbility': {
+      if (!canAct(s)) return no('Not now');
+      if (!abilityUnlocked(c, s)) return no(`Fill all ${c.heroine.rescue.slots.length} rescue slots to unlock`);
+      if (h.abilityUsed) return no('Once per turn');
+      if (c.heroine.ability.when === 'killerHere' && s.killer.loc !== h.loc) return no('The killer must be here');
+      return yes();
+    }
     case 'ready': {
-      if (!h.pack.some((i) => i.uid === a.uid)) return { ok: false, why: 'Not in the backpack', cost: 0 };
-      if (h.items.length >= HAND_SLOTS && !h.items.some((i) => i.uid === a.swapOut)) return { ok: false, why: `Hands full: choose an item to put away`, cost: 0 };
-      return afford(s, s.pendingFind === a.uid ? 0 : READY_COST);
+      if (!(s.rearrange || s.phase === 'upkeep') || p) return no('Only when you gain an item, or during Upkeep');
+      const it = h.pack.find((i) => i.uid === a.uid);
+      if (!it) return no('Not in the backpack');
+      const need = itemDef(c, it.id).hands;
+      if (need === 0) return no('Works from the backpack');
+      const keep = h.items.filter((i) => !(a.swapOut ?? []).includes(i.uid));
+      if (handsUsed(c, keep) + need > HAND_SLOTS) return no('Hands full: choose what to put away');
+      return yes();
     }
-    case 'playInstinct':
-      return { ok: h.hand.some((i) => i.uid === a.uid), cost: 0 };
-    case 'endTurn':
-      return { ok: true, cost: 0 };
+    case 'stow':
+      if (!(s.rearrange || s.phase === 'upkeep') || p) return no('Only when you gain an item, or during Upkeep');
+      return h.items.some((i) => i.uid === a.uid) ? yes() : no('Not in hand');
+    case 'dropItem':
+      return h.items.some((i) => i.uid === a.uid) || h.pack.some((i) => i.uid === a.uid) ? yes() : no('No such item');
+    case 'answer': {
+      if (!canAct(s)) return no('Not now');
+      if (s.env.ringing !== h.loc) return no('No phone ringing here', 1);
+      return yes(c.heroine.traits.freeAnswer ? 0 : 1);
+    }
+    case 'endAction':
+      return canAct(s) ? yes() : no(p ? 'Finish the current card first' : 'Not now');
+    case 'buy': {
+      if (s.phase !== 'planning') return no('Buy cards in the Planning phase');
+      const d = c.actions.find((x) => x.id === a.id);
+      if (!d) return no('Unknown card');
+      if ((s.tableau[a.id] ?? 0) <= 0) return no(s.discard.includes(a.id) ? 'Used this turn: back after Planning' : 'None left');
+      if (h.hand.length >= HAND_LIMIT) return no(`Hand full (${HAND_LIMIT})`);
+      const cost = cardCost(c, d);
+      if (cost > 0 && h.nerve - cost < 0) return no(`Needs ${cost} nerve`, cost);
+      return yes(cost);
+    }
+    case 'endPlanning':
+      return s.phase === 'planning' ? yes() : no('Not planning');
+    case 'endUpkeep':
+      return s.phase === 'upkeep' && !p && !s.queue.length ? yes() : no('Not now');
   }
-}
-
-export function fightDice(c: Content, s: GameState) {
-  const weapons = s.heroine.items.map((i) => itemDef(c, i.id)).filter((d) => d.fightDice);
-  const best = Math.max(0, ...weapons.map((w) => w.fightDice ?? 0));
-  return BASE_DICE.fight + best + resolve(s) + (c.heroine.traits.fightDice ?? 0) + (s.mods.fightDice ?? 0);
-}
-/** Resolve: each survivor she has saved steadies her hands (+1 fight die, max 3). */
-export const RESOLVE_CAP = 3;
-export function resolve(s: GameState) {
-  return Math.min(RESOLVE_CAP, s.saved);
-}
-export function searchDice(c: Content, s: GameState) {
-  const tools = s.heroine.items.map((i) => itemDef(c, i.id));
-  const bonus = Math.max(0, ...tools.map((t) => t.searchDice ?? 0));
-  return BASE_DICE.search + bonus + (c.heroine.traits.searchDice ?? 0) + (s.mods.searchDice ?? 0);
-}
-export function threshold(s: GameState) {
-  return horrorTier(s.heroine.horror).threshold;
 }
 
 // ── Reducer ─────────────────────────────────────────────────────────────────
@@ -980,183 +1442,116 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
   if (!chk.ok) return prev;
   const s: GameState = structuredClone(prev);
   s.fx = [];
-  if (a.type !== 'ready' && a.type !== 'stow') s.pendingFind = undefined;
+  s.down = undefined;
   const h = s.heroine;
-  const k = s.killer;
-  const spend = (n: number) => {
-    if (n <= 0) return;
-    const before = h.spentThisRound;
-    h.nerve -= n;
-    h.spentThisRound += n;
-    void before;
+  const toDiscard = (uid: number) => {
+    const i = h.hand.findIndex((x) => x.uid === uid);
+    const [card] = h.hand.splice(i, 1);
+    s.discard.push(card.id);
+    return card;
   };
-  const breakCover = () => (h.hidden = false);
 
   switch (a.type) {
-    case 'resolveEvent': {
-      const ev = eventDef(c, s.currentEvent!);
-      log(s, `◆ ${ev.name}`, ev.tone === 'calm' ? 'info' : 'killer');
-      s.phase = 'action';
-      h.nerve = Math.max(1, horrorTier(h.horror).nerve + (s.mods.nerve ?? 0));
-      dealLineup(c, s);
-      applyEffects(c, s, ev.effects);
-      s.eventDiscard.push(ev.id);
-      s.currentEvent = undefined;
-      break;
-    }
-    case 'answer': {
-      spend(c.heroine.traits.freeAnswer ? 0 : 1);
-      s.env.ringing = undefined;
-      log(s, '☎ She answers. Breathing… then a calm voice tells her exactly where it is going next. She hangs up first.', 'good');
-      addHorror(c, s, 1);
-      drawInstinct(s, 2);
-      break;
-    }
-    case 'move': {
-      const plan = planMove(c, s, a.to)!;
-      let sneak = false;
-      if (plan.uid !== undefined) {
-        const i = s.actionHand.findIndex((x) => x.uid === plan.uid);
-        const card = s.actionHand.splice(i, 1)[0];
-        s.actionDiscard.push(card.id);
-        sneak = !!actionDef(c, card.id).sneak;
-      } else h.freeMoves--;
-      spend(plan.cost);
-      breakCover();
-      const from = h.loc;
-      h.loc = a.to;
-      h.movedThisRound++;
-      s.fx.push({ t: 'move' });
-      log(s, `${from === k.loc ? 'Fled' : 'Moved'} to ${nodeName(c, a.to)}${h.escorting ? ` with ${h.escorting} in tow` : ''}.`);
-      saveEscorted(c, s);
-      if (sneak) {
-        h.hidden = true;
-        s.fx.push({ t: 'hide' });
-        log(s, 'She slips in unseen.', 'good');
-      }
-      if (k.loc === h.loc && !h.hidden) {
-        s.fx.push({ t: 'killerAppears' });
-        log(s, `${c.killer.name} is HERE.`, 'killer');
-        addHorror(c, s, 1);
-      }
-      break;
-    }
-    case 'draft': {
-      const i = s.lineup.findIndex((x) => x.uid === a.uid);
-      const [card] = s.lineup.splice(i, 1);
-      s.actionHand.push(card);
-      s.picksLeft--;
-      log(s, `Took ${actionDef(c, card.id).name}.`);
-      break;
-    }
     case 'playCard': {
-      const idx = s.actionHand.findIndex((x) => x.uid === a.uid);
-      const card = s.actionHand[idx];
+      const card = toDiscard(a.uid);
       const d = actionDef(c, card.id);
-      s.actionHand.splice(idx, 1);
-      if (d.junk === 'panic') {
-        spend(1);
-        log(s, 'She forces the panic down.', 'good');
-        break;
-      }
-      s.actionDiscard.push(card.id);
-      const bonus = d.dice ?? 0;
-      const cost = cardCost(c, d);
-      switch (d.base) {
-        case 'search': {
-          spend(cost);
-          breakCover();
-          s.searches[h.loc]--;
-          const thr = threshold(s) + (s.mods.searchThreshold ?? 0);
-          const r = rollDice(s, d.name, searchDice(c, s) + bonus, Math.min(6, thr));
-          if (r.successes === 0) log(s, 'Searched… nothing useful.');
-          else applyEffect(c, s, { op: 'drawItem', n: Math.min(2, r.successes) });
-          break;
-        }
-        case 'lead': {
-          spend(cost);
-          breakCover();
-          const cap = c.heroine.traits.escortCap ?? DEFAULT_ESCORT;
-          const n = Math.min(s.victims[h.loc], cap - h.escorting);
-          s.victims[h.loc] -= n;
-          if (!s.victims[h.loc]) s.panic[h.loc] = 0;
-          h.escorting += n;
-          log(s, `"Stay close to me." ${n} survivor${n > 1 ? 's' : ''} follow${n > 1 ? '' : 's'} her.`, 'good');
-          break;
-        }
-        case 'fight': {
-          spend(cost);
-          breakCover();
-          const r = rollDice(s, d.name, fightDice(c, s) + bonus, threshold(s));
-          const held = h.items
-            .map((i) => ({ i, d: itemDef(c, i.id) }))
-            .filter((x) => x.d.fightDice)
-            .sort((x, y) => (y.d.fightDice ?? 0) - (x.d.fightDice ?? 0))[0];
-          if (held && held.i.usesLeft !== undefined) {
-            held.i.usesLeft--;
-            if (held.i.usesLeft <= 0) {
-              h.items = h.items.filter((x) => x.uid !== held.i.uid);
-              log(s, `${held.d.name} is spent.`);
-            }
-          }
-          s.mods.fightDice = 0;
-          if (r.successes === 0) log(s, 'She swings wild — and misses.', 'bad');
-          damageKiller(c, s, r.successes);
-          break;
-        }
-        case 'hide': {
-          spend(cost);
-          const auto = d.auto || (s.mods.hideAuto ?? 0) > 0;
-          const r = auto ? null : rollDice(s, d.name, BASE_DICE.hide + bonus + (c.heroine.traits.hideDice ?? 0) + (s.mods.hideDice ?? 0), threshold(s));
-          if (auto || (r && r.successes > 0)) {
-            h.hidden = true;
-            s.fx.push({ t: 'hide' });
-            log(s, 'She slips into the shadows. Hidden.', 'good');
-          } else log(s, 'No cover — still exposed.', 'bad');
-          break;
-        }
-        case 'barricade':
-          spend(cost);
-          breakCover();
-          applyEffect(c, s, { op: 'barricade', at: 'here', strength: c.heroine.traits.barricadeStrength ?? 1 });
-          break;
-        case 'rest': {
-          spend(cost);
-          breakCover();
-          if (removeJunk(s, 'junk-wound')) log(s, 'She binds the worst of it.', 'good');
-          const r = rollDice(s, d.name, BASE_DICE.rest + bonus, threshold(s));
-          for (let i = 0; i < r.successes; i++) {
-            if (h.health < h.maxHealth) {
-              h.health++;
-              removeJunk(s, 'junk-wound');
-            } else addHorror(c, s, -1);
-          }
-          log(s, r.successes ? `Catches her breath (${r.successes}).` : 'Too wired to rest.', r.successes ? 'good' : 'bad');
-          break;
-        }
-        case 'effect':
-          spend(cost);
-          log(s, `${d.name}.`, 'good');
-          applyEffects(c, s, d.effects ?? []);
-          break;
-      }
+      s.rearrange = false;
+      h.nerve -= cardCost(c, d);
+      if (h.nerve < 0) h.broke = true;
+      log(s, `Played ${d.name}${cardCost(c, d) ? ` (${cardCost(c, d)} nerve)` : ''}.`);
+      if (d.tags.includes('attack') || d.tags.includes('search') || d.tags.includes('move')) h.hidden = false;
+      if (d.roll) startRoll(c, s, card.uid, d, false);
+      else pushFront(s, d.always ?? []);
       break;
     }
+    case 'discardForNerve': {
+      const card = toDiscard(a.uid);
+      h.nerve += 1;
+      log(s, `Discarded ${actionDef(c, card.id).name} for +1 nerve.`);
+      break;
+    }
+    case 'step': {
+      const p = s.pending as { kind: 'move'; left: number };
+      if (isFlooded(c, s, a.to)) {
+        h.nerve -= 1;
+        if (h.nerve < 0) h.broke = true;
+        log(s, 'She wades through the flood (+1 nerve).', 'bad');
+      }
+      moveHeroine(c, s, a.to);
+      p.left--;
+      if (p.left <= 0) s.pending = undefined;
+      checkRescue(c, s);
+      break;
+    }
+    case 'stopMove':
+      s.pending = undefined;
+      break;
+    case 'setBring':
+      h.bring = a.n;
+      break;
+    case 'convert': {
+      for (const uid of a.discard) toDiscard(uid);
+      s.rolling!.converted.push(a.die);
+      s.lastRoll = summarize(s, actionDef(c, s.rolling!.card).name, s.rolling!.dice, s.rolling!.converted, !!s.lastRoll?.rerolled);
+      if (!canConvert(s)) finishRoll(c, s);
+      break;
+    }
+    case 'resolveRoll':
+      finishRoll(c, s);
+      break;
+    case 'keep': {
+      const p = s.pending as { kind: 'search'; node: NodeId; drawn: string[]; keep: number };
+      s.pending = undefined;
+      const kept = a.picks.map((i) => p.drawn[i]);
+      const rest = p.drawn.filter((_, i) => !a.picks.includes(i));
+      const pile = s.piles[p.node];
+      if (rest.length) {
+        pile.cards.unshift(...rest);
+        pile.up = true;
+      }
+      if (!kept.length) log(s, 'She leaves it all where it was.');
+      for (const id of kept) gainItem(c, s, id);
+      break;
+    }
+    case 'react': {
+      const card = toDiscard(a.uid);
+      const d = actionDef(c, card.id);
+      h.nerve -= cardCost(c, d);
+      s.pending = undefined;
+      log(s, `Reaction: ${d.name}.`);
+      if (d.roll) startRoll(c, s, card.uid, d, true);
+      else pushFront(s, [...(d.always ?? []), { op: '_reactDone' }]);
+      break;
+    }
+    case 'takeHit':
+      takeAttack(c, s);
+      break;
     case 'useItem': {
-      const it = h.items.find((i) => i.uid === a.uid)!;
+      const it = activeItems(c, s).find((i) => i.uid === a.uid)!;
       const d = itemDef(c, it.id);
       log(s, `Used ${d.name}.`, 'good');
-      if (it.usesLeft !== undefined) {
-        it.usesLeft--;
-        if (it.usesLeft <= 0) h.items = h.items.filter((x) => x.uid !== it.uid);
-      }
-      applyEffects(c, s, d.use!.effects);
+      spendUse(c, s, it);
+      pushFront(s, d.use!.effects);
       break;
     }
-    case 'dropItem':
-      h.items = h.items.filter((x) => x.uid !== a.uid);
-      h.pack = h.pack.filter((x) => x.uid !== a.uid);
+    case 'useAbility':
+      h.abilityUsed = true;
+      log(s, `${c.heroine.ability.name}.`, 'good');
+      pushFront(s, c.heroine.ability.effects);
       break;
+    case 'ready': {
+      const it = h.pack.find((x) => x.uid === a.uid)!;
+      h.pack = h.pack.filter((x) => x.uid !== a.uid);
+      for (const out of a.swapOut ?? []) {
+        const o = h.items.find((x) => x.uid === out);
+        if (!o) continue;
+        h.items = h.items.filter((x) => x.uid !== out);
+        h.pack.push(o);
+      }
+      h.items.push(it);
+      log(s, `Took ${itemDef(c, it.id).name} in hand.`);
+      break;
+    }
     case 'stow': {
       const it = h.items.find((x) => x.uid === a.uid)!;
       h.items = h.items.filter((x) => x.uid !== a.uid);
@@ -1164,140 +1559,61 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       log(s, `Put ${itemDef(c, it.id).name} in the backpack.`);
       break;
     }
-    case 'ready': {
-      const free = s.pendingFind === a.uid;
-      spend(free ? 0 : READY_COST);
-      const it = h.pack.find((x) => x.uid === a.uid)!;
+    case 'dropItem':
+      h.items = h.items.filter((x) => x.uid !== a.uid);
       h.pack = h.pack.filter((x) => x.uid !== a.uid);
-      if (a.swapOut !== undefined && h.items.length >= HAND_SLOTS) {
-        const out = h.items.find((x) => x.uid === a.swapOut)!;
-        h.items = h.items.filter((x) => x.uid !== a.swapOut);
-        h.pack.push(out);
-        log(s, `Swapped ${itemDef(c, out.id).name} into the backpack for ${itemDef(c, it.id).name}.`);
-      } else log(s, `Took ${itemDef(c, it.id).name} out of the backpack.`);
-      h.items.push(it);
+      break;
+    case 'answer':
+      h.nerve -= c.heroine.traits.freeAnswer ? 0 : 1;
+      s.env.ringing = undefined;
+      log(s, '☎ She answers. Breathing… then a calm voice says her name. She hangs up first.', 'good');
+      pushFront(s, [{ op: 'horror', n: 1 }]);
+      break;
+    case 'endAction':
+      endActionPhase(c, s);
+      break;
+    case 'buy': {
+      const d = actionDef(c, a.id);
+      s.tableau[a.id]--;
+      h.nerve -= cardCost(c, d);
+      h.hand.push({ uid: s.uid++, id: a.id });
+      log(s, `Bought ${d.name}${cardCost(c, d) ? ` for ${cardCost(c, d)} nerve` : ''}.`);
       break;
     }
-    case 'playInstinct': {
-      const card = h.hand.find((i) => i.uid === a.uid)!;
-      const d = instinctDef(c, card.id);
-      h.hand = h.hand.filter((x) => x.uid !== a.uid);
-      s.instinctDiscard.push(card.id);
-      log(s, `Instinct: ${d.name}.`, 'good');
-      applyEffects(c, s, d.effects);
+    case 'endPlanning': {
+      h.nerve = DIFFICULTY[s.difficulty].nerve;
+      for (const id of s.discard) s.tableau[id] = (s.tableau[id] ?? 0) + 1;
+      s.discard = [];
+      s.phase = 'hunter';
+      log(s, `${c.killer.name}'s turn.`, 'killer');
+      s.queue = [{ op: '_behavior' }, { op: '_clearMods' }, { op: '_terror' }, { op: '_phase', to: 'panic' }];
       break;
     }
-    case 'endTurn':
-      s.phase = 'killer';
-      ruleBeforeKiller(c, s);
-      killerTurn(c, s);
-      break;
-    case 'resolveKiller':
-      endRound(c, s);
+    case 'endUpkeep':
+      startTurn(c, s);
       break;
   }
+  drain(c, s);
+  settle(c, s);
   return s;
 }
 
-// ── Killer AI ───────────────────────────────────────────────────────────────
-export function killerTarget(c: Content, s: GameState): NodeId {
-  const k = s.killer;
-  if (k.lured) return k.lured;
-  const d = distances(c, k.loc);
-  const cands: { id: NodeId; dist: number; pri: number }[] = [];
-  for (const [id, n] of Object.entries(s.victims)) if (n > 0) cands.push({ id, dist: d[id] ?? 99, pri: 1 });
-  if (!s.heroine.hidden || k.finale) cands.push({ id: s.heroine.loc, dist: d[s.heroine.loc] ?? 99, pri: k.finale ? -5 : 0 });
-  if (!cands.length) return k.loc;
-  cands.sort((a, b) => a.dist + a.pri * 0.1 - (b.dist + b.pri * 0.1));
-  return cands[0].id;
-}
-
-function killerTurn(c: Content, s: GameState) {
-  const k = s.killer;
-  const h = s.heroine;
-  const name = c.killer.name;
-  if (k.stunned > 0) {
-    k.stunned--;
-    log(s, `${name} staggers, dazed. He loses his turn.`, 'good');
-    return;
-  }
-  let exposed = !h.hidden;
-  if (k.loc === h.loc && h.hidden) {
-    // He searches the room. Hiding buys a chance, not a guarantee.
-    const need = k.finale ? 4 : 5;
-    const r = rollD6(s);
-    if (r >= need) {
-      h.hidden = false;
-      exposed = true;
-      log(s, `${name} tears the room apart… and finds her.`, 'killer');
-      s.fx.push({ t: 'killerAppears' });
-    }
-  }
-  if (k.loc === h.loc && exposed) {
-    killerAttack(c, s);
-    return;
-  }
-  if ((s.victims[k.loc] ?? 0) > 0) {
-    const n = Math.min(s.victims[k.loc], k.frenzy ? 2 : 1);
-    s.victims[k.loc] -= n;
-    s.slain += n;
-    log(s, `${name} butchers ${n === 1 ? 'a survivor' : `${n} survivors`} at ${nodeName(c, k.loc)}.`, 'killer');
-    s.fx.push({ t: 'victimSlain', at: k.loc });
-    if (k.loc === h.loc || neighbors(c, h.loc).includes(k.loc)) addHorror(c, s, 1);
-    addBloodlust(c, s, 2 * n);
-    return;
-  }
-  if (k.loc === h.loc && h.hidden) {
-    log(s, `${name} stands inches away… and passes her by.`, 'info');
-  }
-  const target = killerTarget(c, s);
-  k.lured = undefined;
-  const speed = killerSpeed(c, s);
-  for (let i = 0; i < speed && k.loc !== target; i++) {
-    if (!moveKiller(c, s, stepToward(c, k.loc, target))) break;
-    if (k.loc === h.loc || (s.victims[k.loc] ?? 0) > 0) break;
-  }
-  log(s, `${name} prowls to ${nodeName(c, k.loc)}.`, 'killer');
-  if (k.loc === h.loc && !h.hidden) {
-    s.fx.push({ t: 'killerAppears' });
-    log(s, `He's found her.`, 'killer');
-    addHorror(c, s, 1);
-  }
-}
-
-function killerAttack(c: Content, s: GameState) {
-  const h = s.heroine;
-  const r = rollDice(s, `${c.killer.name} attacks`, killerAttackDice(c, s), c.killer.attackThreshold);
-  const hits = Math.max(0, r.successes - (s.mods.brace ?? 0));
-  if (hits === 0) {
-    log(s, `${c.killer.name} lunges — she twists away!`, 'good');
-    return;
-  }
-  log(s, `${c.killer.name} strikes: ${hits} wound${hits > 1 ? 's' : ''}.`, 'bad');
-  wound(c, s, hits);
-  if (s.outcome) return;
-  addHorror(c, s, 1);
-  if (hits >= 2 && h.escorting > 0) {
-    h.escorting--;
-    s.slain++;
-    log(s, 'In the chaos, one of her survivors is cut down.', 'killer');
-    s.fx.push({ t: 'victimSlain', at: h.loc });
-    addBloodlust(c, s, 2);
-  }
-}
-
 // ── Scoring ─────────────────────────────────────────────────────────────────
+export function totalHealth(s: GameState) {
+  return s.heroine.health + (s.heroine.token !== null ? 1 : 0);
+}
+
 export function score(s: GameState) {
   if (s.outcome !== 'slain') return Math.max(0, s.saved * 10 - s.slain * 5);
-  return Math.max(0, 100 + s.saved * 15 - s.slain * 5 + s.heroine.health * 5 + Math.max(0, s.dawnAt - s.round) * 5);
+  return Math.max(0, 100 + s.saved * 15 - s.slain * 5 + totalHealth(s) * 5 + s.terrorDeck.length * 5);
 }
 
 export function rating(s: GameState): { stars: number; blurb: string } {
   const sc = score(s);
   if (s.outcome === 'died') return { stars: 1, blurb: 'Straight to video.' };
-  if (s.outcome === 'escaped') return { stars: 1, blurb: 'He walked out of the last reel. Sequel pending.' };
   if (sc >= 200) return { stars: 5, blurb: 'A midnight-movie legend.' };
   if (sc >= 165) return { stars: 4, blurb: 'Cult classic.' };
   if (sc >= 130) return { stars: 3, blurb: 'Solid double feature.' };
   return { stars: 2, blurb: 'She got him. Barely.' };
 }
+

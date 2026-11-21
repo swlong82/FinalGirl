@@ -13,164 +13,167 @@ What the genre does well, and what LAST LIGHT takes from it:
 
 | Pillar | Why it works on the table | How LAST LIGHT implements it |
 |---|---|---|
-| **One meaningful scarce resource** | Every turn is a squeeze: you can't do everything | **Nerve**: 3–5 points per round, set by your Horror tier |
-| **Fear as a mechanical spiral** | Panic makes you worse, which makes things scarier | **Horror** 0–6: lowers nerve and raises the dice target; above 6 it turns into wounds |
-| **Push‑your‑luck dice** | Tension at every roll | d6 pools, success on 4+/5+, rerolls via Instinct cards |
-| **The killer as an AI, not a player** | Readable but relentless | Deterministic priority: attack → kill a survivor → hunt the nearest prey (lured/hidden aware) |
-| **Victims as a moral clock** | Saving people competes with saving yourself | Survivors spawn by event; each death feeds **Bloodlust** (Frenzy at 6, Finale at 12) |
-| **Act structure / Finale** | A movie‑shaped arc with a climax | Rounds 1–9 = hunt; **Finale** triggers by bloodlust, by clock (last 3 rounds), or when you "kill" him early (*he gets back up*) |
-| **Mix‑and‑match boxes** | Replayability from combinations | Killer packs and Location packs are independent data; any killer can stalk any location |
-| **Lore‑as‑mechanic** | Discovery is rewarding | Lore items reveal the killer's backstory **and** strip his armor |
+| **Cards are actions *and* currency** | Every card in hand is a choice: play it, burn it for nerve, or burn two to save a roll | **Nerve** (6 a turn) pays for cards; discard any card for +1; discard 2 to buy a partial die up |
+| **A deck you build, not one you draw** | Planning ahead beats luck of the draw | Open **tableau** of card piles; buy with leftover nerve; cards used this turn are locked until Planning ends |
+| **Fear as a mechanical spiral** | Panic makes you worse, which makes things scarier | **Horror Level** sets your dice (Midnight Show 4/4/4/3/3/2/2); past the top it feeds his bloodlust |
+| **Push‑your‑luck dice with soft failure** | Tension at every roll, but the player always has an out | 5–6 hit, 3–4 partial, 1–2 miss; every card has 2+ / 1 / fail outcomes, and failures can hurt |
+| **The killer as an AI, not a player** | Readable but relentless | Data‑driven **behavior** (target → move → attack) per killer; a different Finale behavior |
+| **Victims as a moral clock *and* his power source** | Saving people competes with saving yourself | Each kill = +1 **bloodlust**, which sets his move and attack; survivors are attacked **before** you |
+| **A finite night with a climax** | A movie‑shaped arc | 10 **Terror** cards, one per turn; when they run out the **Finale** begins |
+| **Nobody stays dead the first time** | "He gets back up" is the genre | Both sides carry a hidden **final‑health token**: a number revives (and ends the phase), blank kills |
+| **Rescue pays you back** | Heroics should make you stronger | **Rescue slots** with rewards; fill them all to unlock the heroine's ability |
+| **Mix‑and‑match boxes** | Replayability from combinations | Killer, location and heroine packs are independent data; 25 killer × location pairings |
+| **Lore‑as‑mechanic** | Discovery is rewarding | Lore items tell his story and add +1 damage to every hit that lands |
 
 UX lessons from digital board‑game ports (good ones and bad ones):
 
-- Show what's possible **before** the player clicks: reachable nodes glow, edges animate, buttons show cost, dice and target.
-- Never hide the killer's reasoning: the killer turn is a readable summary card, and the log is called the "Script".
-- Dice must feel physical: a tumble animation, colored hits, one‑click (or auto) dismiss.
-- Escalate the atmosphere through feedback, not walls of text: vignette, heartbeat, grain and drone all follow Horror.
-- Teach in context: one‑time tips fire when a situation first comes up (survivors present, killer here, escorting).
-- Respect the player: autosave every action, keyboard shortcuts, reduced‑motion support, mobile layout.
+- Show what's possible **before** the player clicks: every card shows its cost, its dice and all three outcomes; reachable locations glow while a move resolves.
+- Never hide the killer's reasoning: his behavior line, his next target and his move/attack are always on screen, and his turn ends in a readable summary.
+- Dice must feel physical and give agency: a tumble animation, partials glow gold, and clicking a partial offers the 2‑card buy‑up.
+- Teach in context: a 16‑step guided first night, plus one‑time tips when partials, reactions or Planning first come up.
+- Respect the player: autosave every action, undo for anything that didn't roll dice, keyboard shortcuts, mobile layout.
 
-## 2. Core loop (one round)
+## 2. Core loop (one turn)
 
-1. **Event**: flip an event card (location deck + killer deck shuffled together).
-2. **Actions**: spend nerve.
+Every turn has five phases, always in this order:
 
-| Action | Cost | Effect |
-|---|---|---|
-| Move | 1 (2 to flee the killer) | Go to an adjacent node; escorted survivors follow |
-| Search | 1 | Roll 2d (+bonuses); 1 success = 1 item, 2+ = 2 items; uses a node's search token |
-| Lead | 1 | Pick up survivors here (escort cap 3) |
-| Fight | 2 | Roll 3d + best weapon; damage = successes − armor |
-| Hide | 1 | Roll 2d; any success → he skips attacking you this round |
-| Barricade | 2 | The killer spends a move breaking it |
-| Rest | 2 | Roll 2d; each success heals 1 or calms 1 horror |
+| Phase | What happens |
+|---|---|
+| **1 · Action** | Play action cards from your hand (pay nerve, make a Horror Roll, resolve the band). Use items and your ability. Discard any card for +1 nerve. If nerve goes below zero, the current card finishes and the phase ends (and nerve can't climb back above zero this turn). |
+| **2 · Planning** | Buy cards from the tableau with leftover nerve (hand limit 10; 0‑cost cards are always free, even in debt). Nerve resets to 6. Cards played or discarded this turn return to their piles. |
+| **3 · Killer** | He resolves his behavior instruction, then a Terror card is drawn (none once the Finale is in play). Reactions can be played against attacks on you. |
+| **4 · Panic** | If anyone died this turn, survivors in his location each roll a d6 on that location's panic table. |
+| **5 · Upkeep** | Reveal the Finale if the Terror deck is empty; the location rule, ongoing Events, his power and the Finale resolve their upkeep; you may rearrange items. |
 
-Items and Instinct cards cost nothing to use.
-3. **Killer**: if stunned, skip. If with the heroine and she isn't hidden → attack. Otherwise, if survivors are here → kill one (two in Frenzy) and gain 2 bloodlust each. Otherwise move `speed` steps toward the nearest prey, with ties going to the heroine.
-4. **End of round**: modifiers reset, draw 1 Instinct, the clock advances, and a quiet board may spawn a survivor.
+**Win:** he dies. **Lose:** you die. **Both in the same resolution:** you win. There is no dawn.
+**Score:** win bonus + 15 per survivor saved − 5 per survivor slain + 5 per remaining health + 5 per Terror card left.
 
-**Win:** kill him during the Finale (★ high score), or survive to **dawn** (round 13).
-**Lose:** health reaches 0.
-**Score:** win bonus + 15 per survivor saved − 5 per survivor slain + 5 per remaining health.
+### Horror Rolls
+- Dice = the Horror track for your difficulty, plus card, heroine, item, Event and Resolve bonuses (minimum 1).
+- **5–6** success, **3–4** partial, **1–2** nothing. Each partial can be bought up to a success by discarding 2 cards.
+- Two or more successes → the card's **great** band; exactly one → **good**; none → **fail**. Bands are effect lists (move, search, damage, heal, horror, nerve, block, hide, rally…).
 
-### Horror tiers
-| Horror | Tier | Nerve | Success on |
-|---|---|---|---|
-| 0–1 | Steady | 5 | 4+ |
-| 2–3 | Uneasy | 4 | 4+ |
-| 4–5 | Terrified | 4 | 5+ |
-| 6 | Breaking | 3 | 5+ |
+| Horror | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|---|
+| Matinee | 5 | 5 | 4 | 4 | 3 | 3 | 2 |
+| Midnight Show | 4 | 4 | 4 | 3 | 3 | 2 | 2 |
+| Nightmare | 4 | 4 | 3 | 3 | 2 | 2 | 1 |
 
-### Terror & Finale phases
-- `KillerPack.terror` is shuffled into its own deck. Each time bloodlust crosses a multiple of `terrorEvery` (4), one card is revealed and resolved. Terror cards are permanent escalations: heal, armor, teleport to the heroine, wounds.
-- `finale.phases[]`: when the killer drops to 0 in the Finale, the next phase begins with fresh health and its own effects. You only win when the last phase ends.
+Horror pushed past 6 adds that much bloodlust; horror pushed below 0 gives that much nerve.
 
-### Tension metrics (`SCRIPTS=1 npx vitest run tension`)
-| Metric | v0.6 | v0.7 | Target |
-|---|---|---|---|
-| Quiet rounds (no wound, kill, horror rise or survivor panic; killer not near) | 50% (old metric) | 9% | under 25% |
-| Games reaching 1 health or death | 24% | 43% | about 45% |
-| Avg lowest health | 2.8 | 2.1 | — |
-| Peak horror (of 6) | 3.8 | 4.2 | — |
-| Turns ending with banked nerve | 15% | 50% | meaningful choice |
-| Survivors saved / slain per game | 6.0 / 1.7 | 3.3 / 2.6 | real stakes |
-| Death rate (Midnight Show, bot) | 16% | 32% | 25–30% |
+### Action cards
+Six 0‑cost starters (Walk, Hurry, Look Around, Shove, Steady Yourself, Duck) begin in your hand. Everything else is a face‑up pile in the tableau: Run, Sprint, Slip Away, Search, Ransack, Swing, Full Swing, Desperate Strike, Psych Up, Steady Hands, Hide, Barricade, Catch Your Breath, Deep Breath, Adrenaline, Over Here!, Scream, and the reactions Brace, Dodge and Counter. (The old free Instinct deck and the Bleeding/Panic junk cards were folded into this one economy.)
+
+### Survivors, rescue and panic
+- When you leave a location, up to 2 survivors there follow you (Tess: 3). They never follow you into his location.
+- Standing on an **exit** at any point of your Action phase (passing through counts) rescues every survivor with you. Each rescue fills your next **rescue slot** and pays its reward (heal, nerve, calm, an item, or Resolve: +1 attack die for the night). With every slot full your **ability** unlocks (once per turn); further rescues pay the repeat reward.
+- His attacks hit survivors in his location before you, one per attack. Each kill: +1 bloodlust, and survivors left in his location panic at the end of the turn.
+
+### The killer
+- **Behavior** (data): `target` (closest survivor, you, or whoever is closest), `hunt` (move his Movement Value along a shortest path; stops on arrival), `attack` (n separate attacks). Ties go to the group with the most survivors, then to the tie‑break policy.
+- **Bloodlust track** (8 levels): each level sets move/attack and may trigger an effect. At level 4 his **power** is revealed (temporary health that soaks damage first, plus an ability); past the top, each increase triggers the track's maximum effect.
+- **Finale** (when the 10 Terror cards are gone): an immediate effect, a new behavior, +1 attack, his power revealed if still hidden, and +1 bloodlust every Upkeep after.
+- **Final‑health token:** drawn at setup. A number means he gets back up with that much health (his "revive" moment) and the current phase ends; blank means he's dead.
+
+### Items
+Two hand slots; two‑handed items fill both. The backpack holds anything, but items that need hands don't work from it. Rearranging is allowed only when you gain an item and during Upkeep. Each search location has its own face‑up item pile (4 cards; his lore is always dealt in); searching draws and keeps per the card, and the rest go back on top face up. Weapons add damage to an attack that deals at least 1; ranged weapons let attack cards reach him 1 location away.
+
+### Tie‑break policy
+When the rules leave a genuine tie, the policy chosen in Settings decides and the Script logs it: **Player‑adverse** (default; he picks what's worst for you) or **Unpredictable** (a seeded coin flip, still replayable).
 
 ### Location rules (one per location)
 | Location | Rule | Effect |
 |---|---|---|
-| Holloway Drive‑In | Intermission | Every 4th round: +1 nerve, horror −1 |
-| Gullhaven Tide Cabins | The Tide | Turns every 3 rounds; at high tide, entering a shore node costs +1 nerve |
-| Saint Agatha's | Rolling Blackouts | Rounds 3–4, 7–8, 11–12: search target +1, hide +1 die, the board goes dark |
-| Kettle Peak Lodge | Whiteout | End a round outdoors: cold +1 (a wound at 3); by a fire: thaw; at 2+ cold: −1 nerve per round |
-| KXRL Hilltop | Request Line | A phone rings each round; answer it (1 nerve: +1 horror, draw 2 Instincts) or a survivor appears there and the killer is lured to it |
+| Holloway Drive‑In | Intermission | Every 4th turn, in Upkeep: +1 nerve, horror −1 |
+| Gullhaven Tide Cabins | The Tide | Turns every 4 turns; at high tide, entering a shore location costs +1 nerve |
+| Saint Agatha's | Rolling Blackouts | Turns 3–4, 7–8, 11–12: search −1 die, hide +1 die, he moves +1 |
+| Kettle Peak Lodge | Whiteout | End a turn outdoors: cold +1 (lose 1 health at 3); by a fire: thaw; at 2+ cold: −1 nerve per turn |
+| KXRL Hilltop | Request Line | A phone rings each turn; answer it (1 nerve, horror +1) or a survivor appears there and he takes a step toward it |
 
-Rules are owned by the location, so they apply whichever killer you choose.
+Each location also has three ongoing **Event** cards (one revealed at setup), two **setup cards**, two exits and four search locations.
 
 ### Difficulty
-| Mode | Killer health | Killer attack | Dawn |
-|---|---|---|---|
-| Matinee | −3 | — | 1 round earlier |
-| Midnight Show | — | — | round 13 |
-| Nightmare | +3 | +1 die | round 13 |
+| Mode | Nerve | Horror track | Her token | His token | His health |
+|---|---|---|---|---|---|
+| Matinee | 7 | gentle | 1–3 | 0, 0, 2, 3 | −2 |
+| Midnight Show | 6 | standard | 0–3 | 0, 2, 3, 4 | printed |
+| Nightmare | 5 | harsh | 0, 1, 1, 2 | 2, 2, 3, 4 | +1 |
 
 ### Balance
-`src/engine/bot.ts` is a rule‑aware heuristic player. It:
-- reads cards and items by their effect ops;
-- answers phones, warms up and avoids flooded nodes;
-- hides or flees when weak, and fights when the odds favor it.
-
-`npm test` fuzzes all 25 killer × location pairings with every heroine. For a full report, run:
+`src/engine/bot.ts` is a rule‑aware heuristic player: it buys a balanced hand in Planning, buys partials up on important rolls, reacts to attacks, shuttles survivors to exits, searches, and hunts him once armed. `npm test` fuzzes all 25 killer × location pairings with every heroine. For the full report:
 
 ```
-SCRIPTS=1 N=30 npx vitest run balance
+SCRIPTS=1 N=10 npx vitest run balance
 ```
 
-Results on Midnight Show (bot ≈ a careful player):
+Bot results on Midnight Show (a careful human should beat these):
 
-| Location | Killed him | Survived to dawn | Died |
+| Location | Killed him | Turns | Reached Finale |
 |---|---|---|---|
-| Holloway Drive‑In | 42% | 36% | 22% |
-| Gullhaven Tide Cabins | 25% | 60% | 15% |
-| Saint Agatha's | 33% | 55% | 12% |
-| Kettle Peak Lodge | 33% | 49% | 18% |
-| KXRL Hilltop | 17% | 59% | 25% |
+| Holloway Drive‑In | 62% | 10.2 | 41% |
+| Gullhaven Tide Cabins | 44% | 11.0 | 55% |
+| Saint Agatha's | 35% | 10.1 | 39% |
+| Kettle Peak Lodge | 49% | 10.3 | 38% |
+| KXRL Hilltop | 48% | 11.1 | 63% |
+| **All** | **48%** | **10.6** | **47%** |
 
-KXRL is deliberately a survival map: the phone lures keep him moving, so killing him is rare.
+Matinee: 81% · Nightmare: 12%. Tension report (`SCRIPTS=1 npx vitest run tension`): 66% of games reach 1 health or death, average peak horror 5.4 of 6, about 3 reactions and 4 rescues per game.
 
-**v0.5 balance changes:**
-- Hiding is no longer absolute. A killer in your room searches on 1d6 and finds you on 5+ (4+ in the Finale).
-- The killer gets +1 speed in the Finale.
-- Blackouts at Saint Agatha also give the killer +1 speed.
-- New service‑elevator shortcut at Saint Agatha; less healing in its deck.
-- Extra weapon at KXRL.
+### Spec alignment (v1.0)
+v1.0 rebuilt the core loop around a generic solo‑survival rules spec. What changed, and what we kept on purpose:
+
+| Spec rule | LAST LIGHT v1.0 |
+|---|---|
+| Action → Planning → Hunter → Panic → Upkeep | Implemented as phases, with an ordered effect queue and explicit player decisions (`pending`) |
+| Time 6, buy from tableau, used cards locked until Planning ends, discard for Time, below‑zero ends phase | Same, under our own name: **Nerve** |
+| Horror Roll: 5–6 / 3–4 partial (2 cards) / 1–2; 2+ / 1 / fail bands | Same |
+| Terror deck of 10 → Finale; no dawn | Same |
+| Bloodlust track sets move/attack, level effects, power reveal, max effect | Same; our old terror escalations became level effects and powers |
+| Hidden final‑health tokens; revival ends the phase; both die → win | Same, for heroine and killer |
+| NPCs follow (2), not into the Hunter; exit rescue → slots → ability | Same |
+| NPCs attacked first; reactions per attack | Same |
+| Elimination‑triggered directional panic | Same; panic tables derive from each location's edges unless a pack overrides them |
+| 2 hand slots, two‑handed items, backpack, rearrange on gain/Upkeep | Same |
+| Per‑space item piles, top card face up | Same (4 piles of 4) |
+| Tie‑break policy, logged | Player‑adverse and Unpredictable (seeded). "Comedic" needs human judgment and is not offered |
+| Kept from LAST LIGHT | Original names and art, location signature rules, lore as +1 damage, barricades, hiding, ranged weapons, Event cards as ongoing modifiers |
 
 ## 3. Architecture
 
 ```
 src/
   engine/      pure, deterministic rules (no DOM)
-    types.ts   content schema + runtime state + actions
-    rules.ts   newGame / check / dispatch / killer AI / effect interpreter
+    types.ts   content schema, runtime state, effects, pending decisions, actions
+    rules.ts   newGame / check / dispatch / effect queue / killer behavior / phases
+    bot.ts     heuristic player (balance sim + in-game hint)
+    tutorial.ts scripted first-night setup
     rng.ts     seeded RNG (state stored in the save → exact replays)
   content/     data packs — the only thing an expansion touches
-    drive-in/       LocationPack: The Holloway Drive-In
-    projectionist/  KillerPack: The Projectionist
-    tide-cabins/    LocationPack: The Gullhaven Tide Cabins
-    tidewife/       KillerPack: The Tidewife
-    saint-agatha/   LocationPack: Saint Agatha's West Wing
-    anesthetist/    KillerPack: The Anesthetist
-    whiteout-lodge/ LocationPack: Kettle Peak Lodge
-    snowblind/      KillerPack: The Snowblind
-    dead-air/       LocationPack: KXRL 1340 Hilltop Studio
-    caller/         KillerPack: The Caller
-    heroines/       5 heroines + the core Instinct deck
+    actions.ts      the action-card tableau (starters + piles)
+    drive-in/ … dead-air/   LocationPacks
+    projectionist/ … caller/  KillerPacks
+    heroines/       7 heroines: traits, rescue tracks, abilities
     registry.ts     Features (killer × location pairs)
-  art/art.ts       dispatchers: killer portraits, backdrops, node icons, dice
-  art/portraits.ts layered heroine portraits (fear & injury states)
-  art/scenes.ts    Anesthetist, hospital backdrop, card film stills, item icons, posters
-  art/season1.ts   Snowblind, Caller, snow & radio-hill backdrops, their node icons
-  ui/particles.ts  ambient board particles per location (dust/moths, drizzle, motes, embers)
-  audio/       procedural WebAudio score + SFX
-  ui/          grain canvas, styles
+  art/ audio/ ui/  procedural art, WebAudio, grain/particles/tutorial
   main.ts      screens, board, panels, overlays, input, FX
-tests/         engine fuzz/balance tests
+tests/         engine rule tests + fuzzing
+scripts/       balance and tension reports (SCRIPTS=1)
 ```
 
-- **Effects are data.** Cards and items declare `Effect[]` ops (`spawn`, `horror`, `killerMove`, `mod`, `if`, …), and one interpreter resolves them all. Most new cards need no code at all.
-- **Reducer pattern.** `dispatch(content, state, action) → state`. The UI only reads state and plays `state.fx` (sound and animation cues). That makes it easy to port to React/Svelte, a server‑authoritative multiplayer setup, or a native wrapper later.
-- **Portable.** It's a static build with a relative `base`, so it runs on GitHub Pages, Netlify, S3, itch.io, or inside Capacitor/Tauri.
+- **Effects are data.** Cards, items, Terror and Event cards, bloodlust levels, behaviors, powers, Finales and rescue rewards are all `Effect[]`. One interpreter runs them through an ordered queue; new effects are pushed to the front, so triggered effects (a bloodlust level, a revival) resolve before the rest of the sequence continues.
+- **Decisions pause the queue.** A move route, a dice buy‑up, a search pick or a reaction sets `state.pending`; the matching player action resolves it and the queue drains on. Revival or "end the phase" drops everything up to the next phase marker.
+- **Reducer pattern.** `dispatch(content, state, action) → state`; illegal actions return the same object. The UI only reads state and plays `state.fx`.
+- **Portable.** Static build with a relative `base`: GitHub Pages, Netlify, S3, itch.io, Capacitor/Tauri.
 
 ## 4. Adding a Feature (expansion)
 
-1. Create `src/content/<location>/location.ts` that exports a `LocationPack`: nodes with map coordinates, edges, exit, lair, events and items.
-   - **Mixing rule:** killer packs must never name a location's nodes. Use `heroine`, `lair`, `random`, `nearKiller` or `farFromKiller` instead. A test enforces this.
-2. Create `src/content/<killer>/killer.ts` that exports a `KillerPack`: stats, Finale, events, lore items and quotes.
+1. `src/content/<location>/location.ts` exports a `LocationPack`: nodes (with `search` / `exit` flags and optional `panic` tables), edges, lair, two or more `setups`, `terror` cards, ongoing `events`, items, and one signature `rule`.
+   - **Mixing rule:** killer packs must never name a location's nodes. Use `heroine`, `lair`, `random`, `nearKiller` or `farFromKiller`. A test enforces this.
+2. `src/content/<killer>/killer.ts` exports a `KillerPack`: health, starting horror, the 8‑level `bloodlust` track, `behavior`, `power`, `finale` (with its own behavior), `revive`, `terror` cards, lore items and quotes.
 3. Register both in `src/content/registry.ts` and add a `Feature`.
-4. Optionally add new heroines (`HeroineDef` with traits and a signature card).
-5. Art: set `KillerPack.art` and `LocationPack.art`, then add a portrait or backdrop renderer for that key in `art.ts`.
-6. Run `npm test`. It fuzzes every killer × location × heroine combination and validates every node reference in the packs.
+4. Optionally add heroines (`HeroineDef`: traits, rescue slots, ability).
+5. Art: set `art` keys and add renderers in `src/art/`.
+6. Run `npm test`.
 
 ## 5. Atmosphere & audio
 
@@ -190,8 +193,9 @@ tests/         engine fuzz/balance tests
 | **v0.6 (this build): First night & readability** | **Guided tutorial**: 14 coach‑mark steps on a scripted Drive‑In opening; offered to new players, replayable. **Clear tokens**: name‑tagged standee pins, a "you are here" pulse, a killer danger ring, and a red threat line when he's adjacent. **One‑screen layout**: the board scales to fit and panels scroll internally, with a stacked layout on phones. **Tabletop materials**: cardstock character sheet with polaroid, case‑file killer dossier, typed script‑page log, ticket‑stub actions, marquee‑bulb top bar, and SVG glyphs in place of emoji |
 | **v0.7 (this build): Tension economy** | **Banked nerve** (+3 per round, cap 8; carries over). **Noise**: every 5 nerve spent in a round draws the killer a step closer. **Action deck**: a hand of 5 ticket cards drawn each round instead of fixed buttons (Search/Ransack, Lead, Fight/Desperate Swing, Hide/Hold Your Breath, Barricade, Catch Your Breath, Sprint). **Bleeding** junk cards per hit and **Panic** junk cards at horror 5 and 6 clog your hand. **Survivor panic clock**: survivors left alone for 4 rounds may bolt, sometimes into the killer. Escorting 3 or more costs +1 per move |
 | **v0.8 (this build): Draft & readability** | **Lineup draft**: 6 face‑up action cards each round, take up to 3 for free (hand max 5), pay nerve to play. Every lineup is guaranteed a Lead card and a Hide or Fight card. Bleeding and Panic go straight into the hand. Noise every 6 nerve. **Readable map**: labeled badges with icons (searches left, panic n/4, barricade), a **Map key**, and a hover **location card** |
-| **v0.9 (this build): Hunt him down** | **The only win is killing him**; dawn means he escapes, which is a loss. **Resolve**: each rescue gives +1 fight die (max 3) plus an item. **Nerve resets each round** again (5/4/4/3); banking and noise removed. **Movement comes from cards**: Walk, Run and Slip Away, with 2 Walk cards to start and a move card guaranteed in every lineup. **Hands + backpack**: 3 active hand slots and an unlimited backpack; readying an item costs 1 nerve, or is free at the moment you find it. Killers −2 health, dawn at round 14, "he gets back up" at 4 health |
-| v1.0 | Season 2 kickoff; heroine scars and campaign mode |
+| v0.9: Hunt him down | **The only win is killing him**; dawn means he escapes, which is a loss. **Resolve**: each rescue gives +1 fight die (max 3) plus an item. **Nerve resets each round** again (5/4/4/3); banking and noise removed. **Movement comes from cards**: Walk, Run and Slip Away, with 2 Walk cards to start and a move card guaranteed in every lineup. **Hands + backpack**: 3 active hand slots and an unlimited backpack; readying an item costs 1 nerve, or is free at the moment you find it. Killers −2 health, dawn at round 14, "he gets back up" at 4 health |
+| **v1.0 (this build): The five‑phase night** | Core loop rebuilt to a generic solo‑survival spec: **Action → Planning → Killer → Panic → Upkeep**. **Nerve 6** and an open **tableau** you buy from (used cards locked until Planning ends; discard for +1 nerve; nerve debt ends your turn). **Horror Rolls** with partials you buy up with cards, and 2+ / 1 / fail outcome bands on every card. **10‑card Terror deck** as the clock; **Finale** when it runs out (dawn removed). **Bloodlust track** sets his move and attack, with level effects and a **power** revealed at level 4. **Hidden final‑health tokens** for both sides. Survivors follow (2) and shield you; **exit rescues** fill slots and unlock an **ability**. **Reactions**. Elimination‑triggered **directional panic**. **Two hand slots** and per‑location **item piles**. Tie‑break policy setting. New tutorial, rule tests and balance pass |
+| v1.1 | Season 2 kickoff; heroine scars and campaign mode |
 | v0.4 | Achievements, daily seeded challenge, more heroines |
 | v0.5 | PWA/offline, controller support, localization, optional commissioned art and music swapped into the art/audio slots |
 | Later | Campaign mode (heroines carry scars and items between features), daily seeded challenge with a shared leaderboard (needs a backend) |

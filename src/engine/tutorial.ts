@@ -12,31 +12,30 @@ export const TUTORIAL = {
 
 export function tutorialGame(c: Content): GameState {
   const s = newGame(c, TUTORIAL.seed, 'story');
-  // Round 1: a calm, helpful event. Round 2: another calm one.
-  const pull = (deck: string[], id: string) => {
-    const i = deck.indexOf(id);
-    if (i >= 0) deck.splice(i, 1);
-  };
-  if (s.currentEvent) s.eventDeck.unshift(s.currentEvent);
-  pull(s.eventDeck, 'ev-moon');
-  pull(s.eventDeck, 'ev-cartoon');
-  s.currentEvent = 'ev-moon';
-  s.eventDeck.push('ev-cartoon'); // drawn next (pop from the end)
-  // Good first finds.
-  for (const id of ['firstaid', 'tire-iron']) {
-    pull(s.itemDeck, id);
-    s.itemDeck.push(id);
-  }
-  // Opening hand: Search, Lead, Hide, Catch Your Breath, Fight (drawn from the top = end).
-  for (const id of ['ac-fight', 'ac-rest', 'ac-hide', 'ac-lead', 'ac-search']) {
-    pull(s.actionDeck, id);
-    s.actionDeck.push(id);
-  }
-  // A survivor right next door, and the killer busy for two rounds.
-  s.victims = Object.fromEntries(Object.keys(s.victims).map((k) => [k, 0]));
+  // Rosa at the Concession Stand (an item pile), one survivor next door in
+  // Rows A, which is next to the Ticket Booth exit. He is far off and dazed.
+  s.heroine.loc = 'concession';
+  s.killer.loc = 'woods';
+  s.killer.stunned = 1;
+  for (const k of Object.keys(s.victims)) s.victims[k] = 0;
   s.victims.lotA = 1;
-  s.victims.playground = 1;
-  s.killer.stunned = 2;
+  s.victims.restrooms = 1;
+  s.victimPool = 10;
+  s.heroine.horror = 1;
+  // A gentle ongoing event, and a calm start to the Terror deck.
+  s.events = ['ev-moon'];
+  const calm = ['ev-intermission', 'ev-headlights'];
+  s.terrorDeck = [...calm, ...s.terrorDeck.filter((id) => !calm.includes(id))].slice(0, 10);
+  // Good first finds on top of the Concession pile.
+  const pile = s.piles.concession;
+  for (const id of ['firstaid', 'tire-iron']) {
+    for (const p of Object.values(s.piles)) {
+      const i = p.cards.indexOf(id);
+      if (i >= 0) p.cards.splice(i, 1);
+    }
+    pile.cards.unshift(id);
+  }
+  pile.up = true;
   s.log.push({ round: 1, text: 'The Projectionist is threading the first reel. You have a moment.', tone: 'info' });
   return s;
 }

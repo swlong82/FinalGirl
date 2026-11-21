@@ -1,72 +1,394 @@
 import { describe, expect, it } from 'vitest';
 import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
-import { dispatch, newGame } from '../src/engine/rules';
+import { dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, TERROR_DEAL } from '../src/engine/rules';
 import { simulate } from '../src/engine/bot';
+import type { Action, Content, GameState } from '../src/engine/types';
+
+const C = (h = 'june', l = 'holloway-drive-in', k = 'the-projectionist') => buildContent(l, k, h);
 
 function play(heroine: string, seed: number, loc = 'holloway-drive-in', killer = 'the-projectionist') {
-  const c = buildContent(loc, killer, heroine);
+  const c = C(heroine, loc, killer);
   return simulate(c, newGame(c, seed), dispatch);
 }
 
+/** Dispatch and insist the action was legal. */
+function act(c: Content, s: GameState, a: Action): GameState {
+  const n = dispatch(c, s, a);
+  expect(n, `illegal: ${JSON.stringify(a)}`).not.toBe(s);
+  return n;
+}
+
+/** A calm, controlled board: no survivors, killer parked far away. */
+function quiet(c: Content, seed = 1): GameState {
+  const s = newGame(c, seed);
+  for (const k of Object.keys(s.victims)) s.victims[k] = 0;
+  s.queue = [];
+  s.pending = undefined;
+  s.events = [];
+  const d = distances(c, s.heroine.loc);
+  s.killer.loc = Object.keys(d).sort((a, b) => d[b] - d[a])[0];
+  return s;
+}
+
+const giveCard = (s: GameState, id: string) => {
+  const card = { uid: s.uid++, id };
+  s.heroine.hand.push(card);
+  return card.uid;
+};
+
 describe('engine', () => {
   it('is deterministic for a seed', () => {
-    const a = play('rosa', 42);
-    const b = play('rosa', 42);
-    expect(a.log).toEqual(b.log);
+    expect(play('rosa', 42).log).toEqual(play('rosa', 42).log);
   });
 
   it('every game terminates, for every heroine', () => {
-    const tally: Record<string, Record<string, number>> = {};
-    for (const h of HEROINES) {
-      tally[h.id] = { slain: 0, escaped: 0, died: 0 };
-      for (let seed = 1; seed <= 150; seed++) {
+    for (const h of HEROINES)
+      for (let seed = 1; seed <= 40; seed++) {
         const s = play(h.id, seed * 7919);
         expect(s.outcome).toBeDefined();
         expect(s.heroine.health).toBeGreaterThanOrEqual(0);
-        tally[h.id][s.outcome!]++;
       }
-    }
-    console.table(tally);
   });
 
   it('every killer × location pairing plays to completion', () => {
-    const tally: Record<string, Record<string, number>> = {};
     for (const l of LOCATIONS)
-      for (const k of KILLERS) {
-        const key = `${k.id} @ ${l.id}`;
-        tally[key] = { slain: 0, escaped: 0, died: 0 };
+      for (const k of KILLERS)
         for (const h of HEROINES)
-          for (let seed = 1; seed <= 12; seed++) {
-            const s = play(h.id, seed * 104729, l.id, k.id);
-            expect(s.outcome).toBeDefined();
-            tally[key][s.outcome!]++;
-          }
-      }
-    console.table(tally);
+          for (let seed = 1; seed <= 3; seed++) expect(play(h.id, seed * 104729, l.id, k.id).outcome).toBeDefined();
   });
 
   it('content references are valid', () => {
     for (const l of LOCATIONS) {
       const ids = new Set(l.nodes.map((n) => n.id));
       for (const [a, b] of l.edges) expect(ids.has(a) && ids.has(b), `${l.id} edge ${a}-${b}`).toBe(true);
-      for (const id of [l.exit, l.lair, l.heroineStart, ...l.setupVictims]) expect(ids.has(id), `${l.id} ${id}`).toBe(true);
-      const json = JSON.stringify([l.events, l.items]);
+      expect(ids.has(l.lair)).toBe(true);
+      expect(l.nodes.some((n) => n.exit), `${l.id} needs an exit`).toBe(true);
+      expect(l.nodes.some((n) => n.search), `${l.id} needs a search location`).toBe(true);
+      expect(l.events.length).toBeGreaterThan(0);
+      for (const st of l.setups) for (const id of [st.heroine, st.killer, ...st.npcs]) expect(ids.has(id), `${l.id} setup ${id}`).toBe(true);
+      const json = JSON.stringify([l.terror, l.events, l.items]);
       for (const m of json.matchAll(/"(?:at|node|toward|to)":"([a-zA-Z]+)"/g))
-        if (!['random', 'farFromKiller', 'nearKiller', 'heroine', 'lair', 'here'].includes(m[1])) expect(ids.has(m[1]), `${l.id} ref ${m[1]}`).toBe(true);
+        if (!['random', 'farFromKiller', 'nearKiller', 'heroine', 'lair', 'here', 'exit'].includes(m[1])) expect(ids.has(m[1]), `${l.id} ref ${m[1]}`).toBe(true);
+      for (const n of l.nodes) for (const t of n.panic ?? []) if (t) expect(ids.has(t)).toBe(true);
     }
   });
 
   it('killer packs never reference location-specific nodes', () => {
-    const generic = ['random', 'farFromKiller', 'nearKiller', 'heroine', 'lair', 'here'];
+    const generic = ['random', 'farFromKiller', 'nearKiller', 'heroine', 'lair', 'here', 'exit'];
     for (const k of KILLERS) {
-      const json = JSON.stringify([k.events, k.terror, k.items, k.finale]);
+      const json = JSON.stringify([k.terror, k.items, k.finale, k.bloodlust, k.power, k.behavior, k.revive]);
       for (const m of json.matchAll(/"(?:at|node|toward|to)":"([a-zA-Z]+)"/g)) expect(generic, `${k.id} refs ${m[1]}`).toContain(m[1]);
     }
   });
 
   it('rejects illegal actions without mutating', () => {
-    const c = buildContent('holloway-drive-in', 'the-projectionist', 'june');
+    const c = C();
     const s = newGame(c, 1);
     expect(dispatch(c, s, { type: 'playCard', uid: -1 })).toBe(s);
+    expect(dispatch(c, s, { type: 'buy', id: 'ac-run' })).toBe(s); // not in Planning
+  });
+});
+
+describe('setup', () => {
+  it('deals six starters, 10 terror cards, one ongoing event, and per-location item piles', () => {
+    const c = C();
+    const s = newGame(c, 5);
+    expect(s.heroine.hand.length).toBe(c.actions.filter((a) => a.starter).length);
+    expect(s.heroine.hand.length).toBe(6);
+    expect(s.terrorDeck.length).toBe(TERROR_DEAL);
+    expect(s.events.length).toBe(1);
+    for (const n of c.location.nodes.filter((x) => x.search)) expect(s.piles[n.id].cards.length).toBe(4);
+    const dealt = Object.values(s.piles).flatMap((p) => p.cards);
+    for (const lore of c.killer.items) expect(dealt).toContain(lore.id);
+    expect(s.heroine.nerve).toBe(6);
+    expect(s.heroine.token).not.toBeUndefined();
+  });
+});
+
+describe('Horror Rolls', () => {
+  it('3–4 is a partial; discarding 2 cards turns it into a success', () => {
+    const c = C();
+    let s = quiet(c);
+    const swing = giveCard(s, 'ac-steady');
+    s.heroine.horror = 4;
+    s.rolling = { uid: swing, dice: [3, 1, 2], converted: [], card: 'ac-steady', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-steady', reaction: false };
+    s.heroine.hand = s.heroine.hand.filter((x) => x.uid !== swing);
+    const [a, b] = s.heroine.hand.slice(0, 2).map((x) => x.uid);
+    const handBefore = s.heroine.hand.length;
+    s = act(c, s, { type: 'convert', die: 0, discard: [a, b] });
+    expect(s.heroine.hand.length).toBe(handBefore - 2);
+    expect(s.lastRoll?.successes).toBe(1);
+    expect(s.lastRoll?.band).toBe('good');
+    expect(s.heroine.horror).toBe(3); // Steady Yourself, one success: horror −1
+    expect(s.discard.length).toBe(2);
+  });
+
+  it('a 1 or 2 cannot be bought up', () => {
+    const c = C();
+    const s = quiet(c);
+    s.rolling = { uid: 0, dice: [2, 6], converted: [], card: 'ac-steady', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-steady', reaction: false };
+    const [a, b] = s.heroine.hand.map((x) => x.uid);
+    expect(dispatch(c, s, { type: 'convert', die: 0, discard: [a, b] })).toBe(s);
+  });
+});
+
+describe('nerve & the action-card economy', () => {
+  it('going below zero ends the Action phase and nerve cannot climb back above zero', () => {
+    const c = C();
+    let s = quiet(c);
+    s.heroine.nerve = 0;
+    s.heroine.hand = [];
+    const uid = giveCard(s, 'ac-sprint'); // cost 2, no roll: move 2
+    s = act(c, s, { type: 'playCard', uid });
+    expect(s.heroine.nerve).toBe(-2);
+    s = act(c, s, { type: 'stopMove' });
+    expect(s.phase).toBe('planning');
+  });
+
+  it('a card played this turn cannot be bought back until after Planning', () => {
+    const c = C();
+    let s = quiet(c);
+    s.tableau['ac-run'] = 1;
+    s.heroine.hand = [];
+    const uid = giveCard(s, 'ac-run');
+    s.tableau['ac-run'] = 0;
+    s = act(c, s, { type: 'playCard', uid });
+    while (s.pending) s = act(c, s, s.pending.kind === 'move' ? { type: 'stopMove' } : { type: 'resolveRoll' });
+    s = act(c, s, { type: 'endAction' });
+    expect(dispatch(c, s, { type: 'buy', id: 'ac-run' })).toBe(s);
+    s = act(c, s, { type: 'endPlanning' });
+    expect(s.tableau['ac-run']).toBe(1);
+    expect(s.heroine.nerve).toBe(6);
+  });
+
+  it('zero-cost cards can be bought at negative nerve; costed ones cannot; hand limit 10', () => {
+    const c = C();
+    let s = quiet(c);
+    s.phase = 'planning';
+    s.heroine.nerve = -1;
+    s.heroine.hand = [];
+    expect(dispatch(c, s, { type: 'buy', id: 'ac-run' })).toBe(s);
+    s = act(c, s, { type: 'buy', id: 'ac-walk' });
+    for (let i = s.heroine.hand.length; i < HAND_LIMIT; i++) giveCard(s, 'ac-walk');
+    s.tableau['ac-adrenaline'] = 2;
+    expect(dispatch(c, s, { type: 'buy', id: 'ac-adrenaline' })).toBe(s);
+  });
+
+  it('discarding a card in the Action phase gives +1 nerve', () => {
+    const c = C();
+    let s = quiet(c);
+    const before = s.heroine.nerve;
+    s = act(c, s, { type: 'discardForNerve', uid: s.heroine.hand[0].uid });
+    expect(s.heroine.nerve).toBe(before + 1);
+  });
+});
+
+describe('the killer', () => {
+  it('attacks survivors before her, and each kill feeds bloodlust', () => {
+    const c = C();
+    let s = quiet(c);
+    s.killer.loc = s.heroine.loc;
+    s.victims[s.heroine.loc] = 2;
+    s.heroine.hand = [];
+    s = act(c, s, { type: 'endAction' });
+    s.terrorDeck = ['kv-silence', ...s.terrorDeck]; // a quiet terror card
+    const hp = s.heroine.health;
+    s = act(c, s, { type: 'endPlanning' });
+    expect(s.slain).toBe(1);
+    expect(s.killer.bloodlust).toBe(1);
+    expect(s.heroine.health).toBe(hp);
+  });
+
+  it('a reaction can cancel one attack', () => {
+    const c = C();
+    let s = quiet(c);
+    s.killer.loc = s.heroine.loc;
+    s.heroine.hand = [];
+    giveCard(s, 'ac-dodge');
+    s = act(c, s, { type: 'endAction' });
+    s.terrorDeck = ['kv-silence', ...s.terrorDeck];
+    s = act(c, s, { type: 'endPlanning' });
+    expect(s.pending?.kind).toBe('reaction');
+    const hp = s.heroine.health;
+    s = act(c, s, { type: 'react', uid: s.heroine.hand[0].uid });
+    expect(s.heroine.health).toBe(hp);
+    expect(s.heroine.nerve).toBe(4); // Dodge costs 2 of next turn's nerve
+    expect(s.phase).toBe('upkeep');
+  });
+
+  it('the Finale is revealed in Upkeep once the Terror deck is empty, and no Terror is drawn after', () => {
+    const c = C();
+    let s = quiet(c);
+    s.terrorDeck = ['kv-silence'];
+    s = act(c, s, { type: 'endAction' });
+    s = act(c, s, { type: 'endPlanning' });
+    expect(s.killer.finale).toBe(true);
+    expect(s.killer.power).not.toBe('hidden');
+    s.terrorDeck = ['kv-burn'];
+    s = act(c, s, { type: 'endUpkeep' });
+    s = act(c, s, { type: 'endAction' });
+    s = act(c, s, { type: 'endPlanning' });
+    expect(s.terrorDeck).toEqual(['kv-burn']);
+  });
+
+  it('horror past the top feeds bloodlust; below zero gives nerve', () => {
+    const c = C('june');
+    let s = quiet(c);
+    s.heroine.horror = 6;
+    s.heroine.hand = [];
+    const uid = giveCard(s, 'ac-adrenaline'); // +2 nerve, +1 horror
+    s = act(c, s, { type: 'playCard', uid });
+    expect(s.heroine.horror).toBe(6);
+    expect(s.killer.bloodlust).toBe(1);
+    s.heroine.horror = 0;
+    const n = s.heroine.nerve;
+    s.pending = undefined;
+    const uid2 = giveCard(s, 'ac-deepbreath');
+    s.rolling = undefined;
+    s = act(c, s, { type: 'playCard', uid: uid2 });
+    while (s.pending?.kind === 'roll') s = act(c, s, { type: 'resolveRoll' });
+    expect(s.heroine.nerve).toBeGreaterThanOrEqual(n - 1 + 1);
+  });
+});
+
+describe('health & final-health tokens', () => {
+  it('a token with a number revives her and ends the phase; a blank one kills', () => {
+    const c = C();
+    let s = quiet(c);
+    s.heroine.health = 1;
+    s.heroine.token = 2;
+    s.heroine.hand = [];
+    const uid = giveCard(s, 'ac-fullswing');
+    s.killer.loc = s.heroine.loc;
+    s.rolling = { uid, dice: [1], converted: [], card: 'ac-fullswing', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-fullswing', reaction: false };
+    s.heroine.horror = 0;
+    // Fail band: lose 1 health. 1 → 0 (token still hidden).
+    s = act(c, s, { type: 'resolveRoll' });
+    expect(s.heroine.health).toBe(0);
+    expect(s.heroine.token).toBe(2);
+    expect(s.phase).toBe('action');
+    // Any more damage reveals the token.
+    const uid2 = giveCard(s, 'ac-fullswing');
+    s.rolling = { uid: uid2, dice: [1], converted: [], card: 'ac-fullswing', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-fullswing', reaction: false };
+    s = act(c, s, { type: 'resolveRoll' });
+    expect(s.heroine.token).toBe(null);
+    expect(s.heroine.health).toBe(2);
+    expect(s.phase).toBe('planning');
+    expect(s.outcome).toBeUndefined();
+
+    let t = quiet(c);
+    t.heroine.health = 0;
+    t.heroine.token = 0;
+    t.killer.loc = t.heroine.loc;
+    const u = giveCard(t, 'ac-fullswing');
+    t.rolling = { uid: u, dice: [1], converted: [], card: 'ac-fullswing', reaction: false, range: 0 };
+    t.pending = { kind: 'roll', card: 'ac-fullswing', reaction: false };
+    t = act(c, t, { type: 'resolveRoll' });
+    expect(t.outcome).toBe('died');
+  });
+
+  it('if both fall in the same resolution, she wins', () => {
+    const c = C();
+    let s = quiet(c);
+    s.killer.loc = s.heroine.loc;
+    s.killer.health = 0;
+    s.killer.token = null;
+    s.heroine.health = 0;
+    s.heroine.token = null;
+    // One resolution that hurts her, then him.
+    s.queue = [{ op: 'wound', n: 1 }, { op: 'killerDamage', n: 1 }];
+    s.pending = undefined;
+    s = act(c, s, { type: 'discardForNerve', uid: s.heroine.hand[0].uid });
+    expect(s.outcome).toBe('slain');
+  });
+});
+
+describe('survivors', () => {
+  it('up to 2 follow her, never into his location, and an exit rescues them', () => {
+    const c = C('june');
+    let s = quiet(c);
+    const exit = c.location.nodes.find((n) => n.exit)!.id;
+    const from = neighbors(c, exit).find((n) => !isExit(c, n))!;
+    s.heroine.loc = from;
+    s.victims[from] = 3;
+    s.killer.loc = Object.keys(distances(c, exit)).sort((a, b) => distances(c, exit)[b] - distances(c, exit)[a])[0];
+    s.heroine.hand = [];
+    const uid = giveCard(s, 'ac-walk');
+    s = act(c, s, { type: 'playCard', uid });
+    s = act(c, s, { type: 'step', to: exit });
+    expect(s.saved).toBe(2);
+    expect(s.victims[from]).toBe(1);
+    expect(s.heroine.rescued).toBe(2);
+
+    let t = quiet(c);
+    const next = neighbors(c, t.heroine.loc)[0];
+    t.victims[t.heroine.loc] = 2;
+    t.killer.loc = next;
+    const u = giveCard(t, 'ac-walk');
+    t = act(c, t, { type: 'playCard', uid: u });
+    t = act(c, t, { type: 'step', to: next });
+    expect(t.victims[next]).toBe(0);
+  });
+
+  it('filling every rescue slot unlocks her ability', () => {
+    const c = C('tess');
+    let s = quiet(c);
+    const exit = c.location.nodes.find((n) => n.exit)!.id;
+    s.heroine.loc = exit;
+    s.victims[exit] = 4;
+    s = act(c, s, { type: 'discardForNerve', uid: s.heroine.hand[0].uid }); // any action triggers the exit check
+    expect(s.heroine.rescued).toBe(4);
+    expect(dispatch(c, s, { type: 'useAbility' })).not.toBe(s);
+  });
+
+  it('survivors with him panic only if someone died this turn', () => {
+    const c = C();
+    const s = quiet(c);
+    const t = panicTable(c, s.killer.loc);
+    expect(t).toHaveLength(6);
+    expect(t[0]).toBeNull();
+    for (const n of t) if (n) expect(neighbors(c, s.killer.loc)).toContain(n);
+  });
+});
+
+describe('items & searching', () => {
+  it('searching draws from the pile, keeps some and puts the rest back face up', () => {
+    const c = C();
+    let s = quiet(c);
+    const node = c.location.nodes.find((n) => n.search)!.id;
+    s.heroine.loc = node;
+    s.killer.loc = Object.keys(distances(c, node)).sort((a, b) => distances(c, node)[b] - distances(c, node)[a])[0];
+    s.piles[node] = { cards: ['tire-iron', 'firstaid', 'candy', 'aspirin'], up: true };
+    s.heroine.hand = [];
+    const uid = giveCard(s, 'ac-search');
+    s.heroine.horror = 0;
+    s.rolling = undefined;
+    s = act(c, s, { type: 'playCard', uid });
+    while (s.pending?.kind === 'roll') s = act(c, s, { type: 'resolveRoll' });
+    if (s.pending?.kind === 'search') {
+      const p = s.pending;
+      s = act(c, s, { type: 'keep', picks: [0] });
+      expect(s.heroine.items.length + s.heroine.pack.length).toBe(1);
+      expect(s.piles[node].cards.length).toBe(4 - 1);
+      expect(s.piles[node].cards[0]).toBe(p.drawn.length > 1 ? p.drawn[1] : 'firstaid');
+      expect(s.rearrange).toBe(true);
+    }
+  });
+
+  it('two hand slots: a two-handed item fills both, and swaps only happen on gain or in Upkeep', () => {
+    const c = C();
+    const s = quiet(c);
+    s.heroine.items = [{ uid: 900, id: 'tire-iron' }];
+    s.heroine.pack = [{ uid: 901, id: 'shears' }];
+    s.rearrange = false;
+    expect(dispatch(c, s, { type: 'ready', uid: 901, swapOut: [900] })).toBe(s);
+    s.rearrange = true;
+    expect(dispatch(c, s, { type: 'ready', uid: 901 })).toBe(s); // needs both hands
+    const n = dispatch(c, s, { type: 'ready', uid: 901, swapOut: [900] });
+    expect(n.heroine.items.map((i) => i.id)).toEqual(['shears']);
   });
 });

@@ -1,17 +1,14 @@
-import type { HeroineDef, InstinctDef } from '../../engine/types';
+import type { HeroineDef, RescueSlot } from '../../engine/types';
 
-// Shared instinct deck (core set). Each heroine adds her signature card.
-export const coreInstincts: InstinctDef[] = [
-  { id: 'in-adrenaline', name: 'Adrenaline', text: '+2 nerve this round.', effects: [{ op: 'nerve', n: 2 }], copies: 2 },
-  { id: 'in-sprint', name: 'Sprint', text: 'Your next move costs no nerve.', effects: [{ op: 'freeMove' }], copies: 2 },
-  { id: 'in-steady', name: 'Steady Hands', text: 'Your next roll rerolls every failed die.', effects: [{ op: 'mod', key: 'rerollNext', n: 1 }], copies: 2 },
-  { id: 'in-grit', name: 'Grit', text: 'Your next Fight rolls +2 dice.', effects: [{ op: 'mod', key: 'fightDice', n: 2 }], copies: 2 },
-  { id: 'in-breath', name: 'Deep Breath', text: 'Horror −1.', effects: [{ op: 'horror', n: -1 }], copies: 2 },
-  { id: 'in-secondwind', name: 'Second Wind', text: 'Heal 1.', effects: [{ op: 'heal', n: 1 }] },
-  { id: 'in-brace', name: 'Brace', text: "The killer's next attack this round deals 1 fewer wound.", effects: [{ op: 'mod', key: 'brace', n: 1 }], copies: 2 },
-  { id: 'in-keen', name: 'Keen Eye', text: 'Searches this round roll +2 dice.', effects: [{ op: 'mod', key: 'searchDice', n: 2 }] },
-  { id: 'in-scream', name: 'Scream', text: 'The killer moves 1 toward you — away from the others. Horror +1.', effects: [{ op: 'killerMove', toward: 'heroine', steps: 1 }, { op: 'horror', n: 1 }] },
-];
+// Rescue rewards. Each heroine fills her slots in order; once every slot is
+// full her ability unlocks, and further rescues give the repeat reward.
+const nerve2: RescueSlot = { text: '+2 nerve.', effects: [{ op: 'nerve', n: 2 }] };
+const heal1: RescueSlot = { text: 'Heal 1.', effects: [{ op: 'heal', n: 1 }] };
+const calm1: RescueSlot = { text: 'Horror −1.', effects: [{ op: 'horror', n: -1 }] };
+const calm2: RescueSlot = { text: 'Horror −2.', effects: [{ op: 'horror', n: -2 }] };
+const item1: RescueSlot = { text: 'They hand her something: draw 1 item.', effects: [{ op: 'drawItem', n: 1 }] };
+const resolve1: RescueSlot = { text: 'Resolve: her attacks roll +1 die for the rest of the night.', effects: [{ op: 'resolve', n: 1 }] };
+const nerve1: RescueSlot = { text: '+1 nerve.', effects: [{ op: 'nerve', n: 1 }] };
 
 export const heroines: HeroineDef[] = [
   {
@@ -21,9 +18,10 @@ export const heroines: HeroineDef[] = [
     bio: 'Seventeen. Saving for a car. Knows every shortcut between the counter and the back rows.',
     health: 5,
     difficulty: 'Easy',
-    passive: { name: 'Quick Feet', text: 'Your first move each round costs no nerve.' },
-    traits: { freeFirstMove: true },
-    signature: { id: 'sig-rosa', name: 'Hot Butter', text: 'Killer here: stun him for a round.', effects: [{ op: 'if', cond: { c: 'killerHere' }, then: [{ op: 'killerStun', n: 1 }], else: [{ op: 'nerve', n: 1 }] }] },
+    passive: { name: 'Quick Feet', text: 'The first move card you play each turn moves 1 extra step.' },
+    traits: { moveBonus: 1 },
+    rescue: { slots: [resolve1, nerve2, heal1, item1], repeat: nerve1 },
+    ability: { name: 'Hot Butter', text: 'Once per turn, killer here: 1 damage to him.', when: 'killerHere', effects: [{ op: 'killerDamage', n: 1 }] },
     look: { skin: '#b07a55', hair: '#1a0f0a', hairStyle: 'ponytail', accent: '#ff4d6d', prop: 'apron' },
   },
   {
@@ -33,9 +31,10 @@ export const heroines: HeroineDef[] = [
     bio: 'Counts every car that comes through the gate. Notices everything. Hates being right.',
     health: 5,
     difficulty: 'Normal',
-    passive: { name: 'Sharp Eyes', text: 'Searches roll +1 die.' },
+    passive: { name: 'Sharp Eyes', text: 'Search cards roll +1 die.' },
     traits: { searchDice: 1 },
-    signature: { id: 'sig-june', name: 'Head Count', text: 'Draw 1 item.', effects: [{ op: 'drawItem', n: 1 }] },
+    rescue: { slots: [item1, calm1, heal1, resolve1], repeat: calm1 },
+    ability: { name: 'Head Count', text: 'Once per turn: +1 nerve and horror −1.', effects: [{ op: 'nerve', n: 1 }, { op: 'horror', n: -1 }] },
     look: { skin: '#5c3a26', hair: '#0e0906', hairStyle: 'curls', accent: '#f9c74f', prop: 'ticket' },
   },
   {
@@ -45,9 +44,10 @@ export const heroines: HeroineDef[] = [
     bio: "Fixes the projector's generator for free popcorn. Owns three wrenches and no fear of the dark.",
     health: 6,
     difficulty: 'Normal',
-    passive: { name: 'Handy', text: 'Barricades cost 1 nerve and hold for 2 hits.' },
-    traits: { barricadeCost: 1, barricadeStrength: 2 },
-    signature: { id: 'sig-margo', name: 'Jury-Rig', text: 'Barricade here (strength 2).', effects: [{ op: 'barricade', at: 'here', strength: 2 }] },
+    passive: { name: 'Handy', text: 'Barricade cards cost 1 less, and every barricade she builds holds 1 more hit.' },
+    traits: { barricadeDiscount: 1, barricadeStrength: 1 },
+    rescue: { slots: [heal1, nerve2, resolve1, item1], repeat: nerve1 },
+    ability: { name: 'Jury-Rig', text: 'Once per turn: barricade here (strength 1, +1 from Handy).', effects: [{ op: 'barricade', at: 'here', strength: 1 }] },
     look: { skin: '#e8c3a0', hair: '#7a2e12', hairStyle: 'bob', accent: '#90be6d', prop: 'wrench' },
   },
   {
@@ -57,9 +57,10 @@ export const heroines: HeroineDef[] = [
     bio: 'Off-season lifeguard at Marrow Lake. Has pulled six people out of the water. Tonight she wants a seventh.',
     health: 6,
     difficulty: 'Easy',
-    passive: { name: 'Protector', text: 'Escort up to 4. Each survivor saved: horror −2.' },
-    traits: { escortCap: 4, saveHorror: 2 },
-    signature: { id: 'sig-tess', name: 'Whistle', text: 'Rally your nerve: horror −1 and +1 nerve.', effects: [{ op: 'horror', n: -1 }, { op: 'nerve', n: 1 }] },
+    passive: { name: 'Protector', text: 'Up to 3 survivors follow her when she moves (instead of 2).' },
+    traits: { escortCap: 3 },
+    rescue: { slots: [calm2, heal1, calm2, resolve1], repeat: calm2 },
+    ability: { name: 'Whistle', text: 'Once per turn: up to 2 survivors from next door run to her.', effects: [{ op: 'rally', n: 2 }] },
     look: { skin: '#f1d2b6', hair: '#e9c46a', hairStyle: 'long', accent: '#4cc9f0', prop: 'whistle' },
   },
   {
@@ -69,9 +70,10 @@ export const heroines: HeroineDef[] = [
     bio: "Came to film the Holloway's last night for her thesis. Has watched every slasher ever made. Knows the rules.",
     health: 4,
     difficulty: 'Normal',
-    passive: { name: 'Knows the Rules', text: 'Ignore the first horror you gain each round.' },
+    passive: { name: 'Knows the Rules', text: 'Ignore the first horror you gain in each Killer phase.' },
     traits: { ignoreFirstHorror: true },
-    signature: { id: 'sig-ivy', name: 'Never Split Up', text: 'Escorting anyone: +2 nerve. Otherwise horror −1.', effects: [{ op: 'if', cond: { c: 'escorting' }, then: [{ op: 'nerve', n: 2 }], else: [{ op: 'horror', n: -1 }] }] },
+    rescue: { slots: [calm1, nerve1, item1, heal1], repeat: nerve1 },
+    ability: { name: 'Never Split Up', text: 'Once per turn. With survivors here: +2 nerve. Otherwise: horror −1.', effects: [{ op: 'if', cond: { c: 'survivorsHere' }, then: [{ op: 'nerve', n: 2 }], else: [{ op: 'horror', n: -1 }] }] },
     look: { skin: '#d9a88a', hair: '#2b1d3a', hairStyle: 'pixie', accent: '#c77dff', prop: 'camera' },
   },
   {
@@ -81,9 +83,10 @@ export const heroines: HeroineDef[] = [
     bio: 'Grew up on the mountain. Teaches six-year-olds to snowplow by day and patrols the bunny hill by night. Cold has never bothered her.',
     health: 6,
     difficulty: 'Normal',
-    passive: { name: 'Mountain Born', text: 'Immune to cold. Hiding rolls +1 die.' },
-    traits: { coldImmune: true, hideDice: 1 },
-    signature: { id: 'sig-sunny', name: 'Traverse', text: 'Your next move costs no nerve, and thaw out.', effects: [{ op: 'freeMove' }, { op: 'warm' }] },
+    passive: { name: 'Mountain Born', text: 'Immune to cold. Move and hide cards roll +1 die.' },
+    traits: { coldImmune: true, hideDice: 1, moveDice: 1 },
+    rescue: { slots: [resolve1, heal1, nerve2, item1], repeat: calm1 },
+    ability: { name: 'Traverse', text: 'Once per turn: move 1, then thaw out.', effects: [{ op: 'move', n: 1 }, { op: 'warm' }] },
     look: { skin: '#f0c7a8', hair: '#c9772f', hairStyle: 'long', accent: '#ff9f1c', prop: 'goggles' },
   },
   {
@@ -93,9 +96,10 @@ export const heroines: HeroineDef[] = [
     bio: 'Nineteen, unpaid, and the only one who knows how to run the board alone. She can talk anybody down and calm anybody, including herself.',
     health: 5,
     difficulty: 'Normal',
-    passive: { name: 'Smooth Voice', text: 'Each rescue draws 2 Instincts instead of 1. Answering a ringing phone costs no nerve.' },
-    traits: { saveDraw: 1, freeAnswer: true },
-    signature: { id: 'sig-dee', name: 'Cue the Jingle', text: 'The killer moves 2 toward his lair. Horror −1.', effects: [{ op: 'killerMove', toward: 'lair', steps: 2 }, { op: 'horror', n: -1 }] },
+    passive: { name: 'Smooth Voice', text: 'Reaction cards roll +1 die. Answering a ringing phone costs no nerve.' },
+    traits: { freeAnswer: true, reactDice: 1 },
+    rescue: { slots: [nerve2, calm1, nerve2, resolve1], repeat: nerve2 },
+    ability: { name: 'Cue the Jingle', text: 'Once per turn: the killer moves 2 toward his lair. Horror −1.', effects: [{ op: 'killerMove', toward: 'lair', steps: 2 }, { op: 'horror', n: -1 }] },
     look: { skin: '#a8714f', hair: '#1c1020', hairStyle: 'ponytail', accent: '#f15bb5', prop: 'headphones' },
   },
 ];

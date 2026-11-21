@@ -1,60 +1,66 @@
 // Tension metrics (not CI): `SCRIPTS=1 npx vitest run tension`
 import { it } from 'vitest';
 import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
-import { dispatch, newGame, neighbors } from '../src/engine/rules';
+import { dispatch, newGame, neighbors, totalHealth } from '../src/engine/rules';
 import { botAction } from '../src/engine/bot';
 import type { GameState } from '../src/engine/types';
 
 it('tension report', () => {
-  const m = { games: 0, rounds: 0, nerveGiven: 0, nerveUnused: 0, killerAdjRounds: 0, killerSameRounds: 0, attacks: 0, wounds: 0, minHealthSum: 0, nearDeath: 0,
-    quietRounds: 0, maxHorrorSum: 0, endTurnsWithNerve: 0, deaths: 0, victimsSlain: 0, victimsSaved: 0, lengthSum: 0, roundsHorror4plus: 0 };
-  for (const l of LOCATIONS) for (const k of KILLERS) for (const h of HEROINES) for (let i = 1; i <= 12; i++) {
-    const c = buildContent(l.id, k.id, h.id);
-    let s: GameState = newGame(c, i * 104729 + l.id.length);
-    let minH = s.heroine.health, maxHor = 0, roundStartNerve = 0, roundEvent = false;
-    let lastRound = 0;
-    for (let step = 0; step < 3000 && !s.outcome; step++) {
-      if (s.phase === 'action' && s.round !== lastRound) {
-        lastRound = s.round; roundStartNerve = s.heroine.nerve; m.nerveGiven += roundStartNerve; m.rounds++;
-        const adj = neighbors(c, s.heroine.loc).includes(s.killer.loc);
-        if (s.killer.loc === s.heroine.loc) m.killerSameRounds++; else if (adj) m.killerAdjRounds++;
-        if (s.heroine.horror >= 4) m.roundsHorror4plus++;
-        roundEvent = false;
-      }
-      const a = botAction(c, s);
-      if (a.type === 'endTurn' && s.phase === 'action') { m.nerveUnused += s.heroine.nerve; if (s.heroine.nerve > 0) m.endTurnsWithNerve++; }
-      const prevH = s.heroine.health, prevSlain = s.slain, prevHor = s.heroine.horror, prevLog = s.log.length;
-      let next = dispatch(c, s, a);
-      if (next === s) next = dispatch(c, s, { type: 'endTurn' });
-      if (next.lastRoll && next.lastRoll !== s.lastRoll && next.lastRoll.label.includes('attacks')) m.attacks++;
-      if (next.heroine.health < prevH) { m.wounds += prevH - next.heroine.health; roundEvent = true; }
-      if (next.slain > prevSlain) roundEvent = true;
-      if (next.heroine.horror > prevHor) roundEvent = true;
-      if (next.log.slice(prevLog).some((l) => /panics and bolts|Too loud/.test(l.text))) roundEvent = true;
-      if (neighbors(c, next.heroine.loc).includes(next.killer.loc)) roundEvent = true;
-      if (s.phase === 'killer' && next.phase !== 'killer' && !roundEvent && s.killer.loc !== s.heroine.loc) m.quietRounds++;
-      s = next;
-      minH = Math.min(minH, s.heroine.health); maxHor = Math.max(maxHor, s.heroine.horror);
-    }
-    m.games++; m.minHealthSum += minH; if (minH <= 1) m.nearDeath++; m.maxHorrorSum += maxHor;
-    if (s.outcome === 'died') m.deaths++; m.victimsSlain += s.slain; m.victimsSaved += s.saved; m.lengthSum += Math.min(s.round, s.dawnAt);
-  }
-  const g = m.games, r = m.rounds;
+  const m = { games: 0, turns: 0, nerveLeft: 0, debtTurns: 0, killerNearTurns: 0, attacksOnHer: 0, reactions: 0, conversions: 0, rolls: 0, minHealthSum: 0, nearDeath: 0, maxHorrorSum: 0, finales: 0, deaths: 0, saved: 0, slain: 0, buys: 0 };
+  for (const l of LOCATIONS)
+    for (const k of KILLERS)
+      for (const h of HEROINES)
+        for (let i = 1; i <= 6; i++) {
+          const c = buildContent(l.id, k.id, h.id);
+          let s: GameState = newGame(c, i * 104729 + l.id.length);
+          let minH = totalHealth(s);
+          let maxHor = 0;
+          for (let step = 0; step < 6000 && !s.outcome; step++) {
+            const a = botAction(c, s);
+            if (a.type === 'endAction') {
+              m.turns++;
+              m.nerveLeft += Math.max(0, s.heroine.nerve);
+              if (neighbors(c, s.heroine.loc).includes(s.killer.loc) || s.killer.loc === s.heroine.loc) m.killerNearTurns++;
+            }
+            if (a.type === 'convert') m.conversions++;
+            if (a.type === 'react') m.reactions++;
+            if (a.type === 'buy') m.buys++;
+            const prevRoll = s.lastRoll?.id;
+            let next = dispatch(c, s, a);
+            if (next === s) next = dispatch(c, s, { type: s.phase === 'planning' ? 'endPlanning' : s.phase === 'upkeep' ? 'endUpkeep' : 'endAction' });
+            if (next.lastRoll && next.lastRoll.id !== prevRoll) m.rolls++;
+            if (next.pending?.kind === 'reaction' && s.pending?.kind !== 'reaction') m.attacksOnHer++;
+            if (s.phase === 'action' && next.phase === 'planning' && next.heroine.nerve < 0) m.debtTurns++;
+            s = next;
+            minH = Math.min(minH, totalHealth(s));
+            maxHor = Math.max(maxHor, s.heroine.horror);
+          }
+          m.games++;
+          m.minHealthSum += minH;
+          if (minH <= 1) m.nearDeath++;
+          m.maxHorrorSum += maxHor;
+          if (s.killer.finale) m.finales++;
+          if (s.outcome === 'died') m.deaths++;
+          m.saved += s.saved;
+          m.slain += s.slain;
+        }
+  const g = m.games;
+  const pct = (n: number, d: number) => `${Math.round((n / d) * 100)}%`;
   console.table({
-    'games': g,
-    'avg rounds': (m.lengthSum / g).toFixed(1),
-    'nerve unused at end of turn (% of nerve given)': `${Math.round((m.nerveUnused / m.nerveGiven) * 100)}%`,
-    'turns ended with nerve left over': `${Math.round((m.endTurnsWithNerve / r) * 100)}%`,
-    'rounds starting with killer in same room': `${Math.round((m.killerSameRounds / r) * 100)}%`,
-    'rounds starting with killer adjacent': `${Math.round((m.killerAdjRounds / r) * 100)}%`,
-    'killer attacks per game': (m.attacks / g).toFixed(2),
-    'wounds taken per game': (m.wounds / g).toFixed(2),
-    'avg lowest health reached': (m.minHealthSum / g).toFixed(2),
-    'games reaching 1 health or death': `${Math.round((m.nearDeath / g) * 100)}%`,
-    'rounds at horror 4+': `${Math.round((m.roundsHorror4plus / r) * 100)}%`,
+    games: g,
+    'avg turns': (m.turns / g).toFixed(1),
+    'nerve left at end of Action (avg)': (m.nerveLeft / m.turns).toFixed(2),
+    'turns ending in nerve debt': pct(m.debtTurns, m.turns),
+    'turns ending with him within 1': pct(m.killerNearTurns, m.turns),
+    'attacks on her with a reaction in hand / game': (m.attacksOnHer / g).toFixed(2),
+    'reactions played / game': (m.reactions / g).toFixed(2),
+    'partials bought up / roll': (m.conversions / Math.max(1, m.rolls)).toFixed(2),
+    'cards bought / turn': (m.buys / m.turns).toFixed(2),
+    'avg lowest health': (m.minHealthSum / g).toFixed(2),
+    'games reaching 1 health or death': pct(m.nearDeath, g),
     'avg peak horror (of 6)': (m.maxHorrorSum / g).toFixed(2),
-    'quiet rounds (no wound/kill/horror/panic, killer not near)': `${Math.round((m.quietRounds / r) * 100)}%`,
-    'survivors saved / slain per game': `${(m.victimsSaved / g).toFixed(1)} / ${(m.victimsSlain / g).toFixed(1)}`,
-    'death rate': `${Math.round((m.deaths / g) * 100)}%`,
+    'games reaching the Finale': pct(m.finales, g),
+    'survivors saved / slain per game': `${(m.saved / g).toFixed(1)} / ${(m.slain / g).toFixed(1)}`,
+    'death rate': pct(m.deaths, g),
   });
-}, 600000);
+}, 900000);
