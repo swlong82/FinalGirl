@@ -419,7 +419,6 @@ export interface GameState {
 
   tableau: Record<string, number>; // copies available per action-card pile
   discard: string[]; // cards played or discarded since the last Planning phase
-  bought?: number; // cards bought this Planning phase
   terrorDeck: string[];
   terrorDiscard: string[];
   eventDeck: string[];

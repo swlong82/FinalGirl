@@ -30,7 +30,8 @@ export const HAND_LIMIT = 10;
 export const HAND_SLOTS = 2;
 export const MAX_HORROR = 6;
 export const DEFAULT_ESCORT = 2;
-export const VICTIM_POOL = 12;
+export const VICTIM_POOL = 16;
+export const SETUP_SURVIVORS = 2; // survivors on each setup-card spot at the start
 export const TERROR_DEAL = 10;
 export const PILE_SIZE = 4;
 export const CONVERT_COST = 2; // cards discarded to turn a partial into a success
@@ -39,7 +40,6 @@ export interface DifficultyDef {
   label: string;
   text: string;
   nerve: number; // Nerve each Planning phase resets to
-  buys: number; // cards she may buy each Planning phase, free ones included
   track: number[]; // Horror Level 0..6 → dice in a Horror Roll
   heroineTokens: number[]; // her hidden final-health token is drawn from these (0 = blank)
   killerTokens: number[];
@@ -52,7 +52,6 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     label: 'Matinee',
     text: '6 nerve a turn, a gentler Horror track, a better final-health token for her and a worse one for him.',
     nerve: 6,
-    buys: 5,
     track: [5, 5, 4, 4, 3, 3, 2],
     heroineTokens: [1, 2, 3],
     killerTokens: [0, 0, 2, 3],
@@ -63,7 +62,6 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     label: 'Midnight Show',
     text: 'The intended experience. 5 nerve a turn.',
     nerve: 5,
-    buys: 4,
     track: [4, 4, 4, 3, 3, 2, 2],
     heroineTokens: [0, 1, 2, 3],
     killerTokens: [0, 2, 3, 4],
@@ -74,7 +72,6 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     label: 'Nightmare',
     text: '4 nerve a turn, a harsh Horror track, and he is very hard to keep down.',
     nerve: 4,
-    buys: 3,
     track: [4, 4, 3, 3, 2, 2, 1],
     heroineTokens: [0, 1, 1, 2],
     killerTokens: [2, 2, 3, 4],
@@ -310,7 +307,7 @@ export function newGame(c: Content, seed: number, difficulty: Difficulty = 'stan
   const dealt = shuffle(s, [...pool.slice(0, Math.max(0, searchNodes.length * PILE_SIZE - lore.length)), ...lore]);
   s.spare = pool.slice(Math.max(0, searchNodes.length * PILE_SIZE - lore.length));
   searchNodes.forEach((n, i) => (s.piles[n] = { cards: dealt.filter((_, j) => j % searchNodes.length === i), up: true }));
-  for (const at of setup.npcs) placeVictims(c, s, at, 1);
+  for (const at of setup.npcs) placeVictims(c, s, at, SETUP_SURVIVORS);
   ruleSetup(c, s);
   log(s, `The feature begins. ${c.heroine.name} is at ${nodeName(c, s.heroine.loc)}. ${c.killer.name} waits at ${nodeName(c, s.killer.loc)}.`, 'info');
   // Reveal one ongoing Event.
@@ -1788,7 +1785,6 @@ export function check(c: Content, s: GameState, a: Action): Check {
       if (!d) return no('Unknown card');
       if ((s.tableau[a.id] ?? 0) <= 0) return no(s.discard.includes(a.id) ? 'Used this turn: back after Planning' : 'None left');
       if (h.hand.length >= HAND_LIMIT) return no(`Hand full (${HAND_LIMIT})`);
-      if ((s.bought ?? 0) >= DIFFICULTY[s.difficulty].buys) return no(`${DIFFICULTY[s.difficulty].buys} cards a Planning phase`);
       const cost = cardCost(c, d);
       if (cost > 0 && h.nerve - cost < 0) return no(`Needs ${cost} nerve`, cost);
       return yes(cost);
@@ -1951,12 +1947,10 @@ export function dispatch(c: Content, prev: GameState, a: Action): GameState {
       s.tableau[a.id]--;
       h.nerve -= cardCost(c, d);
       h.hand.push({ uid: s.uid++, id: a.id });
-      s.bought = (s.bought ?? 0) + 1;
       log(s, `Bought ${d.name}${cardCost(c, d) ? ` for ${cardCost(c, d)} nerve` : ''}.`);
       break;
     }
     case 'endPlanning': {
-      s.bought = 0;
       h.nerve = DIFFICULTY[s.difficulty].nerve;
       for (const id of s.discard) s.tableau[id] = (s.tableau[id] ?? 0) + 1;
       s.discard = [];

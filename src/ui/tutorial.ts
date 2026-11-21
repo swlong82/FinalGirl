@@ -77,7 +77,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'Planning: the tableau',
-    text: 'Buy cards with leftover nerve; 0-cost cards are free. The cards you just played are locked until Planning ends, so you can’t repeat your best card every turn. Click <b>Done</b> when you’re set.',
+    text: 'Buy cards with leftover nerve, as many as you can afford. Only Walk, Look Around and Duck are free, even when you’re broke. The cards you just played are locked until Planning ends, so you can’t repeat your best card every turn. Click <b>Done</b> when you’re set.',
     target: '.tableau',
     done: (s) => s.phase === 'hunter' || s.phase === 'upkeep' || s.round > 1,
   },

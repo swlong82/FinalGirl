@@ -955,7 +955,7 @@ function updateBottom() {
     <div class="st-h"><span class="st-l">Horror</span><span class="st-v ${h.horror >= 4 ? 'bad' : ''}">${h.horror}<small>/${MAX_HORROR}</small></span></div>
     <div class="st-m">${track.map((_, i) => `<i class="${i <= h.horror && i > 0 ? 'on' : ''} ${i === h.horror ? 'cur' : ''}"></i>`).join('')}</div>
     <div class="st-row"><span><b>${horrorDice(s)}</b> dice</span><span class="${h.nerve < 0 ? 'bad' : ''}"><b>${h.nerve}</b> nerve</span></div>
-    <div class="st-row dim"><span>${h.hand.length}/${HAND_LIMIT} cards</span>${s.phase === 'planning' ? `<span>${Math.max(0, DIFFICULTY[s.difficulty].buys - (s.bought ?? 0))} buys left</span>` : `<span>${s.discard.length} used</span>`}</div>
+    <div class="st-row dim"><span>${h.hand.length}/${HAND_LIMIT} cards</span><span>${s.discard.length} used</span></div>
   </div>`;
   let main = '';
   if (s.pending?.kind === 'move')
@@ -1150,7 +1150,7 @@ function updateOverlay() {
     root.innerHTML = `<div class="overlay draft-ov"><div class="draft tableau">
       <div class="kind">Turn ${s.round} · Planning</div>
       <h2>The tableau</h2>
-      <p><b>${Math.max(0, DIFFICULTY[s.difficulty].buys - (s.bought ?? 0))} of ${DIFFICULTY[s.difficulty].buys}</b> buys left. Spend leftover nerve (<b>${h.nerve}</b>) on cards; 0-cost cards are free but still use a buy. Hand <b>${h.hand.length}/${HAND_LIMIT}</b>. Cards you used this turn come back after Planning. Then your nerve resets to ${DIFFICULTY[s.difficulty].nerve}.</p>
+      <p>Spend leftover nerve (<b>${h.nerve}</b>) on as many cards as you can afford. Only the basics (Walk, Look Around, Duck) cost 0 and can be taken even when you are broke. Hand <b>${h.hand.length}/${HAND_LIMIT}</b>. Cards you used this turn come back after Planning. Then your nerve resets to ${DIFFICULTY[s.difficulty].nerve}.</p>
       <div class="draft-row">${piles}</div>
       <div class="row-btns"><button class="btn" data-go="hidePlan">Look at the board</button><button class="btn primary" data-act="endPlanning">Done: his turn <small>(E)</small></button></div>
     </div></div>`;
@@ -1593,7 +1593,7 @@ function showRules() {
   <p><b>Goal: kill the killer.</b> You win if he dies, you lose if you do, and if you both fall in the same moment, you win. There is no dawn: the night ends when one of you does.</p>
   <h3>A turn has five phases</h3>
   <p><b>1 · Action.</b> Play action cards from your hand, paying their nerve cost. You may also discard any card for +1 nerve. If nerve drops below zero, finish that card and your Action phase ends. Items and your ability can be used here too.<br>
-  <b>2 · Planning.</b> Spend leftover nerve buying up to ${DIFFICULTY[game?.difficulty ?? 'standard'].buys} cards from the face-up <b>tableau</b> (hand limit ${HAND_LIMIT}; 0-cost cards cost no nerve but still use a buy). Cards you played or discarded this turn are locked until Planning ends, then return to their piles. Nerve resets to ${DIFFICULTY.standard.nerve}.<br>
+  <b>2 · Planning.</b> Spend leftover nerve on cards from the face-up <b>tableau</b>, as many as you can afford (hand limit ${HAND_LIMIT}). Only the three basics (Walk, Look Around, Duck) are free, and can be taken even at negative nerve. Cards you played or discarded this turn are locked until Planning ends, then return to their piles. Nerve resets to ${DIFFICULTY.standard.nerve}.<br>
   <b>3 · Killer.</b> He follows his <b>behavior</b> (pick a target, move, attack), then a <b>Terror</b> card is drawn.<br>
   <b>4 · Panic.</b> If anyone died this turn, survivors in his location roll a die and run along that location's panic table.<br>
   <b>5 · Upkeep.</b> The location's rule and ongoing Events resolve, and you may rearrange your items.</p>

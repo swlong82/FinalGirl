@@ -6,7 +6,7 @@ export const caller: KillerPack = {
   name: 'The Caller',
   epithet: 'Mister Request, who always called at three',
   art: 'caller',
-  health: 12,
+  health: 9,
   horror: 2,
   bloodlust: {
     revealAt: 4,

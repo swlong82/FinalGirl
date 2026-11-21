@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
-import { DIFFICULTY, dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, TERROR_DEAL } from '../src/engine/rules';
+import { DIFFICULTY, dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, SETUP_SURVIVORS, TERROR_DEAL } from '../src/engine/rules';
 import { simulate } from '../src/engine/bot';
 import type { Action, Content, GameState } from '../src/engine/types';
 
@@ -103,6 +103,22 @@ describe('setup', () => {
     expect(s.heroine.nerve).toBe(DIFFICULTY.standard.nerve);
     expect(s.heroine.token).not.toBeUndefined();
   });
+
+  it('only the three basics are free; the other starters cost nerve', () => {
+    const c = C();
+    expect(c.actions.filter((a) => a.cost === 0).map((a) => a.id).sort()).toEqual(['ac-duck', 'ac-look', 'ac-walk']);
+    expect(c.actions.filter((a) => a.starter && a.cost > 0).length).toBe(3);
+  });
+
+  it('places two survivors on every setup-card spot', () => {
+    for (const l of LOCATIONS) {
+      const c = buildContent(l.id, 'the-projectionist', 'june');
+      const s = newGame(c, 3);
+      const spots = new Set(c.location.setups.flatMap((x) => x.npcs));
+      const placed = Object.entries(s.victims).filter(([at]) => spots.has(at));
+      expect(placed.reduce((n, [, v]) => n + v, 0), l.id).toBeGreaterThanOrEqual(3 * SETUP_SURVIVORS);
+    }
+  });
 });
 
 describe('Horror Rolls', () => {
@@ -174,6 +190,19 @@ describe('nerve & the action-card economy', () => {
     for (let i = s.heroine.hand.length; i < HAND_LIMIT; i++) giveCard(s, 'ac-walk');
     s.tableau['ac-adrenaline'] = 2;
     expect(dispatch(c, s, { type: 'buy', id: 'ac-adrenaline' })).toBe(s);
+  });
+
+  it('there is no cap on buys: only nerve and the hand limit', () => {
+    const c = C();
+    let s = quiet(c);
+    s.phase = 'planning';
+    s.heroine.nerve = 9;
+    s.heroine.hand = [];
+    for (const id of ['ac-search', 'ac-swing', 'ac-swing', 'ac-hide', 'ac-psych', 'ac-overhere', 'ac-brace', 'ac-slip', 'ac-steadyhands']) s = act(c, s, { type: 'buy', id });
+    expect(s.heroine.hand.length).toBe(9);
+    expect(s.heroine.nerve).toBe(0);
+    s = act(c, s, { type: 'buy', id: 'ac-walk' }); // free basics still fit at 0 nerve
+    expect(s.heroine.hand.length).toBe(HAND_LIMIT);
   });
 
   it('discarding a card in the Action phase gives +1 nerve', () => {

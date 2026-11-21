@@ -14,7 +14,7 @@ What the genre does well, and what LAST LIGHT takes from it:
 | Pillar | Why it works on the table | How LAST LIGHT implements it |
 |---|---|---|
 | **Cards are actions *and* currency** | Every card in hand is a choice: play it, burn it for nerve, or burn two to save a roll | **Nerve** (5 a turn) pays for cards; discard any card for +1; discard 2 to buy a partial die up |
-| **A deck you build, not one you draw** | Planning ahead beats luck of the draw | Open **tableau** of card piles; up to 4 buys a turn with leftover nerve; cards used this turn are locked until Planning ends |
+| **A deck you build, not one you draw** | Planning ahead beats luck of the draw | Open **tableau** of card piles; buy as many as leftover nerve allows (only three basics are free); cards used this turn are locked until Planning ends |
 | **Fear as a mechanical spiral** | Panic makes you worse, which makes things scarier | **Horror Level** sets your dice (Midnight Show 4/4/4/3/3/2/2); past the top it feeds his bloodlust |
 | **Push‑your‑luck dice with soft failure** | Tension at every roll, but the player always has an out | 5–6 hit, 3–4 partial, 1–2 miss; every card has 2+ / 1 / fail outcomes, and failures can hurt |
 | **The killer as an AI, not a player** | Readable but relentless | Data‑driven **behavior** (target → move → attack) per killer; a different Finale behavior |
@@ -40,7 +40,7 @@ Every turn has five phases, always in this order:
 | Phase | What happens |
 |---|---|
 | **1 · Action** | Play action cards from your hand (pay nerve, make a Horror Roll, resolve the band). Use items and your ability. Discard any card for +1 nerve. If nerve goes below zero, the current card finishes and the phase ends (and nerve can't climb back above zero this turn). |
-| **2 · Planning** | Buy up to 4 cards from the tableau with leftover nerve (hand limit 10; 0‑cost cards cost no nerve, even in debt, but still use a buy). Nerve resets to 5. Cards played or discarded this turn return to their piles. |
+| **2 · Planning** | Buy cards from the tableau with leftover nerve, as many as you can afford (hand limit 10). Only the three basics (Walk, Look Around, Duck) cost 0 and can be taken even in nerve debt. Nerve resets to 5. Cards played or discarded this turn return to their piles. |
 | **3 · Killer** | He resolves his behavior instruction, then a Terror card is drawn (none once the Finale is in play). Reactions can be played against attacks on you. |
 | **4 · Panic** | If anyone died this turn, survivors in his location each roll a d6 on that location's panic table. |
 | **5 · Upkeep** | Reveal the Finale if the Terror deck is empty; the location rule, ongoing Events, his power and the Finale resolve their upkeep; you may rearrange items. |
@@ -64,7 +64,7 @@ Horror pushed past 6 adds that much bloodlust; horror pushed below 0 gives that 
 ### Action cards
 **Light vs heavy attacks.** Shove and Swing are *light*: weapons, lore and focus don't add to them (the spec lets a weapon restrict which cards it modifies). Full Swing, Desperate Strike and Counter are where gear pays off. Every card shows its dice, and hovering the number (or looking at the dice tray) shows where each die comes from: "5 dice: horror 2 gives 4, Resolve +1".
 
-Six 0‑cost starters (Walk, Hurry, Look Around, Shove, Steady Yourself, Duck) begin in your hand. Everything else is a face‑up pile in the tableau: Run, Sprint, Slip Away, Search, Ransack, Swing, Full Swing, Desperate Strike, Psych Up, Steady Hands, Hide, Barricade, Catch Your Breath, Deep Breath, Adrenaline, Over Here!, Scream, and the reactions Brace, Dodge and Counter. (The old free Instinct deck and the Bleeding/Panic junk cards were folded into this one economy.)
+Six starters begin in your hand, but only three are free: **Walk** (move), **Look Around** (search) and **Duck** (the one defense, since only reactions stop a hit). That is the spec's zero‑cost safety net: whatever happens, she can always rebuy a way to move, search and duck. **Hurry**, **Shove** and **Steady Yourself** start in hand but cost 1 nerve to play and to rebuy, so playing a card is never free twice. Shove is a break‑away (great: 1 damage and move 1; good: move 1), so it no longer competes with Swing. Run (2), Deep Breath (2) and Scream (1) were repriced to sit above their starter versions. Everything else is a face‑up pile in the tableau: Run, Sprint, Slip Away, Search, Ransack, Swing, Full Swing, Desperate Strike, Psych Up, Steady Hands, Hide, Barricade, Catch Your Breath, Deep Breath, Adrenaline, Over Here!, Scream, and the reactions Brace, Dodge and Counter. (The old free Instinct deck and the Bleeding/Panic junk cards were folded into this one economy.)
 
 ### Survivors, rescue and panic
 - When you leave a location, up to 2 survivors there follow you (Tess: 3). They never follow you into his location.
@@ -131,14 +131,14 @@ Comedic ties also log a pratfall ("He walks face‑first into a hanging sign, re
 | Kettle Peak Lodge | Whiteout | End a turn outdoors: cold +1 (lose 1 health at 3); by a fire: thaw; at 2+ cold: −1 nerve per turn |
 | KXRL Hilltop | Request Line | A phone rings each turn; answer it (1 nerve, horror +1) or a survivor appears there and he takes a step toward it |
 
-Each location also has three ongoing **Event** cards (one revealed at setup), two **setup cards**, two exits and four search locations.
+Each location also has three ongoing **Event** cards (one revealed at setup), two **setup cards** (each puts 2 survivors on three spots, so 6 are on the board at the start; 16 in the supply), two exits and four search locations.
 
 ### Difficulty
-| Mode | Nerve | Buys | Horror track | Her token | His token | His health |
-|---|---|---|---|---|---|---|
-| Matinee | 6 | 5 | gentle | 1–3 | 0, 0, 2, 3 | −2 |
-| Midnight Show | 5 | 4 | standard | 0–3 | 0, 2, 3, 4 | printed |
-| Nightmare | 4 | 3 | harsh | 0, 1, 1, 2 | 2, 2, 3, 4 | +1 |
+| Mode | Nerve | Horror track | Her token | His token | His health |
+|---|---|---|---|---|---|
+| Matinee | 6 | gentle | 1–3 | 0, 0, 2, 3 | −2 |
+| Midnight Show | 5 | standard | 0–3 | 0, 2, 3, 4 | printed |
+| Nightmare | 4 | harsh | 0, 1, 1, 2 | 2, 2, 3, 4 | +1 |
 
 ### Balance
 `src/engine/bot.ts` is a rule‑aware heuristic player: it buys a balanced hand in Planning, buys partials up on important rolls, reacts to attacks, shuttles survivors to exits, searches, and hunts him once armed. `npm test` fuzzes all 25 killer × location pairings with every heroine. For the full report:
@@ -151,14 +151,14 @@ Bot results on Midnight Show (a careful human should beat these):
 
 | Location | Killed him | Turns | Reached Finale |
 |---|---|---|---|
-| Holloway Drive‑In | 64% | 9.0 | 21% |
-| Gullhaven Tide Cabins | 45% | 9.7 | 37% |
-| Saint Agatha's | 25% | 9.5 | 28% |
-| Kettle Peak Lodge | 43% | 9.5 | 33% |
-| KXRL Hilltop | 52% | 10.7 | 51% |
-| **All** | **46%** | **9.7** | **34%** |
+| Holloway Drive‑In | 62% | 8.8 | 26% |
+| Gullhaven Tide Cabins | 57% | 9.3 | 34% |
+| Saint Agatha's | 21% | 10.0 | 35% |
+| Kettle Peak Lodge | 46% | 9.7 | 37% |
+| KXRL Hilltop | 42% | 11.1 | 57% |
+| **All** | **46%** | **9.8** | **38%** |
 
-By killer: Caller 52%, Projectionist 50%, Snowblind 46%, Anesthetist 44%, Tidewife 38%. Matinee: 84% · Nightmare: 10%. Tension report (`SCRIPTS=1 npx vitest run tension`): 67% of games reach 1 health or death, average peak horror 5.4 of 6, about 3 reactions and 4 rescues per game.
+By killer: Anesthetist 50%, Projectionist 48%, Caller 47%, Snowblind 45%, Tidewife 39%. Matinee: 85% · Nightmare: 17%. Her ability unlocks in 81% of games, on turn 3.7 on average. Tension report (`SCRIPTS=1 npx vitest run tension`): 59% of games reach 1 health or death, average peak horror 5.1 of 6, about 2 reactions and 5 rescues per game.
 
 ### Spec alignment (v1.0)
 v1.0 rebuilt the core loop around a generic solo‑survival rules spec. What changed, and what we kept on purpose:
@@ -239,7 +239,8 @@ scripts/       balance and tension reports (SCRIPTS=1)
 | **v0.8 (this build): Draft & readability** | **Lineup draft**: 6 face‑up action cards each round, take up to 3 for free (hand max 5), pay nerve to play. Every lineup is guaranteed a Lead card and a Hide or Fight card. Bleeding and Panic go straight into the hand. Noise every 6 nerve. **Readable map**: labeled badges with icons (searches left, panic n/4, barricade), a **Map key**, and a hover **location card** |
 | v0.9: Hunt him down | **The only win is killing him**; dawn means he escapes, which is a loss. **Resolve**: each rescue gives +1 fight die (max 3) plus an item. **Nerve resets each round** again (5/4/4/3); banking and noise removed. **Movement comes from cards**: Walk, Run and Slip Away, with 2 Walk cards to start and a move card guaranteed in every lineup. **Hands + backpack**: 3 active hand slots and an unlimited backpack; readying an item costs 1 nerve, or is free at the moment you find it. Killers −2 health, dawn at round 14, "he gets back up" at 4 health |
 | **v1.0 (this build): The five‑phase night** | Core loop rebuilt to a generic solo‑survival spec: **Action → Planning → Killer → Panic → Upkeep**. **Nerve 6** and an open **tableau** you buy from (used cards locked until Planning ends; discard for +1 nerve; nerve debt ends your turn). **Horror Rolls** with partials you buy up with cards, and 2+ / 1 / fail outcome bands on every card. **10‑card Terror deck** as the clock; **Finale** when it runs out (dawn removed). **Bloodlust track** sets his move and attack, with level effects and a **power** revealed at level 4. **Hidden final‑health tokens** for both sides. Survivors follow (2) and shield you; **exit rescues** fill slots and unlock an **ability**. **Reactions**. Elimination‑triggered **directional panic**. **Two hand slots** and per‑location **item piles**. Tie‑break policy setting. New tutorial, rule tests and balance pass |
-| **v1.0.3 (this build): Tighter nights, clearer numbers** | **Economy**: nerve 5 (Matinee 6, Nightmare 4) and at most 4 buys per Planning (5/3), free cards included; Adrenaline costs 1; Steady Hands only rerolls. **Light attacks**: Shove and Swing take no weapon, lore or focus bonus, so heavy attacks are worth their cost; Full Swing's miss costs horror instead of health. Killers 10–12 health, a gentler attack curve, heroines +2 health; Margo's weapons never wear out. **Visibility**: his health bar on his map token and a big segmented health meter in his file; a Horror / dice / nerve block beside your hand that flashes when horror moves; an ascending horror track; every die explained on cards and in the dice tray; buys left shown in Planning |
+| v1.0.3: Tighter nights, clearer numbers | **Economy**: nerve 5 (Matinee 6, Nightmare 4) and at most 4 buys per Planning (5/3), free cards included; Adrenaline costs 1; Steady Hands only rerolls. **Light attacks**: Shove and Swing take no weapon, lore or focus bonus, so heavy attacks are worth their cost; Full Swing's miss costs horror instead of health. Killers 10–12 health, a gentler attack curve, heroines +2 health; Margo's weapons never wear out. **Visibility**: his health bar on his map token and a big segmented health meter in his file; a Horror / dice / nerve block beside your hand that flashes when horror moves; an ascending horror track; every die explained on cards and in the dice tray; buys left shown in Planning |
+| **v1.0.4 (this build): Fewer freebies, more people** | **No buy cap**: buy as many cards as leftover nerve pays for. **Only three free cards** (Walk, Look Around, Duck), the spec's always‑available safety net; Hurry, Shove, Steady Yourself and Scream cost 1, Run and Deep Breath cost 2, and Shove became a break‑away (hit and move 1). **More survivors**: setup cards put 2 on each spot (6 at the start, supply 16), so the rescue track and her ability come online early (unlocked in 81% of games, up from 49%). Killers −3 health (Tidewife 7, others 9) to keep the Midnight win rate at 46% |
 | v1.0.2: Readable night | **UI overhaul**: one type system (Oswald for labels and numbers, the typewriter face for sentences, Creepster for names) with fonts bundled locally instead of loaded from Google; rebuilt side panels (three big stat blocks, an ascending horror track with the dice it leaves you, a rescue track, item tiles with a detail strip instead of cramped rows); a big **Stop here** button and click‑yourself‑to‑stop while moving; card names no longer truncated; a capped, scrolling end‑of‑turn summary with repeats collapsed and a damage/kill/bloodlust summary strip; visible minion markers. **Choices**: tell a named survivor to stay put; divide damage between minions yourself. **Minions for every killer** |
 | v1.0.1: The rest of the spec | All four tie‑break policies, named survivors (one per location), minions for the Tidewife and the Anesthetist with the him‑or‑them attack choice, written panic tables for every location, and v0.9 saves converted on Continue |
 | v1.1 | Season 2 kickoff; heroine scars and campaign mode |

@@ -8,7 +8,6 @@ import {
   canReach,
   cardCost,
   check,
-  DIFFICULTY,
   distances,
   exits,
   HAND_LIMIT,
@@ -147,10 +146,11 @@ function rearrange(c: Content, s: GameState): Action | null {
 
 function buy(c: Content, s: GameState): Action {
   const h = s.heroine;
-  if (h.hand.length >= HAND_LIMIT || (s.bought ?? 0) >= DIFFICULTY[s.difficulty].buys) return { type: 'endPlanning' };
+  if (h.hand.length >= HAND_LIMIT) return { type: 'endPlanning' };
   // Buys are scarce: fill what the hand is missing, strongest affordable card first.
   const count = (pred: (d: ActionCardDef) => boolean) => h.hand.filter((x) => pred(defOf(c, x))).length;
-  const has = (tag: CardTag) => count((d) => d.tags.includes(tag) && d.kind === 'action');
+  // Shove's break-away only works next to him, so it doesn't count as getting around.
+  const has = (tag: CardTag) => count((d) => d.tags.includes(tag) && d.kind === 'action' && !(tag === 'move' && d.req === 'reach'));
   const gear = armed(c, s);
   const fight = s.killer.finale || gear;
   const piles = Object.values(s.piles).some((p) => p.cards.length > 0);
@@ -219,6 +219,11 @@ export function botAction(c: Content, s: GameState): Action {
     return { type: 'keep', picks: order.slice(0, p.keep).map((x) => x.i) };
   }
   if (p?.kind === 'move') {
+    // A break-away move (Shove) mid-fight: stay and keep swinging if she means to fight.
+    if (k.loc === h.loc && npcAt(s, h.loc) === 0 && (k.finale || armed(c, s) || k.health <= 2) && totalHealth(s) > killerAttack(c, s) + 1) {
+      const more = h.hand.some((x) => defOf(c, x).tags.includes('attack') && defOf(c, x).kind === 'action' && h.nerve - cardCost(c, defOf(c, x)) >= 0);
+      if (more) return { type: 'stopMove' };
+    }
     const want = Math.min(2, (c.heroine.traits.escortCap ?? 2));
     if (h.bring !== want) return { type: 'setBring', n: want };
     return stepFor(c, s);
