@@ -36,6 +36,7 @@ export const UPKEEP_ARRIVALS = 1; // survivors who wander in every Upkeep, until
 export const TERROR_DEAL = 10;
 export const PILE_SIZE = 4;
 export const CONVERT_COST = 2; // cards discarded to turn a partial into a success
+export const MAX_BUYUPS = 1; // partials that can be bought up in one roll
 
 export interface DifficultyDef {
   label: string;
@@ -53,30 +54,30 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     label: 'Matinee',
     text: '6 nerve a turn, a gentler Horror track, a better final-health token for her and a worse one for {him}.',
     nerve: 6,
-    track: [5, 5, 4, 4, 3, 3, 2],
+    track: [4, 4, 3, 3, 2, 2, 2],
     heroineTokens: [1, 2, 3],
     killerTokens: [0, 0, 2, 3],
-    killerHp: -2,
+    killerHp: -4,
     attack: 0,
   },
   standard: {
     label: 'Midnight Show',
     text: 'The intended experience. 5 nerve a turn.',
     nerve: 5,
-    track: [4, 4, 4, 3, 3, 2, 2],
+    track: [3, 3, 3, 2, 2, 2, 2],
     heroineTokens: [0, 1, 2, 3],
     killerTokens: [0, 2, 3, 4],
-    killerHp: 0,
+    killerHp: -2,
     attack: 0,
   },
   nightmare: {
     label: 'Nightmare',
     text: '4 nerve a turn, a harsh Horror track, and {he} is very hard to keep down.',
     nerve: 4,
-    track: [4, 4, 3, 3, 2, 2, 1],
+    track: [3, 3, 2, 2, 2, 2, 1],
     heroineTokens: [0, 1, 1, 2],
     killerTokens: [2, 2, 3, 4],
-    killerHp: 1,
+    killerHp: -1,
     attack: 0,
   },
 };
@@ -464,7 +465,7 @@ export function canConvert(s: GameState): boolean {
   const r = s.rolling;
   if (!r) return false;
   const any = r.dice.some((d, i) => d >= 3 && d <= 4 && !r.converted.includes(i));
-  return any && s.heroine.hand.length >= CONVERT_COST;
+  return any && r.converted.length < MAX_BUYUPS && s.heroine.hand.length >= CONVERT_COST;
 }
 
 function startRoll(c: Content, s: GameState, cardUid: number, d: ActionCardDef, reaction: boolean) {
@@ -1733,6 +1734,7 @@ export function check(c: Content, s: GameState, a: Action): Check {
       if (p?.kind !== 'roll' || !s.rolling) return no('No roll to adjust');
       const v = s.rolling.dice[a.die];
       if (v === undefined || v < 3 || v > 4 || s.rolling.converted.includes(a.die)) return no('Only a 3 or 4 can be bought up');
+      if (s.rolling.converted.length >= MAX_BUYUPS) return no('Only one die per roll can be bought up');
       const [x, y] = a.discard;
       if (x === y || !h.hand.some((q) => q.uid === x) || !h.hand.some((q) => q.uid === y)) return no(`Choose ${CONVERT_COST} cards from your hand`);
       return yes();

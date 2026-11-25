@@ -37,7 +37,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'Your hand',
-    text: 'Each card shows its <b>cost</b>, its dice, and three outcomes: <b>2+</b> successes, exactly <b>1</b>, or <b>✗</b>. A die showing 5–6 succeeds; 3–4 is a partial you can buy up by discarding 2 cards. The small <b>+1◉</b> on a card discards it for nerve.',
+    text: 'Each card shows its <b>cost</b>, its dice, and three outcomes: <b>2+</b> successes, exactly <b>1</b>, or <b>✗</b>. A die showing 5–6 succeeds; 3–4 is a partial: once per roll you can buy one up by discarding 2 cards. The small <b>discard +1◉</b> on a card trades it for nerve.',
     target: '.hand-row',
   },
   {

@@ -22,6 +22,7 @@ import {
   cardCost,
   check,
   CONVERT_COST,
+  MAX_BUYUPS,
   DIFFICULTY,
   dispatch,
   escortCap,
@@ -1180,7 +1181,7 @@ function updateOverlay() {
       .map((v, i) => {
         const conv = r.converted.includes(i);
         const cls = v >= 5 || conv ? 'hit' : v >= 3 ? 'part' : 'miss';
-        const can = cls === 'part' && h.hand.length >= CONVERT_COST;
+        const can = cls === 'part' && r.converted.length < MAX_BUYUPS && h.hand.length >= CONVERT_COST;
         return `<button class="die ${cls} ${conv ? 'conv' : ''} ${convertDie === i ? 'sel' : ''}" ${can ? `data-die="${i}" title="Discard ${CONVERT_COST} cards to make this a success"` : 'disabled'}>${pip(v)}</button>`;
       })
       .join('');
@@ -1190,10 +1191,10 @@ function updateOverlay() {
             .map((x) => `<button class="chip ${convertPick.includes(x.uid) ? 'sel' : ''}" data-cpick="${x.uid}">${esc(actionDef(c, x.id).name)}</button>`)
             .join('')}</div><button class="btn small primary" data-go="doConvert" ${convertPick.length === CONVERT_COST ? '' : 'disabled'}>Discard &amp; convert</button>`
         : canConvert(s)
-          ? `<p class="dim">Click a <b>3 or 4</b> to buy it up to a success by discarding ${CONVERT_COST} cards.</p>`
+          ? `<p class="dim">Click a <b>3 or 4</b> to buy it up to a success by discarding ${CONVERT_COST} cards (one die per roll).</p>`
           : '';
     root.innerHTML = `<div class="overlay"><div class="dicetray live ${r.reaction ? 'react' : ''}">
-      <h5>${esc(d.name)} · 5–6 hit · 3–4 partial</h5>
+      <h5>${esc(d.name)} · 5–6 hit · 3–4 partial · buy up 1</h5>
       ${s.lastRoll?.parts ? `<div class="why">${esc(diceWhy(s.lastRoll.parts))}</div>` : ''}
       <div class="dice">${dice}</div>
       <div class="res">${succ} success${succ === 1 ? '' : 'es'} → <b>${esc(describeEffects(d[band] ?? []))}</b></div>
@@ -1804,7 +1805,7 @@ function showTip(id: string, html: string) {
 function contextualTips() {
   const s = game!;
   const c = content!;
-  if (s.pending?.kind === 'roll') showTip('partial', 'A <b>3 or 4</b> is a partial success. Click it to discard 2 cards and turn it into a success.');
+  if (s.pending?.kind === 'roll') showTip('partial', 'A <b>3 or 4</b> is a partial success. Click one to discard 2 cards and turn it into a success: one die per roll.');
   else if (s.pending?.kind === 'reaction') showTip('react', 'Reaction cards are played only now, against one attack. They cost nerve from your next turn.');
   else if (s.phase === 'planning') showTip('plan', 'Buy cards with leftover nerve. Anything you played this turn is locked until after Planning, so you cannot just repeat your best card.');
   else if (s.phase !== 'action') return;
@@ -1852,7 +1853,7 @@ function showRules() {
   <b>4 · Panic.</b> If anyone died this turn, survivors in {his} location roll a die and run along that location's panic table.<br>
   <b>5 · Upkeep.</b> The location's rule and ongoing Events resolve, and you may rearrange your items.</p>
   <h3>Horror Rolls</h3>
-  <p>Most cards roll dice. Your <b>Horror Level</b> sets how many (${esc(dv.label)}, horror→dice: ${t.map((d, i) => `${i}→${d}`).join(', ')}). <b>5–6</b> is a success, <b>3–4</b> a partial, <b>1–2</b> nothing. Turn a partial into a success by discarding 2 cards. Then the card's matching row happens: <b>2+</b> means two or more successes, <b>1</b> exactly one, <b>✗</b> none. Failures can hurt.</p>
+  <p>Most cards roll dice. Your <b>Horror Level</b> sets how many (${esc(dv.label)}, horror→dice: ${t.map((d, i) => `${i}→${d}`).join(', ')}). <b>5–6</b> is a success, <b>3–4</b> a partial, <b>1–2</b> nothing. Once per roll, you may turn one partial into a success by discarding 2 cards. Then the card's matching row happens: <b>2+</b> means two or more successes, <b>1</b> exactly one, <b>✗</b> none. Failures can hurt.</p>
   <h3>The Terror clock and the Finale</h3>
   <p>The Terror deck holds ${TERROR_DEAL} cards. When it runs out, the <b>Finale</b> is revealed in Upkeep: {his} behavior changes, {his} power is revealed, and every Upkeep after that raises {his} bloodlust.</p>
   <h3>Bloodlust</h3>

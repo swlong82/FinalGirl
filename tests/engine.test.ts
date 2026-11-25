@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
-import { DIFFICULTY, dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, SETUP_SURVIVORS, TERROR_DEAL } from '../src/engine/rules';
+import { check, DIFFICULTY, dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, SETUP_SURVIVORS, TERROR_DEAL } from '../src/engine/rules';
 import { simulate } from '../src/engine/bot';
 import type { Action, Content, GameState } from '../src/engine/types';
 
@@ -159,6 +159,21 @@ describe('Horror Rolls', () => {
     expect(s.lastRoll?.band).toBe('good');
     expect(s.heroine.horror).toBe(3); // Steady Yourself, one success: horror −1
     expect(s.discard.length).toBe(2);
+  });
+
+  it('only one partial per roll can be bought up', () => {
+    const c = C();
+    let s = quiet(c);
+    const uid = giveCard(s, 'ac-steady');
+    s.rolling = { uid, dice: [3, 4, 1], converted: [], card: 'ac-steady', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-steady', reaction: false };
+    s.heroine.hand = s.heroine.hand.filter((x) => x.uid !== uid);
+    const [a, b, x, y] = s.heroine.hand.slice(0, 4).map((q) => q.uid);
+    s = act(c, s, { type: 'convert', die: 0, discard: [a, b] });
+    // One buy-up resolves the roll at once: the second partial stays a partial.
+    expect(s.pending?.kind).not.toBe('roll');
+    expect(s.lastRoll?.successes).toBe(1);
+    expect(check(c, s, { type: 'convert', die: 1, discard: [x, y] }).ok).toBe(false);
   });
 
   it('a 1 or 2 cannot be bought up', () => {
