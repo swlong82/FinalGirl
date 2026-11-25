@@ -121,6 +121,9 @@ let planHidden = -1;
 /** Phone layout: the heroine and killer panels fold into one-line summaries. */
 const sideOpen = { left: false, right: false };
 const touchOnly = window.matchMedia('(hover: none)');
+/** Phone layout: items and the ability live in a sheet opened from the bottom bar. */
+const phoneLayout = window.matchMedia('(max-width: 700px)');
+let itemsOpen = false;
 let upkeepHidden = -1;
 let convertDie: number | null = null;
 let trayRollKey = '';
@@ -553,6 +556,7 @@ function resetUi() {
   cardQueue.length = 0;
   planHidden = upkeepHidden = -1;
   lastQuote = '';
+  itemsOpen = false;
   convertDie = null;
   convertPick = [];
   searchPicks = [];
@@ -637,6 +641,7 @@ function renderGame() {
       <main class="stage"><div class="phasebar" id="phasebar"></div><div class="board" id="board"></div></main>
       <aside class="side right ${sideOpen.right ? '' : 'collapsed'}"><button class="side-toggle" data-go="toggleSide" data-side="right" id="sum-k"></button><div class="panel" id="killer-panel"></div><div class="panel log-panel"><h4>Script</h4><div class="log" id="log"></div></div></aside>
       <footer class="bottombar" id="bottombar"></footer>
+      <section class="items-sheet pane" id="items-sheet" hidden aria-label="Items and ability"></section>
     </div><div id="overlay-root"></div>`;
     buildBoard();
     boardBuilt = true;
@@ -817,7 +822,7 @@ function itemTile(c: Content, s: GameState, it: HeldItem, where: 'hand' | 'pack'
 
 /** Scroll the heroine panel so the selected item's card and its buttons are in view. */
 function revealItemDetail() {
-  document.querySelector('#heroine-panel .detail:not(.empty)')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  document.querySelector(itemsOpen ? '#items-sheet .detail:not(.empty)' : '#heroine-panel .detail:not(.empty)')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 function itemDetail(c: Content, s: GameState, rearrangeOk: boolean): string {
   const h = s.heroine;
@@ -864,6 +869,17 @@ function renderHeroinePanel(c: Content, s: GameState) {
   const used = handsUsed(c, h.items);
   const handTiles = h.items.map((it) => itemTile(c, s, it, 'hand', itemDef(c, it.id).hands === 2)).join('') + Array(Math.max(0, HAND_SLOTS - used)).fill('<div class="tile empty">Empty hand</div>').join('');
   const bag = h.pack.map((it) => itemTile(c, s, it, 'pack')).join('') || '<div class="bag-empty">Nothing stored yet.</div>';
+  const abilityBox = `<div class="ability ${unlocked ? 'on' : ''}" title="${esc(c.heroine.ability.text)}"><div class="ab-h"><span class="ab-n">★ ${esc(c.heroine.ability.name)}</span>${unlocked ? `<button class="btn small ${abilityChk.ok ? 'primary' : ''}" data-act="useAbility" ${abilityChk.ok ? '' : `disabled title="${esc(abilityChk.why ?? '')}"`}>Use</button>` : `<span class="ab-l">unlocks at ${slots.length} rescues</span>`}</div>${unlocked ? `<p class="prose small">${esc(c.heroine.ability.text)}</p>` : ''}</div>`;
+  const invSecs = `${sec('Hands', `${used}/${HAND_SLOTS}${rearrangeOk ? ' · <b class="ok">rearrange now</b>' : ''}`, `<div class="hands">${handTiles}</div>`, 'inv')}
+    ${sec(`${glyph('pack')} Backpack`, `${h.pack.length} item${h.pack.length === 1 ? '' : 's'}`, `<div class="bag">${bag}</div>${itemDetail(c, s, rearrangeOk)}`, 'inv')}`;
+  // Phone: the same ability and inventory in a sheet, so they're one tap from the hand.
+  const sheet = document.getElementById('items-sheet');
+  if (sheet) {
+    sheet.hidden = !itemsOpen;
+    sheet.innerHTML = itemsOpen
+      ? `<header class="is-h"><b>${glyph('pack')} Items &amp; ability</b><button class="btn small" data-go="closeItems">Done</button></header>${abilityBox}${invSecs}`
+      : '';
+  }
   const sumH = document.getElementById('sum-h');
   if (sumH)
     sumH.innerHTML = `<b>${esc(c.heroine.name.split(' ')[0])}</b><span>♥ ${h.health}/${h.maxHealth}${h.token !== null ? '+?' : ''}</span><span>horror ${h.horror}</span><span>${h.rescued} rescued</span><span>${h.items.length + h.pack.length} items</span><i>${sideOpen.left ? 'hide' : 'details'}</i>`;
@@ -877,9 +893,8 @@ function renderHeroinePanel(c: Content, s: GameState) {
     </div>
     <div class="htrack" title="Horror track: as horror rises, you roll fewer dice"><span class="ht-k"><b>horror</b><b>dice</b></span>${htrack}</div>
     ${sec('Rescues', `${h.rescued} saved${h.resolve ? ` · +${h.resolve} attack die` : ''}`, `<div class="rtrack" title="Fill every slot to unlock ${esc(c.heroine.ability.name)}">${rtrack}<i class="rt-link"></i><span class="rt ab ${unlocked ? 'done' : ''}" title="${esc(c.heroine.ability.name)}: ${esc(c.heroine.ability.text)}">★</span></div><p class="prose small">${nextTxt}</p>
-      <div class="ability ${unlocked ? 'on' : ''}" title="${esc(c.heroine.ability.text)}"><div class="ab-h"><span class="ab-n">★ ${esc(c.heroine.ability.name)}</span>${unlocked ? `<button class="btn small ${abilityChk.ok ? 'primary' : ''}" data-act="useAbility" ${abilityChk.ok ? '' : `disabled title="${esc(abilityChk.why ?? '')}"`}>Use</button>` : `<span class="ab-l">unlocks at ${slots.length}</span>`}</div>${unlocked ? `<p class="prose small">${esc(c.heroine.ability.text)}</p>` : ''}</div>`)}
-    ${sec('Hands', `${used}/${HAND_SLOTS}${rearrangeOk ? ' · <b class="ok">rearrange now</b>' : ''}`, `<div class="hands">${handTiles}</div>`, 'inv')}
-    ${sec(`${glyph('pack')} Backpack`, `${h.pack.length} item${h.pack.length === 1 ? '' : 's'}`, `<div class="bag">${bag}</div>${itemDetail(c, s, rearrangeOk)}`, 'inv')}
+      ${abilityBox}`)}
+    ${invSecs}
     ${sec('Passive', esc(c.heroine.passive.name), `<p class="prose small">${esc(c.heroine.passive.text)}</p>`)}
   </div>`;
 }
@@ -1030,6 +1045,14 @@ function updateBoard() {
   else hint.innerHTML = '';
 }
 
+/** Phone only: the backpack button. Glows when an item or the ability can be used now. */
+function itemsButton(c: Content, s: GameState): string {
+  const h = s.heroine;
+  const n = h.items.length + h.pack.length;
+  const ready = [...h.items, ...h.pack].some((it) => check(c, s, { type: 'useItem', uid: it.uid }).ok) || (abilityUnlocked(c, s) && check(c, s, { type: 'useAbility' }).ok);
+  return `<button class="btn small items-btn ${ready ? 'ready' : ''} ${itemsOpen ? 'on' : ''}" data-go="toggleItems" title="Items and ability">${glyph('pack')}<b>${n}</b></button>`;
+}
+
 /** Waiting bonuses (Psych Up, Steady Hands, events) as chips, so a "next hit +2" is never invisible. */
 function buffChips(s: GameState): string {
   const m = s.mods;
@@ -1104,7 +1127,7 @@ function updateBottom() {
   const keepX = bar.querySelector<HTMLElement>('.hand-row')?.scrollLeft ?? 0;
   bar.innerHTML = `
     <div>${pile}<div class="hand-wrap"><div class="actions hand-row">${cards}${answer}</div><button class="hand-more l" data-hscroll="-1" aria-label="Scroll hand left"></button><button class="hand-more r" data-hscroll="1" aria-label="Scroll hand right"></button></div></div>
-    <div class="endcol"><div class="endtools"><button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo (Z): not after dice rolls or draws">${glyph('undo')} Undo</button><button class="btn small" data-go="hint" ${s.phase === 'action' || s.phase === 'planning' ? '' : 'disabled'} title="What would a survivor do? (H)">${glyph('bulb')} Hint</button></div>
+    <div class="endcol"><div class="endtools">${itemsButton(c, s)}<button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo (Z): not after dice rolls or draws">${glyph('undo')} Undo</button><button class="btn small" data-go="hint" ${s.phase === 'action' || s.phase === 'planning' ? '' : 'disabled'} title="What would a survivor do? (H)">${glyph('bulb')} Hint</button></div>
     ${main}</div>`;
   const row = bar.querySelector<HTMLElement>('.hand-row')!;
   row.scrollLeft = keepX;
@@ -1491,6 +1514,8 @@ function act(a: Action) {
   const gained = [...game.heroine.items, ...game.heroine.pack].filter((x) => !had.has(x.uid));
   if (gained.length) {
     selItem = gained[gained.length - 1].uid;
+    // On a phone the inventory is folded away: open it on the new find.
+    if (phoneLayout.matches) itemsOpen = true;
     setTimeout(revealItemDetail, 50);
   }
   else if (selItem !== null && ![...game.heroine.items, ...game.heroine.pack].some((x) => x.uid === selItem)) selItem = null;
@@ -2120,6 +2145,15 @@ function navigate(go: string, el?: HTMLElement) {
       return continueGame();
     case 'undo':
       return undo();
+    case 'toggleItems':
+      itemsOpen = !itemsOpen;
+      if (game) updateGame();
+      if (itemsOpen) revealItemDetail();
+      return;
+    case 'closeItems':
+      itemsOpen = false;
+      if (game) updateGame();
+      return;
     case 'toggleSide': {
       const side = el?.dataset.side === 'right' ? 'right' : 'left';
       sideOpen[side] = !sideOpen[side];
