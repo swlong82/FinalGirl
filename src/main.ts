@@ -325,6 +325,8 @@ function cardHtml(c: Content, s: GameState | null, d: ActionCardDef, attrs: stri
 // ── Screens ─────────────────────────────────────────────────────────────────
 /** Internal scroll positions on the pick screens survive re-renders (picking re-renders). */
 let scrollMemo: { screen: Screen; pos: Record<string, [number, number]> } = { screen: 'title', pos: {} };
+/** Lists whose pick changed from elsewhere (a feature, Spin the Reel): glide them to it after the next render. */
+let revealLists: string[] = [];
 function render() {
   if (screen !== 'game') boardBuilt = false;
   const same = scrollMemo.screen === screen;
@@ -345,6 +347,20 @@ function render() {
       if (r.right > box.right) el.scrollLeft += r.right - box.right + 8;
     }
   });
+  for (const name of revealLists) {
+    const el = app.querySelector<HTMLElement>(`[data-scroll="${name}"]`);
+    const sel = el?.querySelector<HTMLElement>('.sel');
+    if (!el || !sel) continue;
+    const r = sel.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    const inView = r.top >= box.top && r.bottom <= box.bottom && r.left >= box.left && r.right <= box.right;
+    if (inView) continue;
+    // Centre the pick inside its own list only; the page itself doesn't move.
+    const dy = el.scrollHeight > el.clientHeight ? r.top - box.top - (box.height - r.height) / 2 : 0;
+    const dx = el.scrollWidth > el.clientWidth ? r.left - box.left - (box.width - r.width) / 2 : 0;
+    el.scrollBy({ top: dy, left: dx, behavior: 'smooth' });
+  }
+  revealLists = [];
 }
 function renderScreen() {
   switch (screen) {
@@ -2041,18 +2057,21 @@ app.addEventListener('click', (e) => {
   if (f) {
     feature = FEATURES.find((x) => x.id === f)!;
     pick = { location: feature.location, killer: feature.killer };
+    revealLists = ['killers', 'locations'];
     audio.play('click');
     return render();
   }
   const kId = t.closest<HTMLElement>('[data-killer]')?.dataset.killer;
   if (kId) {
     pick.killer = kId;
+    revealLists = ['reel'];
     audio.play('click');
     return render();
   }
   const lId = t.closest<HTMLElement>('[data-location]')?.dataset.location;
   if (lId) {
     pick.location = lId;
+    revealLists = ['reel'];
     audio.play('click');
     return render();
   }
@@ -2150,6 +2169,7 @@ function navigate(go: string, el?: HTMLElement) {
       const prev = `${pick.killer}|${pick.location}`;
       for (let i = 0; i < 10 && `${pick.killer}|${pick.location}` === prev; i++)
         pick = { killer: KILLERS[(Math.random() * KILLERS.length) | 0].id, location: LOCATIONS[(Math.random() * LOCATIONS.length) | 0].id };
+      revealLists = ['killers', 'locations', 'reel'];
       audio.play('card');
       return render();
     }
