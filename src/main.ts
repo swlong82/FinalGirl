@@ -167,7 +167,7 @@ function describeEffect(e: Effect): string {
     case 'spawn':
       return `+${e.n} survivor${e.n > 1 ? 's' : ''}`;
     case 'rally':
-      return `call ${e.n} survivor${e.n > 1 ? 's' : ''} from next door`;
+      return `call ${e.n} over`;
     case 'panic':
       return 'survivors panic';
     case 'move':
@@ -220,11 +220,11 @@ function describeEffect(e: Effect): string {
     case 'enemiesAct':
       return 'his minions, then he, act';
     case 'counter':
-      return `${e.n} damage to the attacker`;
+      return `hit back ${e.n}`;
     case 'killerDamage':
       return `${e.n} damage to him`;
     case 'block':
-      return e.n >= 99 ? 'cancel the attack' : `block ${e.n}`;
+      return e.n >= 99 ? 'block all' : `block ${e.n}`;
     case 'bloodlust':
       return `bloodlust +${e.n}`;
     case 'killerHeal':
@@ -232,7 +232,7 @@ function describeEffect(e: Effect): string {
     case 'killerStun':
       return 'he loses his next move';
     case 'killerMove':
-      return e.toward === 'heroine' ? `he moves ${e.steps} toward you` : e.toward === 'lair' ? `he moves ${e.steps} toward his lair` : `he moves ${e.steps} toward ${content ? nodeName(content, e.toward) : e.toward}`;
+      return e.toward === 'heroine' ? `he comes ${e.steps} closer` : e.toward === 'lair' ? `he moves ${e.steps} toward his lair` : `he moves ${e.steps} toward ${content ? nodeName(content, e.toward) : e.toward}`;
     case 'killerTeleport':
       return e.to === 'heroine' ? 'he appears beside you' : 'he relocates';
     case 'target':
@@ -280,6 +280,28 @@ function diceWhy(parts: [string, number][]): string {
   const [first, ...rest] = parts;
   const total = Math.max(1, parts.reduce((n, [, v]) => n + v, 0));
   return `${total} dice: ${first[0]} gives ${first[1]}${rest.map(([l, v]) => `, ${l} ${v > 0 ? '+' : '−'}${Math.abs(v)}`).join('')}`;
+}
+
+/** Shop shelves: the free basics first, then cards grouped by what they do. */
+type ShelfId = 'free' | 'move' | 'fight' | 'search' | 'defend' | 'recover' | 'tricks';
+const SHELVES: { id: ShelfId; name: string; blurb: string }[] = [
+  { id: 'free', name: 'Free', blurb: 'cost 0: take them even when you’re out of nerve' },
+  { id: 'move', name: 'Move', blurb: 'run, reach survivors, get to an exit' },
+  { id: 'fight', name: 'Fight', blurb: 'hurt him: he must be in reach' },
+  { id: 'search', name: 'Search', blurb: 'find weapons and items where you stand' },
+  { id: 'defend', name: 'Defend', blurb: 'play during his attack to block it' },
+  { id: 'recover', name: 'Recover', blurb: 'heal wounds, calm your horror' },
+  { id: 'tricks', name: 'Tricks', blurb: 'hide, barricade, lure him, call survivors' },
+];
+function shelfOf(c: Content, d: ActionCardDef): ShelfId {
+  if (cardCost(c, d) === 0) return 'free';
+  if (d.kind === 'reaction') return 'defend';
+  const t = d.tags[0];
+  if (t === 'move') return 'move';
+  if (t === 'attack' || (d.great ?? []).some((e) => e.op === 'mod' && e.key === 'damage')) return 'fight';
+  if (t === 'search') return 'search';
+  if (t === 'calm' || t === 'heal') return 'recover';
+  return 'tricks';
 }
 
 function cardHtml(c: Content, s: GameState | null, d: ActionCardDef, attrs: string, extra = '', idx?: number): string {
@@ -1007,7 +1029,7 @@ function updateBottom() {
   else if (s.phase === 'action')
     main = `<button class="endturn" data-act="endAction" ${check(c, s, { type: 'endAction' }).ok ? '' : 'disabled'}>End Action <small style="display:block;font-size:10px;opacity:.7">${h.nerve} nerve → Planning · E</small></button>`;
   else if (s.phase === 'planning')
-    main = `<button class="endturn" data-go="openPlan">Tableau</button><button class="endturn" data-act="endPlanning">Done <small style="display:block;font-size:10px;opacity:.7">his turn · E</small></button>`;
+    main = `<button class="endturn shop-btn" data-go="openPlan">Shop <small style="display:block;font-size:10px;opacity:.8">${h.nerve} nerve · B</small></button><button class="endturn" data-act="endPlanning">Done <small style="display:block;font-size:10px;opacity:.7">his turn · E</small></button>`;
   else if (s.phase === 'upkeep')
     main = `<button class="endturn" data-act="endUpkeep" ${check(c, s, { type: 'endUpkeep' }).ok ? '' : 'disabled'}>Next turn <small style="display:block;font-size:10px;opacity:.7">E</small></button>`;
   else main = `<button class="endturn" disabled>His turn…</button>`;
@@ -1181,23 +1203,65 @@ function updateOverlay() {
       return;
     }
   }
-  if (s.phase === 'planning' && planHidden !== s.round) {
-    const piles = c.actions
-      .map((d) => {
-        const chk = check(c, s, { type: 'buy', id: d.id });
-        const left = s.tableau[d.id] ?? 0;
-        const usedNow = s.discard.filter((x) => x === d.id).length;
-        const status = left > 0 ? `${left} left` : usedNow ? 'used this turn' : 'none left';
-        return cardHtml(c, s, d, `data-buy="${d.id}" ${chk.ok ? '' : `disabled title="${esc(chk.why ?? '')}"`}`, `<span class="pilecount ${left ? '' : 'out'}">${status}</span>`);
-      })
-      .join('');
-    root.innerHTML = `<div class="overlay draft-ov"><div class="draft tableau">
-      <div class="kind">Turn ${s.round} · Planning</div>
-      <h2>The tableau</h2>
-      <p>Spend leftover nerve (<b>${h.nerve}</b>) on as many cards as you can afford. Only the basics (Walk, Look Around, Duck) cost 0 and can be taken even when you are broke. Hand <b>${h.hand.length}/${HAND_LIMIT}</b>. Cards you used this turn come back after Planning. Then your nerve resets to ${DIFFICULTY[s.difficulty].nerve}.</p>
-      <div class="draft-row">${piles}</div>
-      <div class="row-btns"><button class="btn" data-go="hidePlan">Look at the board</button><button class="btn primary" data-act="endPlanning">Done: his turn <small>(E)</small></button></div>
+  if (s.phase === 'planning' && planHidden === s.round) {
+    // Peeking at the board: a slim banner keeps the way back to the shop in plain sight.
+    root.innerHTML = `<div class="peek-banner" role="status">
+      <span class="pb-k">Planning</span>
+      <span class="pb-v"><b class="${h.nerve <= 0 ? 'bad' : ''}">${h.nerve}</b> nerve to spend</span>
+      <span class="pb-v"><b class="${h.hand.length >= HAND_LIMIT ? 'bad' : ''}">${h.hand.length}</b>/${HAND_LIMIT} cards</span>
+      <button class="btn primary" data-go="openPlan">${glyph('pack')} Back to the shop <small>(B)</small></button>
+    </div>`;
+    return;
+  }
+  if (s.phase === 'planning') {
+    const keep = root.querySelector<HTMLElement>('.shop-body')?.scrollTop ?? 0;
+    const full = h.hand.length >= HAND_LIMIT;
+    const resetTo = DIFFICULTY[s.difficulty].nerve;
+    const shelves = SHELVES.map((sh) => {
+      const cards = c.actions
+        .filter((d) => shelfOf(c, d) === sh.id)
+        .map((d) => {
+          const chk = check(c, s, { type: 'buy', id: d.id });
+          const left = s.tableau[d.id] ?? 0;
+          const held = h.hand.filter((x) => x.id === d.id).length;
+          const used = s.discard.includes(d.id);
+          const poor = left > 0 && !full && !chk.ok;
+          const status = poor
+            ? `<span class="pilecount poor">need ${cardCost(c, d)} nerve</span>`
+            : left > 0
+              ? `<span class="pilecount">${left} left</span>`
+              : `<span class="pilecount out">${used ? 'back after Planning' : held ? 'in your hand' : 'none left'}</span>`;
+          return cardHtml(c, s, d, `data-buy="${d.id}" ${chk.ok ? '' : `disabled title="${esc(chk.why ?? '')}"`}`, status);
+        })
+        .join('');
+      return cards ? `<section class="shop-shelf sh-${sh.id}"><h3><span class="sh-n">${sh.name}</span><span class="sh-d">${sh.blurb}</span></h3><div class="shelf-cards">${cards}</div></section>` : '';
+    }).join('');
+    const counts = new Map<string, number>();
+    for (const x of h.hand) counts.set(x.id, (counts.get(x.id) ?? 0) + 1);
+    const handChips = [...counts].map(([id, n]) => `<i class="chip-c sh-${shelfOf(c, actionDef(c, id))}">${esc(actionDef(c, id).name)}${n > 1 ? ` ×${n}` : ''}</i>`).join('');
+    const note = full
+      ? 'Your hand is full. Play or discard cards next turn to make room.'
+      : h.nerve <= 0
+        ? 'Out of nerve. You can still take the free cards, or press Done.'
+        : `Spend the nerve you didn’t use on cards for your next turn. Leftover nerve is lost: it resets to ${resetTo}.`;
+    root.innerHTML = `<div class="overlay draft-ov shop-ov"><div class="draft tableau shop">
+      <header class="shop-head">
+        <div class="shop-title">
+          <div class="kind">Turn ${s.round} · Planning</div>
+          <h2>Stock up</h2>
+          <p>${note}</p>
+        </div>
+        <div class="shop-meter m-nerve ${h.nerve <= 0 ? 'empty' : ''}"><span class="ml">Nerve to spend</span><span class="mv">${h.nerve}</span><span class="ms">resets to ${resetTo} next turn</span></div>
+        <div class="shop-meter m-hand ${full ? 'full' : ''}"><span class="ml">Cards in hand</span><span class="mv">${h.hand.length}<small>/${HAND_LIMIT}</small></span><span class="ms">${full ? 'hand full' : `room for ${HAND_LIMIT - h.hand.length} more`}</span></div>
+      </header>
+      <div class="shop-body" data-scroll="shop">${shelves}</div>
+      <footer class="shop-foot">
+        <div class="shop-hand"><span class="sh-l">Your hand</span>${handChips || '<i class="chip-c">empty</i>'}</div>
+        <div class="row-btns"><button class="btn" data-go="hidePlan">Peek at the board <small>(B)</small></button><button class="btn primary" data-act="endPlanning">Done: his turn <small>(E)</small></button></div>
+      </footer>
     </div></div>`;
+    const body = root.querySelector<HTMLElement>('.shop-body');
+    if (body) body.scrollTop = keep;
     return;
   }
   if (s.phase === 'upkeep' && upkeepHidden !== s.round) {
@@ -1263,6 +1327,7 @@ function updateOverlay() {
 function act(a: Action) {
   if (!game || !content || overlayLocked) return;
   if (a.type === 'endAction' && game.heroine.nerve > 0 && !confirmEnd()) return;
+  if (a.type === 'endAction') document.querySelector('.toast')?.remove();
   if (a.type === 'endPlanning') {
     killerLogStart = game.log.length;
     turnStart = { health: totalHealth(game), slain: game.slain, saved: game.saved, bloodlust: game.killer.bloodlust, killerHealth: game.killer.health, finale: game.killer.finale, minions: game.minions.length };
@@ -1637,7 +1702,7 @@ function showRules() {
   <p><b>Goal: kill the killer.</b> You win if he dies, you lose if you do, and if you both fall in the same moment, you win. There is no dawn: the night ends when one of you does.</p>
   <h3>A turn has five phases</h3>
   <p><b>1 · Action.</b> Play action cards from your hand, paying their nerve cost. You may also discard any card for +1 nerve. If nerve drops below zero, finish that card and your Action phase ends. Items and your ability can be used here too.<br>
-  <b>2 · Planning.</b> Spend leftover nerve on cards from the face-up <b>tableau</b>, as many as you can afford (hand limit ${HAND_LIMIT}). Only the three basics (Walk, Look Around, Duck) are free, and can be taken even at negative nerve. Cards you played or discarded this turn are locked until Planning ends, then return to their piles. Nerve resets to ${DIFFICULTY.standard.nerve}.<br>
+  <b>2 · Planning.</b> Spend leftover nerve in the <b>shop</b> (the face-up tableau of card piles), as many cards as you can afford (hand limit ${HAND_LIMIT}). Its shelves group cards by job: Free, Move, Fight, Search, Defend, Recover, Tricks. Only the three Free basics (Walk, Look Around, Duck) cost 0, and can be taken even at negative nerve. Peek at the board any time with <b>B</b>. Cards you played or discarded this turn are locked until Planning ends, then return to their piles. Nerve resets to ${DIFFICULTY.standard.nerve}.<br>
   <b>3 · Killer.</b> He follows his <b>behavior</b> (pick a target, move, attack), then a <b>Terror</b> card is drawn.<br>
   <b>4 · Panic.</b> If anyone died this turn, survivors in his location roll a die and run along that location's panic table.<br>
   <b>5 · Upkeep.</b> The location's rule and ongoing Events resolve, and you may rearrange your items.</p>
@@ -1948,6 +2013,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key === 's' || e.key === 'S') return act({ type: 'stopMove' });
+  if ((e.key === 'b' || e.key === 'B') && s.phase === 'planning') return navigate(planHidden === s.round ? 'openPlan' : 'hidePlan');
   if (/^[0-9]$/.test(e.key)) {
     const card = s.heroine.hand[(Number(e.key) + 9) % 10];
     if (card) act({ type: 'playCard', uid: card.uid });
