@@ -333,6 +333,7 @@ export type Fx =
   | { t: 'dice' }
   | { t: 'card' }
   | { t: 'hit'; n: number }
+  | { t: 'damage'; parts: [string, number][]; light: boolean } // how her hit on him added up
   | { t: 'finale' }
   | { t: 'item' }
   | { t: 'move' }

@@ -701,4 +701,19 @@ describe('light attacks', () => {
     expect(hit('ac-swing')).toBe(2); // 2 flat
     expect(hit('ac-fullswing')).toBe(5); // 3 + tire iron 1 + lore 1
   });
+
+  it('a heavy hit reports where each point came from', () => {
+    const c = C();
+    let s = quiet(c);
+    s.killer.loc = s.heroine.loc;
+    s.heroine.items = [{ uid: 990, id: 'tire-iron' }];
+    s.foundLore = ['lore-logbook'];
+    s.mods.damage = 2;
+    const uid = giveCard(s, 'ac-fullswing');
+    s.rolling = { uid, dice: [6, 6], converted: [], card: 'ac-fullswing', reaction: false, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-fullswing', reaction: false };
+    s = act(c, s, { type: 'resolveRoll' });
+    expect(s.log.some((l) => l.text === 'Damage 7 = Full Swing 3 + Tire Iron 1 + lore item 1 + Psych Up 2.')).toBe(true);
+    expect(s.mods.damage).toBe(0);
+  });
 });

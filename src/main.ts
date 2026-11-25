@@ -1000,6 +1000,19 @@ function updateBoard() {
   else hint.innerHTML = '';
 }
 
+/** Waiting bonuses (Psych Up, Steady Hands, events) as chips, so a "next hit +2" is never invisible. */
+function buffChips(s: GameState): string {
+  const m = s.mods;
+  const out: string[] = [];
+  if (m.damage) out.push(`next hit +${m.damage}`);
+  if (m.rerollNext) out.push('next roll: reroll misses');
+  if (m.rollDice) out.push(`rolls ${m.rollDice > 0 ? '+' : '−'}${Math.abs(m.rollDice)} die`);
+  if (m.attackDice) out.push(`attacks +${m.attackDice} die`);
+  if (m.searchDice) out.push(`search ${m.searchDice > 0 ? '+' : '−'}${Math.abs(m.searchDice)} die`);
+  if (m.hideDice) out.push(`hide +${m.hideDice} die`);
+  return out.length ? `<div class="st-buffs">${out.map((x) => `<i>${esc(x)}</i>`).join('')}</div>` : '';
+}
+
 function shortWhy(why?: string): string | undefined {
   if (!why) return undefined;
   const map: [RegExp, string][] = [
@@ -1045,6 +1058,7 @@ function updateBottom() {
     <div class="st-m">${track.map((_, i) => `<i class="${i <= h.horror && i > 0 ? 'on' : ''} ${i === h.horror ? 'cur' : ''}"></i>`).join('')}</div>
     <div class="st-row"><span><b>${horrorDice(s)}</b> dice</span><span class="${h.nerve < 0 ? 'bad' : ''}"><b>${h.nerve}</b> nerve</span></div>
     <div class="st-row dim"><span>${h.hand.length}/${HAND_LIMIT} cards</span><span>${s.discard.length} used</span></div>
+    ${buffChips(s)}
   </div>`;
   let main = '';
   if (s.pending?.kind === 'move')
@@ -1618,6 +1632,9 @@ function runFx(s: GameState) {
       case 'unlock':
         toast(`<b>${esc(c.heroine.ability.name)}</b> unlocked. Use it once per turn.`, 5000);
         break;
+      case 'damage':
+        showTally(f.parts, f.light);
+        break;
       case 'dice':
         if (!diceShown && s.lastRoll && s.pending?.kind !== 'roll') {
           diceShown = true;
@@ -1704,6 +1721,21 @@ function showDice(s: GameState) {
   };
   catcher.addEventListener('click', done);
   setTimeout(done, 1500 + r.dice.length * 80);
+}
+
+/** A short-lived tally beside his health: how her hit added up. */
+function showTally(parts: [string, number][], light: boolean) {
+  document.querySelector('.dmg-tally')?.remove();
+  const total = parts.reduce((n, [, v]) => n + v, 0);
+  const el = document.createElement('div');
+  el.className = 'dmg-tally';
+  el.innerHTML = `<b>${total} damage</b><span>${
+    light
+      ? `${esc(parts[0][0])} is light: weapon, lore and Psych Up don't add`
+      : parts.map(([l, v], i) => `${i ? '<i>+</i>' : ''}${esc(l)} <em>${v}</em>`).join(' ')
+  }</span>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 5200);
 }
 
 function flash(white: boolean) {

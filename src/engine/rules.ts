@@ -612,16 +612,32 @@ function heroineAttack(c: Content, s: GameState, base: number) {
 }
 
 function hitKiller(c: Content, s: GameState, base: number, range: number) {
-  if (lightAttack(c, s)) return hurtKiller(c, s, base);
-  let dmg = base;
+  const card = s.rolling ? actionDef(c, s.rolling.card).name : 'Hit';
+  if (lightAttack(c, s)) {
+    damageBreakdown(s, [[card, base]], true);
+    return hurtKiller(c, s, base);
+  }
+  // Where every point came from, so a 7-damage hit off "2 successes" makes sense.
+  const parts: [string, number][] = [[card, base]];
   const w = bestWeapon(c, s, range);
   if (w) {
-    dmg += itemDef(c, w.id).damage ?? 0;
+    const wd = itemDef(c, w.id).damage ?? 0;
+    if (wd) parts.push([itemDef(c, w.id).name, wd]);
     if (!c.heroine.traits.durableWeapons) spendUse(c, s, w);
   }
-  dmg += loreBonus(c, s) + (s.mods.damage ?? 0);
+  const lore = loreBonus(c, s);
+  if (lore) parts.push([lore > 1 ? `${lore} lore items` : 'lore item', lore]);
+  if (s.mods.damage) parts.push(['Psych Up', s.mods.damage]);
   s.mods.damage = 0;
-  hurtKiller(c, s, dmg);
+  damageBreakdown(s, parts, false);
+  hurtKiller(c, s, parts.reduce((n, [, v]) => n + v, 0));
+}
+
+function damageBreakdown(s: GameState, parts: [string, number][], light: boolean) {
+  const total = parts.reduce((n, [, v]) => n + v, 0);
+  if (parts.length > 1) log(s, `Damage ${total} = ${parts.map(([l, v]) => `${l} ${v}`).join(' + ')}.`, 'info');
+  else if (light) log(s, `${parts[0][0]} is a light attack: weapons, lore and Psych Up don't add.`, 'info');
+  s.fx.push({ t: 'damage', parts, light });
 }
 
 const SEQUENCING = new Set<Effect['op']>(['_strike', '_reactDone', '_clearMods', '_terror', '_phase', '_behavior', '_finaleCheck', '_rule', '_minion', '_minionsAll', 'minionsAct', 'enemiesAct', 'target', 'hunt', 'attack', 'move', 'search']);
