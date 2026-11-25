@@ -1,6 +1,7 @@
 // Interactive coach-mark tutorial: a spotlight on the element that matters and
 // a card that explains it. "info" steps advance with Next; "do" steps advance
 // when the game state shows the player actually did the thing.
+import { sym } from './symbols';
 import type { GameState } from '../engine/types';
 
 export interface TutStep {
@@ -22,7 +23,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'You',
-    text: '<b>Health</b> comes with a hidden backup token (the <b>?</b>) that may get you back up once. <b>Horror</b> climbs left to right on the track, and the row under it shows how many dice you roll at that level: more fear, fewer dice. <b>Nerve</b> (◉) pays for cards: 6 a turn on Matinee, plus bonuses. Your items are below: tap one to read or use it.',
+    text: `<b>Health</b> comes with a hidden backup token (the <b>?</b>) that may get you back up once. <b>Horror</b> climbs left to right on the track, and the row under it shows how many dice you roll at that level: more fear, fewer dice. <b>Nerve</b> (${sym('nerve')}) pays for cards: 6 a turn on Matinee, plus bonuses. Your items are below: tap one to read or use it.`,
     target: '#heroine-panel',
   },
   {
@@ -37,7 +38,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'Your hand',
-    text: 'Each card shows its <b>cost</b>, its dice, and three outcomes: <b>2+</b> successes, exactly <b>1</b>, or <b>✗</b>. A die showing 5–6 succeeds; 3–4 is a partial: once per roll you can buy one up by discarding 2 cards. The small <b>discard +1◉</b> on a card trades it for nerve.',
+    text: `Each card shows its <b>cost</b>, its dice, and three outcomes: <b>2+</b> successes, exactly <b>1</b>, or <b>✗</b>. A die showing 5–6 succeeds; 3–4 is a partial: once per roll you can buy one up by discarding 2 cards. The small <b>discard +1${sym('nerve')}</b> on a card trades it for nerve.`,
     target: '.hand-row',
   },
   {

@@ -351,4 +351,17 @@ const ITEMS = {
 };
 for (const [name, p] of Object.entries(ITEMS)) add(`item/${slug(name)}`, 'item', `${ITEM}, ${p}, ${STYLE}`, 512, 512, [128, 128]);
 
+// ── 7. Stat symbols (512² → 96²): horror, dice, nerve, health ─────────────
+// Used beside the big numbers (status box, heroine vitals, shop meter); tiny inline
+// uses stay vector (src/ui/symbols.ts). Shown in a circle, so keep the object centred.
+// (Avoid "horror", "blood": the output filter flags them.)
+const SYMBOL = 'painted game UI symbol, one bold simple object centered on a plain very dark circular vignette background, chunky readable silhouette that works when shrunk to a tiny size, strong rim light, high contrast';
+const SYMBOLS = {
+  horror: 'a single wide-open frightened human eye with a tiny pupil and violet iris, red-rimmed lids, cold violet glow',
+  dice: 'a single bone-white six-sided die showing three black pips, slightly tilted, warm candle light',
+  nerve: 'a round antique gold coin embossed with a jagged lightning bolt, warm golden glow',
+  health: 'a glossy crimson heart shape, like a red candy heart, soft red glow',
+};
+for (const [k, p] of Object.entries(SYMBOLS)) add(`symbol/${k}`, 'symbol', `${SYMBOL}, ${p}, ${STYLE}`, 512, 512, [96, 96]);
+
 export const ASSETS = A;

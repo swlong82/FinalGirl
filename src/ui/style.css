@@ -1412,3 +1412,23 @@ b.ok { color: #2f6b3a; font-weight: 400; }
 }
 @keyframes sheetUp { from { transform: translateY(30%); opacity: 0; } }
 @media (max-width: 700px) { .items-sheet .btn:not(.primary) { background: #2a1d14; color: #f3ead8; border-color: transparent; } .items-sheet .is-h .btn { background: rgba(255, 255, 255, .5); color: var(--ink-dark); border-color: rgba(60, 40, 20, .35); } }
+
+/* ── Stat symbols (src/ui/symbols.ts): horror eye, die, nerve token, heart ── */
+.sym { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.22em; flex: none; }
+img.sym.gen { border-radius: 50%; object-fit: cover; }
+.act.fcard .cost .sym { width: 13px; height: 13px; vertical-align: -2px; margin: 0 1px; }
+.act.fcard .cost .dn { display: inline-flex; align-items: center; gap: 2px; }
+.act.fcard .disc .sym { width: 10px; height: 10px; vertical-align: -1px; }
+.vital .v-l .sym { width: 22px; height: 22px; vertical-align: middle; }
+.vital .v-s .sym { width: 11px; height: 11px; vertical-align: -1px; }
+.htrack .ht-k .sym { width: 13px; height: 13px; vertical-align: -2px; }
+.status .st-l .sym { width: 24px; height: 24px; vertical-align: middle; }
+.status .st-row span { display: inline-flex; align-items: center; gap: 4px; }
+.status .st-row .sym { width: 17px; height: 17px; }
+.endturn small .sym { width: 11px; height: 11px; vertical-align: -1px; margin-left: 1px; }
+.peek-banner .pb-v .sym { width: 18px; height: 18px; vertical-align: -3px; margin-right: 3px; }
+.shop-meter .ml .sym { width: 15px; height: 15px; vertical-align: -3px; }
+.pilecount .sym { width: 10px; height: 10px; vertical-align: -1px; margin-left: 1px; }
+.side-toggle .sym { width: 15px; height: 15px; vertical-align: -2px; margin-right: 3px; }
+.tut-card .sym { width: 15px; height: 15px; vertical-align: -3px; }
+.act.fcard .bands .sym, .lrow .sym, .dicetray .btn .sym { width: 13px; height: 13px; vertical-align: -2px; margin: 0 1px; }

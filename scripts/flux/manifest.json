@@ -1309,6 +1309,18 @@
   },
   "item/two-way-radio": {
    "status": "pending"
+  },
+  "symbol/horror": {
+   "status": "pending"
+  },
+  "symbol/dice": {
+   "status": "pending"
+  },
+  "symbol/nerve": {
+   "status": "pending"
+  },
+  "symbol/health": {
+   "status": "pending"
   }
  },
  "lastRun": {

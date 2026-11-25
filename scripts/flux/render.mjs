@@ -40,7 +40,7 @@ const FORCE = flag('--force'); // with --only: re-render keys even if already do
 const tiles = (a) => Math.ceil(a.w / 512) * Math.ceil(a.h / 512);
 const neurons = (a) => Math.round(tiles(a) * 26.05);
 
-const LABEL = { backdrop: 'Location backdrops', portrait: 'Portraits', still: 'Card stills', icon: 'Map node icons', item: 'Item icons' };
+const LABEL = { backdrop: 'Location backdrops', portrait: 'Portraits', still: 'Card stills', icon: 'Map node icons', item: 'Item icons', symbol: 'Stat symbols' };
 
 function loadManifest() {
   const m = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : {};
@@ -124,7 +124,7 @@ function store(a, b64) {
   const tmp = join(tmpdir(), `flux-${process.pid}.jpg`);
   writeFileSync(tmp, Buffer.from(b64, 'base64'));
   const [w, h] = a.out;
-  execFileSync('convert', [tmp, '-resize', `${w}x${h}^`, '-gravity', 'center', '-extent', `${w}x${h}`, '-strip', '-quality', a.cls === 'icon' || a.cls === 'item' ? '82' : '78', out]);
+  execFileSync('convert', [tmp, '-resize', `${w}x${h}^`, '-gravity', 'center', '-extent', `${w}x${h}`, '-strip', '-quality', a.cls === 'icon' || a.cls === 'item' || a.cls === 'symbol' ? '82' : '78', out]);
   rmSync(tmp, { force: true });
   return { file: relative(ROOT, out), bytes: statSync(out).size };
 }

@@ -62,6 +62,7 @@ import {
 import type { Action, ActionCardDef, Content, Difficulty, Effect, GameState, HeldItem, TieBreak } from './engine/types';
 import { startGrain, setGrainIntensity } from './ui/grain';
 import { fillPronouns } from './engine/pronoun';
+import { sym } from './ui/symbols';
 
 // ── App state ───────────────────────────────────────────────────────────────
 type Screen = 'title' | 'feature' | 'heroine' | 'intro' | 'game' | 'stats';
@@ -282,6 +283,12 @@ function condText(c: Extract<Effect, { op: 'if' }>['cond']): string {
 function describeEffects(effs: Effect[]): string {
   return effs.map(describeEffect).filter(Boolean).join(', ') || 'nothing';
 }
+/** Effect text as HTML, with horror and nerve changes shown as symbols ("👁+1", "+2⚡"). */
+function fxHtml(text: string): string {
+  return esc(text)
+    .replace(/\bhorror ([+−-]?\d+)/g, (_, n: string) => `${sym('horror')}${n.replace('-', '−')}`)
+    .replace(/([+−-]\d+) nerve\b/g, (_, n: string) => `${n.replace('-', '−')}${sym('nerve')}`);
+}
 
 /** "4 dice: horror 2 gives 4, Resolve +1, blackout −1" */
 function diceWhy(parts: [string, number][]): string {
@@ -314,13 +321,13 @@ function shelfOf(c: Content, d: ActionCardDef): ShelfId {
 
 function cardHtml(c: Content, s: GameState | null, d: ActionCardDef, attrs: string, extra = '', idx?: number, why?: string): string {
   const bd = s && d.roll ? rollBreakdown(c, s, d) : null;
-  const dice = why ? `<span class="whyno">${esc(why)}</span>` : bd ? `<span class="dn" title="${esc(diceWhy(bd.parts))}">${bd.total} dice</span>` : d.roll ? 'Horror Roll' : 'no roll';
+  const dice = why ? `<span class="whyno">${esc(why)}</span>` : bd ? `<span class="dn" title="${esc(diceWhy(bd.parts))}">${sym('dice', { title: `${bd.total} dice` })}${bd.total}</span>` : d.roll ? `${sym('dice')}roll` : 'no roll';
   const bands = d.roll
-    ? `<span class="band"><i class="g">2+</i>${esc(describeEffects(d.great ?? []))}</span><span class="band"><i class="o">1</i>${esc(describeEffects(d.good ?? []))}</span><span class="band"><i class="x">✗</i>${esc(describeEffects(d.fail ?? []))}</span>`
-    : `<span class="band"><i class="g">✓</i>${esc(describeEffects(d.always ?? []))}</span>`;
+    ? `<span class="band"><i class="g">2+</i>${fxHtml(describeEffects(d.great ?? []))}</span><span class="band"><i class="o">1</i>${fxHtml(describeEffects(d.good ?? []))}</span><span class="band"><i class="x">✗</i>${fxHtml(describeEffects(d.fail ?? []))}</span>`
+    : `<span class="band"><i class="g">✓</i>${fxHtml(describeEffects(d.always ?? []))}</span>`;
   return `<button class="act fcard ${d.kind} tag-${d.tags[0]}" data-kind="${d.tags[0]}" ${attrs}>
     <span class="n" title="${esc(d.name)}">${esc(d.name)}</span>${idx !== undefined && idx < 10 ? `<kbd class="key">${(idx + 1) % 10}</kbd>` : ''}
-    <span class="cost"><b>${cardCost(c, d)}</b>◉ · ${dice}${d.kind === 'reaction' ? ' · <em>reaction</em>' : ''}</span>
+    <span class="cost"><b>${cardCost(c, d)}</b>${sym('nerve', { title: `costs ${cardCost(c, d)} nerve` })} · ${dice}${d.kind === 'reaction' ? ' · <em>reaction</em>' : ''}</span>
     <span class="bands">${bands}</span>${extra}
   </button>`;
 }
@@ -882,16 +889,16 @@ function renderHeroinePanel(c: Content, s: GameState) {
   }
   const sumH = document.getElementById('sum-h');
   if (sumH)
-    sumH.innerHTML = `<b>${esc(c.heroine.name.split(' ')[0])}</b><span>♥ ${h.health}/${h.maxHealth}${h.token !== null ? '+?' : ''}</span><span>horror ${h.horror}</span><span>${h.rescued} rescued</span><span>${h.items.length + h.pack.length} items</span><i>${sideOpen.left ? 'hide' : 'details'}</i>`;
+    sumH.innerHTML = `<b>${esc(c.heroine.name.split(' ')[0])}</b><span>${sym('health')}${h.health}/${h.maxHealth}${h.token !== null ? '+?' : ''}</span><span>${sym('horror')}${h.horror}</span><span>${h.rescued} rescued</span><span>${h.items.length + h.pack.length} items</span><i>${sideOpen.left ? 'hide' : 'details'}</i>`;
   document.getElementById('heroine-panel')!.innerHTML = `<div class="pane">
     <header class="p-id">${heroinePortrait(c.heroine, { grim: h.horror / 6, hurt: 1 - total / (h.maxHealth + 1) })}
       <div><div class="p-name">${esc(c.heroine.name)}</div><div class="p-role">${esc(c.heroine.title)}</div></div></header>
     <div class="vitals">
-      ${vital('Health', `${h.health}<small>/${h.maxHealth}</small>`, h.token === null ? 'no backup' : `+ <span class="tok">?</span> backup`, h.health <= 2 ? 'bad' : '', h.token === null ? 'Backup token used: the next time she runs out of health, she dies.' : 'Health, plus a hidden backup token (the final-health token). When her health runs out the token is revealed: a number gets her back up with that much health, a blank means death.')}
-      ${vital('Horror', `${h.horror}<small>/${MAX_HORROR}</small>`, `${horrorDice(s)} dice a roll`, h.horror >= 4 ? 'bad' : '', 'The higher your horror, the fewer dice you roll. Past 6, it feeds {his} bloodlust (at most once a turn).')}
-      ${vital('Nerve', String(h.nerve), h.nerve < 0 ? 'in debt' : `base ${base} a turn`, h.nerve < 0 ? 'bad' : 'gold', `Pays for cards (◉ is nerve). Each turn starts at ${base}, plus bonuses from rescues, being perfectly calm (horror 0) and some events. Discard a card for +1. Below zero ends your Action phase.`)}
+      ${vital(sym('health', { big: true }), `${h.health}<small>/${h.maxHealth}</small>`, h.token === null ? 'no backup' : `+ <span class="tok">?</span> backup`, h.health <= 2 ? 'bad' : '', h.token === null ? 'Backup token used: the next time she runs out of health, she dies.' : 'Health, plus a hidden backup token (the final-health token). When her health runs out the token is revealed: a number gets her back up with that much health, a blank means death.')}
+      ${vital(sym('horror', { big: true }), `${h.horror}<small>/${MAX_HORROR}</small>`, `${sym('dice')} ${horrorDice(s)} a roll`, h.horror >= 4 ? 'bad' : '', 'The higher your horror, the fewer dice you roll. Past 6, it feeds {his} bloodlust (at most once a turn).')}
+      ${vital(sym('nerve', { big: true }), String(h.nerve), h.nerve < 0 ? 'in debt' : `${base} each turn`, h.nerve < 0 ? 'bad' : 'gold', `Nerve pays for cards. Each turn starts at ${base}, plus bonuses from rescues, being perfectly calm (horror 0) and some events. Discard a card for +1. Below zero ends your Action phase.`)}
     </div>
-    <div class="htrack" title="Horror track: as horror rises, you roll fewer dice"><span class="ht-k"><b>horror</b><b>dice</b></span>${htrack}</div>
+    <div class="htrack" title="Horror track: as horror rises, you roll fewer dice"><span class="ht-k"><b>${sym('horror')}</b><b>${sym('dice')}</b></span>${htrack}</div>
     ${sec('Rescues', `${h.rescued} saved${h.resolve ? ` · +${h.resolve} attack die` : ''}`, `<div class="rtrack" title="Fill every slot to unlock ${esc(c.heroine.ability.name)}">${rtrack}<i class="rt-link"></i><span class="rt ab ${unlocked ? 'done' : ''}" title="${esc(c.heroine.ability.name)}: ${esc(c.heroine.ability.text)}">★</span></div><p class="prose small">${nextTxt}</p>
       ${abilityBox}`)}
     ${invSecs}
@@ -924,7 +931,7 @@ function renderKillerPanel(c: Content, s: GameState) {
     : '';
   const sumK = document.getElementById('sum-k');
   if (sumK)
-    sumK.innerHTML = `<b>${esc(c.killer.name.replace(/^The /, ''))}</b><span>♥ ${k.health}/${k.maxHealth}${k.token !== null ? '+?' : ''}</span><span>move ${killerMoveValue(c, s)} · atk ${killerAttack(c, s)}</span><span>next: ${esc(target === h.loc ? 'you' : nodeName(c, target))}</span><i>${sideOpen.right ? 'hide' : 'details'}</i>`;
+    sumK.innerHTML = `<b>${esc(c.killer.name.replace(/^The /, ''))}</b><span>${sym('health')}${k.health}/${k.maxHealth}${k.token !== null ? '+?' : ''}</span><span>move ${killerMoveValue(c, s)} · atk ${killerAttack(c, s)}</span><span>next: ${esc(target === h.loc ? 'you' : nodeName(c, target))}</span><i>${sideOpen.right ? 'hide' : 'details'}</i>`;
   document.getElementById('killer-panel')!.innerHTML = `<div class="pane dark">
     <header class="p-id">${killerPortrait({ finale: k.finale, art: c.killer.art })}
       <div><div class="p-name">${esc(c.killer.name)}</div><div class="p-role">${esc(c.killer.epithet)}</div></div></header>
@@ -1088,7 +1095,7 @@ function updateBottom() {
     .map((card, i) => {
       const d = actionDef(c, card.id);
       const chk = check(c, s, { type: 'playCard', uid: card.uid });
-      const disc = s.phase === 'action' && !s.pending && h.nerve >= 0 ? `<span class="disc" data-discard="${card.uid}" title="Discard this card for +1 nerve">discard +1◉</span>` : '';
+      const disc = s.phase === 'action' && !s.pending && h.nerve >= 0 ? `<span class="disc" data-discard="${card.uid}" title="Discard this card for +1 nerve">discard +1${sym('nerve')}</span>` : '';
       const warn = chk.ok && h.nerve - chk.cost < 0 ? ' · ends your turn' : '';
       // Say why a card is greyed out right on it (tooltips never show on touch).
       const why = !chk.ok && s.phase === 'action' && !s.pending ? shortWhy(chk.why) : undefined;
@@ -1107,9 +1114,9 @@ function updateBottom() {
   const fell = lastHorrorShown !== null && h.horror < lastHorrorShown;
   lastHorrorShown = h.horror;
   const pile = `<div class="status ${rose ? 'up' : fell ? 'down' : ''}" title="Horror ${h.horror}: every Horror Roll uses ${horrorDice(s)} dice before bonuses">
-    <div class="st-h"><span class="st-l">Horror</span><span class="st-v ${h.horror >= 4 ? 'bad' : ''}">${h.horror}<small>/${MAX_HORROR}</small></span></div>
+    <div class="st-h"><span class="st-l">${sym('horror', { big: true })}</span><span class="st-v ${h.horror >= 4 ? 'bad' : ''}">${h.horror}<small>/${MAX_HORROR}</small></span></div>
     <div class="st-m">${track.map((_, i) => `<i class="${i <= h.horror && i > 0 ? 'on' : ''} ${i === h.horror ? 'cur' : ''}"></i>`).join('')}</div>
-    <div class="st-row"><span><b>${horrorDice(s)}</b> dice</span><span class="${h.nerve < 0 ? 'bad' : ''}"><b>${h.nerve}</b> nerve</span></div>
+    <div class="st-row"><span title="Dice per roll">${sym('dice')}<b>${horrorDice(s)}</b></span><span class="${h.nerve < 0 ? 'bad' : ''}" title="Nerve to spend">${sym('nerve')}<b>${h.nerve}</b></span></div>
     <div class="st-row dim"><span>${h.hand.length}/${HAND_LIMIT} cards</span><span>${s.discard.length} used</span></div>
     ${buffChips(s)}
   </div>`;
@@ -1117,9 +1124,9 @@ function updateBottom() {
   if (s.pending?.kind === 'move')
     main = `<button class="endturn stop" data-act="stopMove">Stop here <small style="display:block;font-size:10px;opacity:.8">${(s.pending as { left: number }).left} step${(s.pending as { left: number }).left > 1 ? 's' : ''} unused · S</small></button>`;
   else if (s.phase === 'action')
-    main = `<button class="endturn" data-act="endAction" ${check(c, s, { type: 'endAction' }).ok ? '' : 'disabled'}>End Action <small style="display:block;font-size:10px;opacity:.7">${h.nerve} nerve → Planning · E</small></button>`;
+    main = `<button class="endturn" data-act="endAction" ${check(c, s, { type: 'endAction' }).ok ? '' : 'disabled'}>End Action <small style="display:block;font-size:10px;opacity:.7">${h.nerve}${sym('nerve')} → Planning · E</small></button>`;
   else if (s.phase === 'planning')
-    main = `<button class="endturn shop-btn" data-go="openPlan">Shop <small style="display:block;font-size:10px;opacity:.8">${h.nerve} nerve · B</small></button><button class="endturn" data-act="endPlanning">Done <small style="display:block;font-size:10px;opacity:.7">{his} turn · E</small></button>`;
+    main = `<button class="endturn shop-btn" data-go="openPlan">Shop <small style="display:block;font-size:10px;opacity:.8">${h.nerve}${sym('nerve')} · B</small></button><button class="endturn" data-act="endPlanning">Done <small style="display:block;font-size:10px;opacity:.7">{his} turn · E</small></button>`;
   else if (s.phase === 'upkeep')
     main = `<button class="endturn" data-act="endUpkeep" ${check(c, s, { type: 'endUpkeep' }).ok ? '' : 'disabled'}>Next turn <small style="display:block;font-size:10px;opacity:.7">E</small></button>`;
   else main = `<button class="endturn" disabled>{His} turn…</button>`;
@@ -1236,14 +1243,14 @@ function updateOverlay() {
       .join('');
     // The card's three rows: where she stands now, and where a buy-up would take her.
     const rows = (['great', 'good', 'fail'] as const)
-      .map((b) => `<div class="lrow b-${b} ${b === band ? 'cur' : ''} ${canBuy && b === up ? 'up' : ''}"><i>${b === 'great' ? '2+' : b === 'good' ? '1' : '✗'}</i><span>${esc(fx(b))}</span>${b === band ? '<em>now</em>' : canBuy && b === up ? '<em>buy up</em>' : ''}</div>`)
+      .map((b) => `<div class="lrow b-${b} ${b === band ? 'cur' : ''} ${canBuy && b === up ? 'up' : ''}"><i>${b === 'great' ? '2+' : b === 'good' ? '1' : '✗'}</i><span>${fxHtml(fx(b))}</span>${b === band ? '<em>now</em>' : canBuy && b === up ? '<em>buy up</em>' : ''}</div>`)
       .join('');
     let offer = '';
     if (convertDie !== null)
       offer = `<div class="buy-pick"><p>Discard <b>${CONVERT_COST}</b> cards (least useful picked; tap to change):</p><div class="conv-hand">${h.hand
         .map((x) => `<button class="chip ${convertPick.includes(x.uid) ? 'sel' : ''}" data-cpick="${x.uid}">${esc(actionDef(c, x.id).name)}</button>`)
-        .join('')}</div><button class="btn buy-go" data-go="doConvert" ${convertPick.length === CONVERT_COST ? '' : 'disabled'}>Discard &amp; buy up → ${esc(fx(up))}</button></div>`;
-    else if (canBuy) offer = `<button class="btn buy-go" data-go="buyUp">Spend ${CONVERT_COST} cards: <b>${esc(fx(up))}</b> instead of ${esc(fx(band))}</button>`;
+        .join('')}</div><button class="btn buy-go" data-go="doConvert" ${convertPick.length === CONVERT_COST ? '' : 'disabled'}>Discard &amp; buy up → ${fxHtml(fx(up))}</button></div>`;
+    else if (canBuy) offer = `<button class="btn buy-go" data-go="buyUp">Spend ${CONVERT_COST} cards: <b>${fxHtml(fx(up))}</b> instead of ${fxHtml(fx(band))}</button>`;
     else if (helps) offer = `<p class="buy-note">A buy-up would help, but it needs ${CONVERT_COST} cards in hand.</p>`;
     else if (hasPartial && succ >= 2) offer = '<p class="buy-note good">Already the best row: no need to spend cards.</p>';
     else if (hasPartial && !buyLeft) offer = '<p class="buy-note">One buy-up per roll: used.</p>';
@@ -1259,7 +1266,7 @@ function updateOverlay() {
       <div class="res-tag b-${band}">${succ} success${succ === 1 ? '' : 'es'}: ${band === 'great' ? 'best row' : band === 'good' ? 'middle row' : 'fail row'}</div>
       <div class="ladder">${rows}</div>
       ${offer}
-      <button class="btn ${canBuy ? '' : 'primary'} take" data-act="resolveRoll">${canBuy ? 'Keep it' : 'Resolve'}: ${esc(fx(band))} <small>(space)</small></button>
+      <button class="btn ${canBuy ? '' : 'primary'} take" data-act="resolveRoll">${canBuy ? 'Keep it' : 'Resolve'}: ${fxHtml(fx(band))} <small>(space)</small></button>
     </div></div>`;
     return;
   }
@@ -1341,7 +1348,7 @@ function updateOverlay() {
     // Peeking at the board: a slim banner keeps the way back to the shop in plain sight.
     root.innerHTML = `<div class="peek-banner" role="status">
       <span class="pb-k">Planning</span>
-      <span class="pb-v"><b class="${h.nerve <= 0 ? 'bad' : ''}">${h.nerve}</b> nerve to spend</span>
+      <span class="pb-v">${sym('nerve')}<b class="${h.nerve <= 0 ? 'bad' : ''}">${h.nerve}</b> to spend</span>
       <span class="pb-v"><b class="${h.hand.length >= HAND_LIMIT ? 'bad' : ''}">${h.hand.length}</b>/${HAND_LIMIT} cards</span>
       <button class="btn primary" data-go="openPlan">${glyph('pack')} Back to the shop <small>(B)</small></button>
     </div>`;
@@ -1361,7 +1368,7 @@ function updateOverlay() {
           const used = s.discard.includes(d.id);
           const poor = left > 0 && !full && !chk.ok;
           const status = poor
-            ? `<span class="pilecount poor">need ${cardCost(c, d)} nerve</span>`
+            ? `<span class="pilecount poor">need ${cardCost(c, d)}${sym('nerve')}</span>`
             : left > 0
               ? `<span class="pilecount">${left} left</span>`
               : `<span class="pilecount out">${used ? 'back after Planning' : held ? 'in your hand' : 'none left'}</span>`;
@@ -1390,7 +1397,7 @@ function updateOverlay() {
           <h2>Stock up</h2>
           <p>${note}</p>
         </div>
-        <div class="shop-meter m-nerve ${h.nerve <= 0 ? 'empty' : ''}"><span class="ml">Nerve to spend</span><span class="mv">${h.nerve}</span><span class="ms">resets to ${resetTo} next turn</span></div>
+        <div class="shop-meter m-nerve ${h.nerve <= 0 ? 'empty' : ''}"><span class="ml">${sym('nerve', { big: true })} Nerve to spend</span><span class="mv">${h.nerve}</span><span class="ms">resets to ${resetTo} next turn</span></div>
         <div class="shop-meter m-hand ${full ? 'full' : ''}"><span class="ml">Cards in hand</span><span class="mv">${h.hand.length}<small>/${HAND_LIMIT}</small></span><span class="ms">${full ? 'hand full' : `room for ${HAND_LIMIT - h.hand.length} more`}</span></div>
       </header>
       <div class="shop-body" data-scroll="shop">${shelves}</div>
