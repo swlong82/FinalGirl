@@ -4,6 +4,7 @@ import type { HeroineDef, LocationPack, PortraitLook } from '../engine/types';
 import { heroinePortraitV2 } from './portraits';
 import { anesthetistPortrait, hospitalBackdrop, HOSPITAL_ICONS } from './scenes';
 import { callerPortrait, radioBackdrop, SEASON1_ICONS, snowBackdrop, snowblindPortrait } from './season1';
+import { gen, genSvg, portraitOverlay } from './gen';
 
 let gid = 0;
 const uid = (p: string) => `${p}${++gid}`;
@@ -55,11 +56,19 @@ function prop(p: PortraitLook['prop'], accent: string) {
 }
 
 export function heroinePortrait(h: HeroineDef, opts: { grim?: number; hurt?: number } = {}): string {
+  const url = gen(`portrait/heroine-${h.id}`);
+  if (url) {
+    const grim = Math.min(1, opts.grim ?? 0);
+    const hurt = Math.min(1, opts.hurt ?? 0);
+    return genSvg(url, { w: 200, h: 200, cls: 'portrait', label: h.name, overlay: portraitOverlay({ tint: '#b3122e', tintOpacity: hurt * 0.55, dark: grim * 0.25 }) });
+  }
   return heroinePortraitV2(h, opts);
 }
 
 /** v1 flat portrait, kept for the small board token. */
 export function heroineToken(h: HeroineDef, opts: { grim?: number } = {}): string {
+  const url = gen(`portrait/heroine-${h.id}`);
+  if (url) return genSvg(url, { w: 200, h: 200, cls: 'portrait', label: h.name });
   const l = h.look;
   const rim = uid('rim');
   const bg = uid('bg');
@@ -86,6 +95,8 @@ export function heroineToken(h: HeroineDef, opts: { grim?: number } = {}): strin
 
 // ── Killer portraits ────────────────────────────────────────────────────────
 export function killerPortrait(state: { finale?: boolean; art?: string } = {}): string {
+  const url = gen(`portrait/killer-${state.art ?? 'projectionist'}`);
+  if (url) return genSvg(url, { w: 200, h: 200, cls: 'portrait killer', label: `The ${(state.art ?? 'projectionist').replace(/^./, (c) => c.toUpperCase())}`, overlay: portraitOverlay({ tint: '#ff1a3c', tintOpacity: state.finale ? 0.5 : 0 }) });
   if (state.art === 'tidewife') return tidewifePortrait(state);
   if (state.art === 'anesthetist') return anesthetistPortrait(state);
   if (state.art === 'snowblind') return snowblindPortrait(state);
@@ -156,6 +167,11 @@ function projectionistPortrait(state: { finale?: boolean } = {}): string {
 
 // ── Node icons ──────────────────────────────────────────────────────────────
 export function icon(key: string, color = '#d9d3c7'): string {
+  const url = gen(`icon/${key}`);
+  if (url) {
+    const clip = uid('ic');
+    return `<svg viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" class="icon gen" aria-hidden="true"><clipPath id="${clip}"><circle cx="19" cy="19" r="19"/></clipPath><image href="${url}" width="38" height="38" clip-path="url(#${clip})" preserveAspectRatio="xMidYMid slice"/></svg>`;
+  }
   const s = `fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"`;
   const f = `fill="${color}"`;
   const paths: Record<string, string> = {
@@ -184,6 +200,13 @@ export function icon(key: string, color = '#d9d3c7'): string {
 
 // ── Map backdrop: the lot at night ──────────────────────────────────────────
 export function mapBackdrop(loc: LocationPack, finale: boolean): string {
+  const own = finale ? gen(`backdrop/${loc.art}-finale`) : undefined;
+  const url = own ?? gen(`backdrop/${loc.art}`);
+  if (url) {
+    // Darken so the map nodes stay readable; a finale without its own painting gets a red wash.
+    const wash = finale && !own ? '<rect width="1000" height="640" fill="#ff1a3c" opacity=".45" style="mix-blend-mode:multiply"/>' : '';
+    return genSvg(url, { w: 1000, h: 640, cls: 'backdrop', extra: 'preserveAspectRatio="xMidYMid slice"', overlay: `${wash}<rect width="1000" height="640" fill="#05040a" opacity=".28"/>` });
+  }
   if (loc.art === 'hospital') return hospitalBackdrop(loc, finale);
   if (loc.art === 'snow') return snowBackdrop(loc, finale);
   if (loc.art === 'radio') return radioBackdrop(loc, finale);

@@ -1,6 +1,7 @@
 // LAST LIGHT — scene art: the Anesthetist, the hospital backdrop, event-card
 // "film stills", item icons and VHS-style feature posters. All original designs.
 import type { EventDef, ItemDef, LocationPack } from '../engine/types';
+import { gen, genSvg, slug } from './gen';
 
 let n = 0;
 const id = (p: string) => `${p}-${++n}`;
@@ -170,6 +171,16 @@ function motifArt(m: Motif, ink: string, glow: string): string {
 }
 
 export function eventStill(ev: EventDef, kind: 'event' | 'terror'): string {
+  const url = gen(`still/${ev.id}`);
+  if (url) {
+    const vg = id('gsv');
+    return genSvg(url, {
+      w: 280,
+      h: 170,
+      cls: 'still',
+      overlay: `<defs><radialGradient id="${vg}" cx="50%" cy="50%" r="70%"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".7"/></radialGradient></defs><rect width="280" height="170" fill="url(#${vg})"/>`,
+    });
+  }
   const m = motifFor(ev);
   const tone = kind === 'terror' ? 'terror' : ev.tone;
   const pal: Record<string, [string, string, string]> = {
@@ -198,6 +209,12 @@ export function eventStill(ev: EventDef, kind: 'event' | 'terror'): string {
 
 // ── Item icons ──────────────────────────────────────────────────────────────
 export function itemIcon(item: ItemDef): string {
+  const url = gen(`item/${slug(item.name)}`);
+  if (url) {
+    const clip = id('gic');
+    // The kind colour (currentColor) survives as a thin frame around the painting.
+    return `<svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" class="item-ico gen" aria-hidden="true"><clipPath id="${clip}"><rect width="36" height="36" rx="7"/></clipPath><image href="${url}" width="36" height="36" clip-path="url(#${clip})" preserveAspectRatio="xMidYMid slice"/><rect x="1" y="1" width="34" height="34" rx="6.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
+  }
   const s = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
   const k = `${item.id} ${item.name}`.toLowerCase();
   let p: string;

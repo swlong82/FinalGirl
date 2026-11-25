@@ -22,7 +22,7 @@ Runs in any modern browser on desktop or mobile, with no install. Headphones rec
 - **Double Bill builder**: put any killer in any location (25 pairings), with live VHS‑poster previews and a random pick. Three difficulty modes and a stats screen.
 - Named survivors with their own quirks in every location, minions for every killer, and four tie‑break policies (player‑adverse, most plausible, comedic, unpredictable). Nights saved under v0.9 are converted when you Continue.
 - 7 playable heroines, each with a passive, a rescue‑reward track, and an ability that unlocks when every rescue slot is full.
-- Procedural art (SVG) and a procedural soundtrack (WebAudio). There are no external assets.
+- Painted art (portraits, backdrops, card stills, icons) rendered with Flux on Cloudflare Workers AI, with the original procedural SVG art as a fallback for anything not yet painted. Procedural soundtrack (WebAudio). Conversion status: [`docs/ASSETS.md`](docs/ASSETS.md).
 - Autosave, undo, keyboard shortcuts, mobile layout, a guided first night, and in‑context tips.
 
 ## Play locally
@@ -53,6 +53,16 @@ npm run build
 2. Push to `main`. `.github/workflows/pages.yml` tests, builds and deploys `dist/` to https://swlong82.github.io/FinalGirl/.
 
 The build uses a relative base path, so `dist/` also works on any static host.
+
+## Painted art (Flux)
+
+Prompts live in `scripts/flux/prompts.mjs`; the renderer calls `@cf/black-forest-labs/flux-2-klein-4b` one asset at a time, writes WebP files to `src/art/gen/`, and updates `scripts/flux/manifest.json` and `docs/ASSETS.md` after every asset. It stops cleanly at the Workers AI free daily limit (10,000 neurons, reset 00:00 UTC); run it again the next day to continue.
+
+```bash
+CLOUDFLARE_API_TOKEN=<token with Workers AI Read+Edit> NODE_USE_ENV_PROXY=1 node scripts/flux/render.mjs
+```
+
+Options: `--max N`, `--only key1,key2` (add `--force` to redo finished ones), `--retry-flagged` (after rewording a prompt the model's filter flagged), `--dry` (show the queue and neuron estimate).
 
 ## Docs
 
