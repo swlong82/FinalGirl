@@ -62,7 +62,7 @@ Prompts live in `scripts/flux/prompts.mjs`; the renderer calls `@cf/black-forest
 CLOUDFLARE_API_TOKEN=<token with Workers AI Read+Edit> NODE_USE_ENV_PROXY=1 node scripts/flux/render.mjs
 ```
 
-Options: `--max N`, `--only key1,key2`, `--retry-flagged` (after rewording a prompt the model's filter flagged), `--dry` (show the queue and neuron estimate).
+Options: `--max N`, `--only key1,key2` (add `--force` to redo finished ones), `--retry-flagged` (after rewording a prompt the model's filter flagged), `--dry` (show the queue and neuron estimate).
 
 ## Docs
 

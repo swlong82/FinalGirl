@@ -62,18 +62,18 @@ for (const [id, p] of Object.entries(HEROINES))
   add(`portrait/heroine-${id}`, 'portrait', `${PORTRAIT}, ${p}, brave and wary expression, ${STYLE}`, 768, 768, [512, 512]);
 const KILLERS = {
   projectionist:
-    'a tall gaunt masked figure wearing a mask hammered from a dented steel film canister with five round sprocket holes punched in it and two pale glowing eye holes, scorched brown leather apron over a dark work shirt, long steel splicing shears in hand, smoky projection booth behind with a projector beam cutting the haze, cold blue and amber light',
+    'a gaunt old cinema projectionist wearing a dented steel film-canister mask with five round holes punched in it and two pale glowing eyes, a soot-stained brown leather work apron over a dark shirt, holding a pair of long film-splicing scissors, standing in a hazy projection booth with a projector beam behind him, cold blue and amber light',
   tidewife:
-    'a tall silent woman in a long dripping black oilskin fisherman coat, her face hidden behind a grey salt-stained lace wedding veil with two faint pale eyes, a brass storm lantern in one hand and a long wooden boat hook in the other, water streaming from her, lighthouse beam in the fog behind her, sea-green moonlight',
+    'a tall silent woman in a long dripping black oilskin fisherman coat, her whole face hidden behind a heavy opaque grey lace wedding veil, only darkness and two faint pale points of light beneath it, a brass storm lantern in one hand and a long wooden boat hook in the other, water streaming from her hem, lighthouse beam in the fog behind her, sea-green moonlight',
   anesthetist:
-    'a calm, tidy doctor figure in a 1950s rubber surgical apron, round dark smoked goggles, a white surgical mask with a wide smile painted on it in orange-brown iodine, holding a small brown glass bottle and a folded white cloth, empty green-tiled hospital corridor behind him, flickering fluorescent light',
+    'a tall, tidy doctor in a 1950s dark rubber surgical apron, his face fully covered: round opaque black smoked goggles and a white surgical mask over nose and mouth with a thin smile painted on it in orange-brown iodine, holding a small brown glass bottle and a folded white cloth, empty green-tiled hospital corridor behind him, cold flickering fluorescent light, unsettling calm',
   snowblind:
-    'a tall man in a battered red 1970s ski patrol parka crusted with frost, frosted ski goggles with lenses rimed solid white, icicles in his beard, holding an ice axe and a long avalanche probe pole, blizzard on a dark mountain ridge behind him, icy blue light',
+    'a gaunt, frost-bitten man in a torn red 1970s ski patrol parka crusted with ice, pale grey skin, frosted ski goggles with lenses rimed solid opaque white hiding his eyes, icicles hanging from his beard, an ice axe in one hand and a long avalanche probe pole in the other, blizzard on a dark mountain ridge behind him, eerie icy blue light',
   caller:
     'a tall figure in a long glistening black rain slicker, face hidden behind a mask made from the chrome grille of a vintage ribbon microphone pierced with a thousand tiny holes, a coiled beige telephone cord wrapped around both fists, red on-air lamp glow behind him in a dark radio studio',
 };
 for (const [id, p] of Object.entries(KILLERS))
-  add(`portrait/killer-${id}`, 'portrait', `${PORTRAIT}, ${p}, menacing and still, ${STYLE}`, 768, 768, [512, 512]);
+  add(`portrait/killer-${id}`, 'portrait', `${PORTRAIT}, ${p}, mysterious and still, ${STYLE}`, 768, 768, [512, 512]);
 
 // ── 3. Finale backdrops ─────────────────────────────────────────────────────
 for (const [k, p] of Object.entries(FINALE))
@@ -199,7 +199,7 @@ const STILLS = {
     'da-yourname': 'a studio microphone under a glowing on-air lamp, radio waves spreading out over a dark prairie toward distant town lights',
     'da-jingle': 'a radio cart machine playing a tape cartridge, warm studio lights, cheerful',
     'da-bulletin': 'a police two-way radio crackling on a desk, headlights winding up a hill road outside the window, hopeful',
-    'da-coffee': 'a percolator gurgling in a small station break room beside a slice of birthday cake, cozy',
+    'da-coffee': 'a coffee percolator steaming on a hot plate in a small wood-paneled break room, a paper plate with a slice of frosted cake beside it, warm lamplight, cozy',
     'da-feedback': 'studio speaker monitors howling with feedback, visible distortion waves rippling through a shaking studio',
     'da-storm': 'heavy prairie rain hammering a hilltop radio station, lightning in the distance',
     'da-moon': 'an enormous orange hunter\'s moon rising over wheat fields beside a radio tower, peaceful',

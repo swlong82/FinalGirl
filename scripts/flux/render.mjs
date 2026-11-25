@@ -34,6 +34,7 @@ const MAX = Number(opt('--max') ?? Infinity);
 const ONLY = opt('--only')?.split(',');
 const RETRY_FLAGGED = flag('--retry-flagged');
 const DRY = flag('--dry');
+const FORCE = flag('--force'); // with --only: re-render keys even if already done
 
 // klein-4b bills per 512×512 output tile (≈26.05 neurons each). Free tier: 10,000/day.
 const tiles = (a) => Math.ceil(a.w / 512) * Math.ceil(a.h / 512);
@@ -128,7 +129,7 @@ function store(a, b64) {
   return { file: relative(ROOT, out), bytes: statSync(out).size };
 }
 
-const isLimit = (r) => r.code === 3036 || (r.http === 429 && /daily|allocation|neuron/i.test(r.message));
+const isLimit = (r) => r.code === 3036 || r.code === 4006 || (r.http === 429 && /daily|allocation|neuron/i.test(r.message));
 const isBusy = (r) => r.code === 3040 || (r.http === 429 && !isLimit(r)) || r.http >= 500;
 const isFlagged = (r) => r.code === 3030 || /flagged/i.test(r.message);
 
@@ -138,7 +139,7 @@ async function main() {
   const queue = ASSETS.filter((a) => {
     if (ONLY && !ONLY.includes(a.key)) return false;
     const s = m.assets[a.key].status;
-    return s === 'pending' || s === 'error' || (s === 'flagged' && (RETRY_FLAGGED || ONLY));
+    return s === 'pending' || s === 'error' || (s === 'flagged' && (RETRY_FLAGGED || ONLY)) || (s === 'done' && FORCE && ONLY);
   }).slice(0, MAX);
   console.log(`${queue.length} to render (~${queue.reduce((s, a) => s + neurons(a), 0)} neurons).`);
   if (DRY) return;
