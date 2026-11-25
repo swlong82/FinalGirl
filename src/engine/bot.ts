@@ -113,7 +113,8 @@ function cardValue(c: Content, s: GameState, x: Card): number {
   return v;
 }
 
-function cheapest(c: Content, s: GameState, n: number, exclude: number[] = []): number[] {
+/** The n least useful cards in her hand (bot heuristics; the UI pre-picks these for a buy-up). */
+export function cheapest(c: Content, s: GameState, n: number, exclude: number[] = []): number[] {
   return s.heroine.hand
     .filter((x) => !exclude.includes(x.uid))
     .sort((a, b) => cardValue(c, s, a) - cardValue(c, s, b))

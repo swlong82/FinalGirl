@@ -7,7 +7,7 @@ import { audio } from './audio/audio';
 import { heroinePortrait, heroineToken, icon, killerPortrait, mapBackdrop, pip, victimIcon } from './art/art';
 import { eventStill, itemIcon, posterFrame } from './art/scenes';
 import { startParticles } from './ui/particles';
-import { botAction } from './engine/bot';
+import { botAction, cheapest } from './engine/bot';
 import { glyph } from './ui/glyphs';
 import { TUTORIAL, tutorialGame } from './engine/tutorial';
 import { isLegacySave, migrateSave } from './engine/migrate';
@@ -18,7 +18,6 @@ import {
   actionDef,
   activeItems,
   bloodlustLevel,
-  canConvert,
   cardCost,
   check,
   CONVERT_COST,
@@ -124,6 +123,7 @@ const sideOpen = { left: false, right: false };
 const touchOnly = window.matchMedia('(hover: none)');
 let upkeepHidden = -1;
 let convertDie: number | null = null;
+let trayRollKey = '';
 let convertPick: number[] = [];
 let searchPicks: number[] = [];
 let swapFor: number | null = null;
@@ -1176,30 +1176,51 @@ function updateOverlay() {
     const r = s.rolling;
     const d = actionDef(c, r.card);
     const succ = r.dice.filter((x) => x >= 5).length + r.converted.length;
-    const band = succ >= 2 ? 'great' : succ === 1 ? 'good' : 'fail';
+    const bandOf = (n: number) => (n >= 2 ? 'great' : n === 1 ? 'good' : 'fail') as 'great' | 'good' | 'fail';
+    const band = bandOf(succ);
+    // Would spending cards change anything? Only if a partial is left, the one
+    // buy-up is unused, and she isn't already on the best row.
+    const hasPartial = r.dice.some((v, i) => v >= 3 && v <= 4 && !r.converted.includes(i));
+    const buyLeft = r.converted.length < MAX_BUYUPS;
+    const helps = hasPartial && buyLeft && succ < 2;
+    const canBuy = helps && h.hand.length >= CONVERT_COST;
+    const up = bandOf(succ + 1);
+    const fx = (b: 'great' | 'good' | 'fail') => describeEffects(d[b] ?? []);
     const dice = r.dice
       .map((v, i) => {
         const conv = r.converted.includes(i);
         const cls = v >= 5 || conv ? 'hit' : v >= 3 ? 'part' : 'miss';
-        const can = cls === 'part' && r.converted.length < MAX_BUYUPS && h.hand.length >= CONVERT_COST;
-        return `<button class="die ${cls} ${conv ? 'conv' : ''} ${convertDie === i ? 'sel' : ''}" ${can ? `data-die="${i}" title="Discard ${CONVERT_COST} cards to make this a success"` : 'disabled'}>${pip(v)}</button>`;
+        const can = cls === 'part' && canBuy;
+        const tag = conv ? 'bought' : cls === 'hit' ? 'hit' : cls === 'part' ? (can ? 'buy up' : 'partial') : 'miss';
+        return `<button class="die ${cls} ${conv ? 'conv' : ''} ${can ? 'offer' : ''} ${convertDie === i ? 'sel' : ''}" ${can ? `data-die="${i}" title="Spend ${CONVERT_COST} cards to make this a success"` : 'disabled'}>${pip(v)}<span class="dtag">${tag}</span></button>`;
       })
       .join('');
-    const pickHand =
-      convertDie !== null
-        ? `<p>Discard <b>${CONVERT_COST}</b> cards to buy die ${convertDie + 1} up to a success:</p><div class="conv-hand">${h.hand
-            .map((x) => `<button class="chip ${convertPick.includes(x.uid) ? 'sel' : ''}" data-cpick="${x.uid}">${esc(actionDef(c, x.id).name)}</button>`)
-            .join('')}</div><button class="btn small primary" data-go="doConvert" ${convertPick.length === CONVERT_COST ? '' : 'disabled'}>Discard &amp; convert</button>`
-        : canConvert(s)
-          ? `<p class="dim">Click a <b>3 or 4</b> to buy it up to a success by discarding ${CONVERT_COST} cards (one die per roll).</p>`
-          : '';
-    root.innerHTML = `<div class="overlay"><div class="dicetray live ${r.reaction ? 'react' : ''}">
+    // The card's three rows: where she stands now, and where a buy-up would take her.
+    const rows = (['great', 'good', 'fail'] as const)
+      .map((b) => `<div class="lrow b-${b} ${b === band ? 'cur' : ''} ${canBuy && b === up ? 'up' : ''}"><i>${b === 'great' ? '2+' : b === 'good' ? '1' : '✗'}</i><span>${esc(fx(b))}</span>${b === band ? '<em>now</em>' : canBuy && b === up ? '<em>buy up</em>' : ''}</div>`)
+      .join('');
+    let offer = '';
+    if (convertDie !== null)
+      offer = `<div class="buy-pick"><p>Discard <b>${CONVERT_COST}</b> cards (least useful picked; tap to change):</p><div class="conv-hand">${h.hand
+        .map((x) => `<button class="chip ${convertPick.includes(x.uid) ? 'sel' : ''}" data-cpick="${x.uid}">${esc(actionDef(c, x.id).name)}</button>`)
+        .join('')}</div><button class="btn buy-go" data-go="doConvert" ${convertPick.length === CONVERT_COST ? '' : 'disabled'}>Discard &amp; buy up → ${esc(fx(up))}</button></div>`;
+    else if (canBuy) offer = `<button class="btn buy-go" data-go="buyUp">Spend ${CONVERT_COST} cards: <b>${esc(fx(up))}</b> instead of ${esc(fx(band))}</button>`;
+    else if (helps) offer = `<p class="buy-note">A buy-up would help, but it needs ${CONVERT_COST} cards in hand.</p>`;
+    else if (hasPartial && succ >= 2) offer = '<p class="buy-note good">Already the best row: no need to spend cards.</p>';
+    else if (hasPartial && !buyLeft) offer = '<p class="buy-note">One buy-up per roll: used.</p>';
+    else if (band !== 'great') offer = '<p class="buy-note">No 3 or 4 to buy up this time.</p>';
+    // Tumble the dice once per roll, not on every re-render while choosing cards.
+    const rollKey = `${r.uid}:${r.dice.join('')}`;
+    const settled = rollKey === trayRollKey;
+    trayRollKey = rollKey;
+    root.innerHTML = `<div class="overlay"><div class="dicetray live ${r.reaction ? 'react' : ''} ${settled ? 'settled' : ''}">
       <h5>${esc(d.name)} · 5–6 hit · 3–4 partial · buy up 1</h5>
       ${s.lastRoll?.parts ? `<div class="why">${esc(diceWhy(s.lastRoll.parts))}</div>` : ''}
       <div class="dice">${dice}</div>
-      <div class="res">${succ} success${succ === 1 ? '' : 'es'} → <b>${esc(describeEffects(d[band] ?? []))}</b></div>
-      ${pickHand}
-      <button class="btn primary" data-act="resolveRoll">Resolve <small>(space)</small></button>
+      <div class="res-tag b-${band}">${succ} success${succ === 1 ? '' : 'es'}: ${band === 'great' ? 'best row' : band === 'good' ? 'middle row' : 'fail row'}</div>
+      <div class="ladder">${rows}</div>
+      ${offer}
+      <button class="btn ${canBuy ? '' : 'primary'} take" data-act="resolveRoll">${canBuy ? 'Keep it' : 'Resolve'}: ${esc(fx(band))} <small>(space)</small></button>
     </div></div>`;
     return;
   }
@@ -1719,7 +1740,7 @@ function showDice(s: GameState) {
   el.className = 'dicetray';
   el.innerHTML = `<h5>${esc(r.label)} · 5–6 hit · 3–4 partial${r.rerolled ? ' · rerolled' : ''}</h5>${r.parts ? `<div class="why">${esc(diceWhy(r.parts))}</div>` : ''}
     <div class="dice">${r.dice.map((d, i) => `<div class="die ${d >= 5 || r.converted.includes(i) ? 'hit' : d >= 3 ? 'part' : 'miss'}" style="animation-delay:${i * 0.08}s">${pip(d)}</div>`).join('')}</div>
-    <div class="res">${r.successes} success${r.successes === 1 ? '' : 'es'}${r.parts ? ` <span class="row-hit">→ card row <b>${r.successes >= 2 ? '2+' : r.successes === 1 ? '1' : '✗'}</b></span>` : ''}<small>click to continue</small></div>`;
+    <div class="res">${r.successes} success${r.successes === 1 ? '' : 'es'}${r.parts ? ` <span class="row-hit b-${r.successes >= 2 ? 'great' : r.successes === 1 ? 'good' : 'fail'}">→ ${r.successes >= 2 ? 'best row (2+)' : r.successes === 1 ? 'middle row (1)' : 'fail row (✗)'}</span>` : ''}<small>click to continue</small></div>`;
   // A transparent catcher under the tray swallows clicks, so a click meant to
   // dismiss it never lands on the map or a card behind it.
   const catcher = document.createElement('div');
@@ -1983,7 +2004,7 @@ function handleGameClick(t: HTMLElement): boolean {
   const die = d('die');
   if (die !== undefined) {
     convertDie = convertDie === +die ? null : +die;
-    convertPick = [];
+    convertPick = convertDie === null ? [] : cheapest(content!, game, CONVERT_COST);
     updateOverlay();
     return true;
   }
@@ -2099,6 +2120,14 @@ function navigate(go: string, el?: HTMLElement) {
     case 'cancelSwap':
       swapFor = null;
       return updateOverlay();
+    case 'buyUp': {
+      const r = game?.rolling;
+      const i = r ? r.dice.findIndex((v, j) => v >= 3 && v <= 4 && !r.converted.includes(j)) : -1;
+      if (!game || !content || i < 0) return;
+      convertDie = i;
+      convertPick = cheapest(content, game, CONVERT_COST);
+      return updateOverlay();
+    }
     case 'doConvert':
       if (convertDie !== null && convertPick.length === CONVERT_COST) act({ type: 'convert', die: convertDie, discard: [convertPick[0], convertPick[1]] });
       return;

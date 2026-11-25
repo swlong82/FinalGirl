@@ -1356,3 +1356,40 @@ b.ok { color: #2f6b3a; font-weight: 400; }
 .board svg.edges .edge.hot line.core { stroke: var(--gold); stroke-width: 3px; stroke-dasharray: 10 6; animation: dash 1s linear infinite; }
 .board.dark svg.edges line.core { stroke: rgba(255, 244, 228, .6); }
 .edges line.threat.on { stroke-width: 4px; }
+
+/* ── Dice tray: where you stand, and what a buy-up would get you ── */
+.dicetray .die { position: relative; }
+.dicetray.live .dice { margin-bottom: 18px; }
+.dicetray .die .dtag { position: absolute; left: 50%; bottom: -17px; transform: translateX(-50%); font-family: var(--ui); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.dicetray .die.hit .dtag { color: #7ae0a0; }
+.dicetray .die.part .dtag { color: var(--gold); }
+.dicetray .die.offer { animation: offer 1.4s ease-in-out infinite; }
+.dicetray .die.offer .dtag { font-weight: 600; }
+@keyframes offer { 50% { box-shadow: 0 0 0 4px rgba(249, 199, 79, .5), 0 0 22px rgba(249, 199, 79, .85); } }
+.res-tag { display: inline-block; margin: 4px 0 8px; padding: 3px 12px; border-radius: 12px; font-family: var(--ui); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+.res-tag.b-great, .row-hit.b-great { color: #c9ffd9; background: rgba(47, 107, 58, .55); }
+.res-tag.b-good, .row-hit.b-good { color: #ffe6a8; background: rgba(176, 122, 26, .45); }
+.res-tag.b-fail, .row-hit.b-fail { color: #ffc2cc; background: rgba(160, 18, 44, .5); }
+.dicetray .res .row-hit { padding: 1px 8px; border-radius: 10px; font-size: 12px; }
+.ladder { display: flex; flex-direction: column; gap: 4px; margin: 2px auto 10px; max-width: 420px; text-align: left; }
+.lrow { display: flex; align-items: center; gap: 8px; padding: 5px 9px; border-radius: 6px; border: 1px solid transparent; font-family: var(--ui); font-size: 13.5px; letter-spacing: .03em; color: var(--muted); opacity: .55; }
+.lrow i { font-style: normal; min-width: 26px; text-align: center; border-radius: 3px; font-size: 11px; line-height: 18px; color: #fff; }
+.lrow.b-great i { background: #2f6b3a; }
+.lrow.b-good i { background: #b07a1a; }
+.lrow.b-fail i { background: #a0122c; }
+.lrow span { flex: 1; }
+.lrow em { font-style: normal; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+.lrow.cur { opacity: 1; color: var(--ink); background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .25); }
+.lrow.cur.b-great { border-color: rgba(122, 224, 160, .6); }
+.lrow.cur.b-good { border-color: rgba(249, 199, 79, .55); }
+.lrow.cur.b-fail { border-color: rgba(255, 90, 118, .6); }
+.lrow.up { opacity: 1; color: #ffe6a8; border: 1px dashed var(--gold); background: rgba(249, 199, 79, .08); }
+.lrow.up em { color: var(--gold); }
+.dicetray.live .btn.buy-go { width: 100%; margin-top: 4px; background: linear-gradient(180deg, #8a6a14, #4a3606); border-color: var(--gold); color: #fff3d0; font-size: 13px; letter-spacing: .08em; text-transform: none; padding: 10px 12px; }
+.dicetray.live .btn.buy-go:disabled { opacity: .5; }
+.dicetray.live .btn.buy-go b { color: #fff; }
+.dicetray.live .buy-pick p { margin: 4px 0 6px; }
+.dicetray.live .buy-note { margin: 4px 0 2px; font-family: var(--ui); font-size: 12.5px; letter-spacing: .03em; }
+.dicetray.live .buy-note.good { color: #7ae0a0; }
+.dicetray.live .btn.take { width: 100%; margin-top: 8px; font-size: 14px; letter-spacing: .08em; text-transform: none; }
+.dicetray.settled .die { animation: none; }
