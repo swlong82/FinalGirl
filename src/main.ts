@@ -19,6 +19,7 @@ import {
   actionDef,
   bloodlustLevel,
   cardCost,
+  buyUpMatters,
   check,
   CONVERT_COST,
   MAX_BUYUPS,
@@ -1048,7 +1049,7 @@ function updateBoard() {
     const named = specialsAt(s, h.loc)
       .map((x) => `<button class="btn tiny ${(h.leave ?? []).includes(x.id) ? '' : 'sel'}" data-follow="${x.id}" title="${(h.leave ?? []).includes(x.id) ? 'Staying put: click to bring' : 'Coming with you: click to leave behind'}">${esc(specialDef(c, x.id).name.split(',')[0].trim().split(' ').pop()!)} ${(h.leave ?? []).includes(x.id) ? 'stays' : 'comes'}</button>`)
       .join('');
-    const bring = here ? `<span class="hint-group">Bring up to <span class="bring">${Array.from({ length: cap + 1 }, (_, n) => `<button class="btn tiny ${h.bring === n ? 'sel' : ''}" data-bring="${n}">${n}</button>`).join('')}</span> of ${here}${named ? ` ${named}` : ''}</span>` : '';
+    const bring = here ? `<span class="hint-group">Survivors coming with you: <span class="bring">${Array.from({ length: Math.min(cap, here) + 1 }, (_, n) => `<button class="btn tiny ${Math.min(h.bring, here) === n ? 'sel' : ''}" data-bring="${n}">${n}</button>`).join('')}</span>${named ? ` ${named}` : ''}</span>` : '';
     hint.innerHTML = `<span class="hint-group"><b class="steps">${p.left}</b> step${p.left > 1 ? 's' : ''} left: click a glowing location, or stop here</span>${bring}`;
   } else hint.innerHTML = '';
   const strip = document.getElementById('goal-strip')!;
@@ -1234,7 +1235,7 @@ function updateOverlay() {
     // buy-up is unused, and she isn't already on the best row.
     const hasPartial = r.dice.some((v, i) => v >= 3 && v <= 4 && !r.converted.includes(i));
     const buyLeft = r.converted.length < MAX_BUYUPS;
-    const helps = hasPartial && buyLeft && succ < 2;
+    const helps = hasPartial && buyLeft && succ < 2 && buyUpMatters(c, s);
     const canBuy = helps && h.hand.length >= CONVERT_COST;
     const up = bandOf(succ + 1);
     const fx = (b: 'great' | 'good' | 'fail') => describeEffects(d[b] ?? []);
@@ -1259,6 +1260,7 @@ function updateOverlay() {
     else if (canBuy) offer = `<button class="btn buy-go" data-go="buyUp">Spend ${CONVERT_COST} cards: <b>${fxHtml(fx(up))}</b> instead of ${fxHtml(fx(band))}</button>`;
     else if (helps) offer = `<p class="buy-note">A buy-up would help, but it needs ${CONVERT_COST} cards in hand.</p>`;
     else if (hasPartial && succ >= 2) offer = '<p class="buy-note good">Already the best row: no need to spend cards.</p>';
+    else if (hasPartial && buyLeft && !buyUpMatters(c, s)) offer = '<p class="buy-note good">This already blocks the whole hit: no need to spend cards.</p>';
     else if (hasPartial && !buyLeft) offer = '<p class="buy-note">One buy-up per roll: used.</p>';
     else if (band !== 'great') offer = '<p class="buy-note">No 3 or 4 to buy up this time.</p>';
     // Tumble the dice once per roll, not on every re-render while choosing cards.
@@ -1272,7 +1274,7 @@ function updateOverlay() {
       <div class="res-tag b-${band}">${succ} success${succ === 1 ? '' : 'es'}: ${band === 'great' ? 'best row' : band === 'good' ? 'middle row' : 'fail row'}</div>
       <div class="ladder">${rows}</div>
       ${offer}
-      <button class="btn ${canBuy ? '' : 'primary'} take" data-act="resolveRoll">${canBuy ? 'Keep it' : 'Resolve'}: ${fxHtml(fx(band))} <small>(space)</small></button>
+      <button class="btn primary take" data-act="resolveRoll">Keep it: ${fxHtml(fx(band))} <small>(space)</small></button>
     </div></div>`;
     return;
   }
@@ -1445,8 +1447,21 @@ function updateOverlay() {
       if (!chips.length) chips.push('<span class="chip-s good">you came through untouched</span>');
     }
     if (s.lastTerror && s.log.slice(killerLogStart).some((l) => l.text.startsWith('TERROR'))) chips.push(`<span class="chip-s">Terror: ${esc(terrorDef(c, s.lastTerror).name)}</span>`);
+    // One plain line first: what that turn meant for her. Details below for whoever wants them.
+    const headline = (() => {
+      if (!turnStart) return '';
+      const hurt = turnStart.health - totalHealth(s);
+      const dead = s.slain - turnStart.slain;
+      const parts: string[] = [];
+      if (dead > 0) parts.push(`{He} killed ${dead > 1 ? `${dead} survivors` : 'a survivor'}.`);
+      if (hurt > 0) parts.push(`{He} hurt you: −${hurt} health.`);
+      if (s.killer.finale && !turnStart.finale) parts.push('The Finale begins: {he} hunts only you now.');
+      if (!parts.length) parts.push(s.killer.loc === s.heroine.loc ? 'You’re safe, but {he}’s right next to you.' : 'You’re safe this turn.');
+      return parts.join(' ');
+    })();
     root.innerHTML = `<div class="overlay"><div class="killerturn">
       <h2>${esc(c.killer.name)}</h2>
+      ${headline ? `<p class="kt-head">${headline}</p>` : ''}
       <div class="kt-sum">${chips.join('')}</div>
       <ul class="kt-log">${lines || '<li>{He} waits in the dark.</li>'}</ul>
       <p class="dim">Upkeep: you may rearrange items between your hands and backpack now.</p>
@@ -1552,6 +1567,8 @@ let endWarned = -1;
 function confirmEnd(): boolean {
   // Only a nudge when a card could still be played; never during the guided night (it just asked for this).
   if (endWarned === game!.round || tutorial.active) return true;
+  // Show me / Hint would say end here too: don't second-guess it.
+  if (advise(content!, game!).action.type === 'endAction') return true;
   const playable = game!.heroine.hand.some((x) => check(content!, game!, { type: 'playCard', uid: x.uid }).ok);
   if (!playable) return true;
   endWarned = game!.round;

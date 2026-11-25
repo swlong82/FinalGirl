@@ -1,11 +1,11 @@
 // The coach: what she should be doing right now, in plain words. It reads the
 // same plan the bot plays by (botGoal / botAction), so the goal banner, the
 // Show me pointer and the Hint never disagree with each other.
-import { botAction, botGoal } from './bot';
-import { actionDef, bestWeapon, cardCost, isExit, isSearch, itemDef, minionsAt, nodeName, npcAt, totalHealth } from './rules';
+import { botAction, botGoal, buyDeficits, finishing, type BuyNeed } from './bot';
+import { actionDef, bestWeapon, cardCost, check, isExit, isSearch, itemDef, minionsAt, nodeName, npcAt, totalHealth } from './rules';
 import type { Action, CardTag, Content, GameState, NodeId } from './types';
 
-export type GoalKind = 'escort' | 'rescue' | 'arm' | 'supplies' | 'hunt' | 'fight' | 'flee' | 'finale' | 'prep';
+export type GoalKind = 'escort' | 'rescue' | 'arm' | 'supplies' | 'hunt' | 'finish' | 'fight' | 'flee' | 'finale' | 'prep';
 
 export interface Goal {
   kind: GoalKind;
@@ -25,10 +25,6 @@ const hasTag = (c: Content, s: GameState, tag: CardTag) =>
     return d.kind === 'action' && d.tags.includes(tag) && !(tag === 'move' && d.req === 'reach');
   });
 
-function armed(c: Content, s: GameState) {
-  return !!bestWeapon(c, s, 0) || s.foundLore.length > 0 || s.heroine.resolve > 0;
-}
-
 /** Her current goal, in a few words. */
 export function currentGoal(c: Content, s: GameState): Goal {
   const h = s.heroine;
@@ -38,16 +34,26 @@ export function currentGoal(c: Content, s: GameState): Goal {
   const slots = c.heroine.rescue.slots.length;
   const rescueWhy = h.rescued < slots ? `Each rescue powers you up (${h.rescued}/${slots}). All ${slots} unlock your ability.` : 'Every survivor you save is one {he} can’t kill.';
   const withHer = npcAt(s, h.loc);
-  if (k.loc === h.loc) {
-    if (withHer > 0 && !isExit(c, h.loc)) return { kind: 'escort', node: g.node, title: 'Get them out', detail: `{He}’s here. Lead the survivor${withHer > 1 ? 's' : ''} to ${at(g.node)}.`, why: 'Survivors die first when {he} attacks.' };
-    const a = botAction(c, s);
-    const swinging = a.type === 'playCard' && actionDef(c, h.hand.find((x) => x.uid === a.uid)!.id).tags.includes('attack');
-    if (g.brave || k.finale || swinging) return { kind: 'fight', title: 'Fight!', detail: '{He}’s here. Play attack cards: {his} health to 0 wins.', why: 'Your weapon and lore add to every heavy hit.' };
-    return { kind: 'flee', node: g.node !== h.loc ? g.node : undefined, title: 'Get away', detail: '{He}’s here and you’re not ready. Play a move card.', why: 'Rescue and find a weapon first, then come back for {him}.' };
+  const low = finishing(c, s);
+  // One decision drives both the banner and Show me: if the next move is a swing at him, the goal is the fight.
+  const a = botAction(c, s);
+  const card = a.type === 'playCard' ? actionDef(c, h.hand.find((x) => x.uid === a.uid)!.id) : undefined;
+  const swinging = !!card?.tags.includes('attack') && (k.loc === h.loc || !minionsAt(s, h.loc).length);
+  if (withHer > 0 && !isExit(c, h.loc) && !swinging)
+    return { kind: 'escort', node: g.node, title: 'Get them out', detail: `${k.loc === h.loc ? '{He}’s here. Lead' : 'Walk'} the survivor${withHer > 1 ? 's' : ''} with you to the exit: ${at(g.node)}.`, why: k.loc === h.loc ? 'Survivors die first when {he} attacks.' : rescueWhy };
+  if (swinging || (k.loc === h.loc && (g.brave || k.finale) && !card?.tags.includes('move'))) {
+    if (low) return { kind: 'finish', title: 'Finish {him}!', detail: `{He}’s down to ${k.health}. Hit {him} with everything you’ve got.`, why: 'Killing {him} is the only way to win.' };
+    return { kind: 'fight', title: 'Fight!', detail: k.loc === h.loc ? '{He}’s here. Play attack cards: {his} health to 0 wins.' : '{He}’s in reach. Play attack cards: {his} health to 0 wins.', why: 'Your weapon and lore add to every heavy hit.' };
   }
-  if (withHer > 0 && !isExit(c, h.loc)) return { kind: 'escort', node: g.node, title: 'Get them out', detail: `Walk the survivor${withHer > 1 ? 's' : ''} with you to the exit: ${at(g.node)}.`, why: rescueWhy };
+  if (k.loc === h.loc) {
+    const moving = s.pending?.kind === 'move';
+    const canSwing = h.hand.some((x) => actionDef(c, x.id).tags.includes('attack') && check(c, s, { type: 'playCard', uid: x.uid }).ok);
+    const why = !hasTag(c, s, 'attack') ? 'You’re out of attack cards.' : !canSwing ? 'You can’t attack right now.' : totalHealth(s) < 3 ? 'You’re badly hurt.' : 'You need a weapon first.';
+    return { kind: 'flee', node: g.node !== h.loc ? g.node : undefined, title: 'Get away', detail: `${why} ${moving ? 'Step to a glowing location.' : 'Play a move card.'}`, why: 'Rescue survivors and gear up, then come back for {him}.' };
+  }
   if (g.brave) {
     if (k.finale) return { kind: 'finale', node: k.loc, title: 'Finale: kill {him}', detail: `No more waiting. {He}’s at ${at(k.loc)}: go and attack.`, why: 'In the Finale {he} only hunts you and gets stronger every turn.' };
+    if (low) return { kind: 'finish', node: k.loc, title: 'Finish {him}', detail: `{He}’s down to ${k.health}. {He}’s at ${at(k.loc)}: go and hit {him}.`, why: 'Killing {him} is the only way to win.' };
     return { kind: 'hunt', node: k.loc, title: 'Hunt {him} down', detail: `You’re ready. {He}’s at ${at(k.loc)}: go and attack.`, why: 'Killing {him} is the only way to win.' };
   }
   if (g.node !== h.loc && npcAt(s, g.node) > 0) {
@@ -63,15 +69,34 @@ export function currentGoal(c: Content, s: GameState): Goal {
   return { kind: 'hunt', node: k.loc, title: 'Hunt {him} down', detail: `{He}’s at ${at(k.loc)}: go and attack.`, why: 'Killing {him} is the only way to win.' };
 }
 
-/** Planning: what the hand is missing for next turn. */
+const NEED: Record<BuyNeed, [string, string]> = {
+  attack: ['an attack card (<b>Fight</b>)', 'attack cards (<b>Fight</b>)'],
+  move: ['a <b>Move</b> card', '<b>Move</b> cards'],
+  react: ['a <b>Defend</b> card for {his} turn', '<b>Defend</b> cards'],
+  search: ['a <b>Search</b> card', '<b>Search</b> cards'],
+  heal: ['a heal (<b>Recover</b>)', 'heals (<b>Recover</b>)'],
+  calm: ['a calm-down card (<b>Recover</b>)', 'calm-down cards (<b>Recover</b>)'],
+  rally: ['a card to call survivors over (<b>Tricks</b>)', 'cards to call survivors over'],
+  hide: ['a hiding card', 'hiding cards'],
+  barricade: ['a barricade', 'barricades'],
+  nerve: ['a nerve card', 'nerve cards'],
+  lure: ['a lure', 'lures'],
+  focus: ['a focus card', 'focus cards'],
+  reaction: ['a <b>Defend</b> card', '<b>Defend</b> cards'],
+};
+
+/**
+ * Planning: what the hand is missing for next turn, most important first. The
+ * same gaps the Hint buys for, and only ones the shop can still fill right now.
+ */
 export function planNeeds(c: Content, s: GameState): string[] {
-  const g = currentGoal(c, s);
-  const out: string[] = [];
-  const fighting = g.kind === 'fight' || g.kind === 'hunt' || g.kind === 'finale' || g.kind === 'prep' || armed(c, s);
-  if (!hasTag(c, s, 'move')) out.push('a <b>Move</b> card');
-  if (fighting && !hasTag(c, s, 'attack')) out.push('an attack from <b>Fight</b>');
-  if (!s.heroine.hand.some((x) => actionDef(c, x.id).kind === 'reaction')) out.push('a <b>Defend</b> card for {his} turn');
-  return out;
+  const { deficit, priority } = buyDeficits(c, s);
+  const fills = (need: BuyNeed) =>
+    c.actions.some((d) => (need === 'react' ? d.kind === 'reaction' : d.kind === 'action' && d.tags.includes(need)) && check(c, s, { type: 'buy', id: d.id }).ok);
+  return (Object.keys(deficit) as BuyNeed[])
+    .filter((n) => (deficit[n] ?? 0) > 0 && fills(n))
+    .sort((a, b) => (priority[b] ?? 0) - (priority[a] ?? 0))
+    .map((n) => (deficit[n]! > 1 ? `${deficit[n]} ${NEED[n][1]}` : NEED[n][0]));
 }
 
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;

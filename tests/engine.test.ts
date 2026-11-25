@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
-import { check, DIFFICULTY, dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, SETUP_SURVIVORS, TERROR_DEAL } from '../src/engine/rules';
+import { buyUpMatters, check, DIFFICULTY, dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, SETUP_SURVIVORS, TERROR_DEAL } from '../src/engine/rules';
 import { botAction, simulate } from '../src/engine/bot';
 import { advise, currentGoal } from '../src/engine/coach';
 import { TUTORIAL, tutorialGame } from '../src/engine/tutorial';
@@ -784,5 +784,17 @@ describe('tutorial and coach', () => {
           s = dispatch(c, s, botAction(c, s));
         }
       }
+  });
+
+  it('no buy-up is offered when the current row already blocks the whole hit', () => {
+    const c = C('rosa');
+    const s = newGame(c, 3);
+    const duck = s.heroine.hand.find((x) => x.id === 'ac-duck')!;
+    s.rolling = { uid: duck.uid, dice: [5, 3, 1], converted: [], card: 'ac-duck', reaction: true, range: 0 };
+    s.pending = { kind: 'roll', card: 'ac-duck', reaction: true };
+    s.attack = { damage: 1 };
+    expect(buyUpMatters(c, s)).toBe(false); // block 1 covers 1 damage
+    s.attack = { damage: 2 };
+    expect(buyUpMatters(c, s)).toBe(true); // block 2 would save a point
   });
 });

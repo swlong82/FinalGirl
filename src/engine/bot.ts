@@ -5,6 +5,7 @@ import {
   abilityUnlocked,
   actionDef,
   bestWeapon,
+  buyUpMatters,
   canReach,
   cardCost,
   check,
@@ -68,6 +69,11 @@ export function setBotStyle(x: BotStyle) {
   style = x;
 }
 
+/** He's low enough that one or two good hits end it, and she can deliver them. */
+export function finishing(c: Content, s: GameState): boolean {
+  return s.killer.health <= 3 && tagged(c, s, 'attack').length > 0 && totalHealth(s) >= 2;
+}
+
 /** Where she wants to be right now. */
 export function botGoal(c: Content, s: GameState): { node: NodeId; brave: boolean } {
   const h = s.heroine;
@@ -82,6 +88,8 @@ export function botGoal(c: Content, s: GameState): { node: NodeId; brave: boolea
   }
   const healthy = totalHealth(s) >= 3;
   const hunting = (k.finale || (armed(c, s) && healthy)) && tagged(c, s, 'attack').length > 0;
+  // He's nearly done: finish him before anything else.
+  if (finishing(c, s)) return { node: k.loc, brave: true };
   const victim = nearest(c, h.loc, (n) => npcAt(s, n) > 0 && n !== k.loc && !ex.includes(n));
   if (victim && !(k.finale && hunting)) return { node: victim, brave: false };
   if (hunting) return { node: k.loc, brave: true };
@@ -157,10 +165,11 @@ function rearrange(c: Content, s: GameState): Action | null {
   return { type: 'ready', uid: best.uid, swapOut: out.map((w) => w.uid) };
 }
 
-function buy(c: Content, s: GameState): Action {
+export type BuyNeed = CardTag | 'react';
+
+/** What her hand is short of for next turn (shared by the bot's buys and the shop's goal line). */
+export function buyDeficits(c: Content, s: GameState): { deficit: Partial<Record<BuyNeed, number>>; priority: Partial<Record<BuyNeed, number>> } {
   const h = s.heroine;
-  if (h.hand.length >= HAND_LIMIT) return { type: 'endPlanning' };
-  // Buys are scarce: fill what the hand is missing, strongest affordable card first.
   const count = (pred: (d: ActionCardDef) => boolean) => h.hand.filter((x) => pred(defOf(c, x))).length;
   // Shove's break-away only works next to him, so it doesn't count as getting around.
   const has = (tag: CardTag) => count((d) => d.tags.includes(tag) && d.kind === 'action' && !(tag === 'move' && d.req === 'reach'));
@@ -177,6 +186,15 @@ function buy(c: Content, s: GameState): Action {
     rally: npcNodes(s).length ? 1 - has('rally') : 0,
   };
   const priority: Partial<Record<CardTag | 'react', number>> = { attack: fight || style === 'rush' ? 9 : 6, move: 6, react: 5, search: 4, heal: 4, calm: 3, rally: 2 };
+  return { deficit, priority };
+}
+
+function buy(c: Content, s: GameState): Action {
+  const h = s.heroine;
+  if (h.hand.length >= HAND_LIMIT) return { type: 'endPlanning' };
+  // Buys are scarce: fill what the hand is missing, strongest affordable card first.
+  const { deficit, priority } = buyDeficits(c, s);
+  const gear = armed(c, s);
   const value = (d: ActionCardDef): number => {
     let v = 0;
     const tags: (CardTag | 'react')[] = d.kind === 'reaction' ? ['react'] : d.tags;
@@ -215,7 +233,7 @@ export function botAction(c: Content, s: GameState): Action {
     const partial = r.dice.findIndex((d, i) => d >= 3 && d <= 4 && !r.converted.includes(i));
     const d = actionDef(c, r.card);
     const important = r.reaction || d.tags.includes('attack') || d.tags.includes('search') || (d.tags.includes('move') && (npcAt(s, h.loc)) > 0);
-    if (partial >= 0 && succ < 2 && important && h.hand.length >= 4) {
+    if (partial >= 0 && succ < 2 && important && h.hand.length >= 4 && buyUpMatters(c, s)) {
       const [x, y] = cheapest(c, s, 2);
       const a: Action = { type: 'convert', die: partial, discard: [x, y] };
       if (ok(a)) return a;

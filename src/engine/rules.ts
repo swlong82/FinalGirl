@@ -461,6 +461,25 @@ function summarize(s: GameState, label: string, dice: number[], converted: numbe
   return { id: s.uid++, label, dice, converted, successes, partials, band, rerolled };
 }
 
+/**
+ * Would a buy-up change anything she cares about? Not when it's a reaction
+ * whose current row already blocks the whole hit and the better row adds
+ * nothing else (Duck's "block 1" against a 1-damage swing).
+ */
+export function buyUpMatters(c: Content, s: GameState): boolean {
+  const r = s.rolling;
+  if (!r) return false;
+  const d = actionDef(c, r.card);
+  const succ = r.dice.filter((v) => v >= 5).length + r.converted.length;
+  if (succ >= 2) return false;
+  const band = (n: number) => (n >= 2 ? d.great : n === 1 ? d.good : d.fail) ?? [];
+  if (!r.reaction || !s.attack) return true;
+  const block = (effs: Effect[]) => effs.reduce((n, e) => n + (e.op === 'block' ? e.n : 0), 0);
+  const rest = (effs: Effect[]) => JSON.stringify(effs.filter((e) => e.op !== 'block'));
+  const now = band(succ);
+  return !(block(now) >= s.attack.damage && rest(now) === rest(band(succ + 1)));
+}
+
 export function canConvert(s: GameState): boolean {
   const r = s.rolling;
   if (!r) return false;

@@ -44,14 +44,6 @@ const attackCard = (s: GameState) => ATTACKS.map((id) => inHand(s, id)).find(Boo
 const attackName = (id: string) => ({ 'ac-fullswing': 'Full Swing', 'ac-desperate': 'Desperate Strike', 'ac-swing': 'Swing', 'ac-shove': 'Shove' })[id] ?? 'an attack';
 const searched = (s: GameState) => s.heroine.items.length + s.heroine.pack.length > 0 || s.log.some((l) => /^(Look Around|Search|Ransack):/.test(l.text));
 const struck = (s: GameState) => s.discard.some((id) => ATTACKS.includes(id));
-/** The roll's main button reads "Keep it" while a buy-up is on offer, else "Resolve" (see main.ts). */
-const rollButton = (s: GameState) => {
-  const r = s.rolling;
-  if (!r) return 'Resolve';
-  const succ = r.dice.filter((d) => d >= 5).length + r.converted.length;
-  const partial = r.dice.some((d, i) => d >= 3 && d <= 4 && !r.converted.includes(i));
-  return partial && succ < 2 && r.converted.length < 1 && s.heroine.hand.length >= 2 ? 'Keep it' : 'Resolve';
-};
 const armed = (s: GameState) => s.heroine.items.some((x) => x.id === 'tire-iron');
 
 const star = `<svg viewBox="0 0 24 24" class="pf-star" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" fill="#f9c74f" stroke="#7a5200" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
@@ -76,7 +68,7 @@ export const STEPS: TutStep[] = [
   {
     chapter: 'Search',
     title: 'Roll!',
-    text: (s) => `${sym('dice')} A <b>5 or 6</b> is a hit. More hits, better result. Then click <b>${rollButton(s)}</b>.`,
+    text: `${sym('dice')} A <b>5 or 6</b> is a hit. More hits, better result. Then click <b>Keep it</b>.`,
     target: ['#overlay-root .dicetray.live .dice', '#overlay-root .dicetray.live'],
     prefer: 'above',
     when: (s) => s.pending?.kind === 'roll',
@@ -95,6 +87,12 @@ export const STEPS: TutStep[] = [
     done: (s) => s.pending?.kind !== 'search',
   },
   // ── Rescue ──
+  {
+    chapter: 'Rescue',
+    title: 'Your goal',
+    text: `This ${glyph('target')} <b>goal</b> always says what to do next. Stuck? <b>Show me</b> points at the move.`,
+    target: ['#goal-strip.on', '.goal-mini'],
+  },
   {
     chapter: 'Rescue',
     title: 'Someone needs you',
@@ -134,7 +132,7 @@ export const STEPS: TutStep[] = [
   {
     chapter: 'Shop',
     title: 'Shop for the fight',
-    text: (s) => (inHand(s, 'ac-fullswing') ? 'Got it. Now click <b>Done</b>: it’s {his} turn.' : `Buy <b>Full Swing</b> (2${sym('nerve')}). ${armed(s) ? 'Your Tire Iron adds to its damage.' : 'Your weapon adds to its damage.'}`),
+    text: (s) => (inHand(s, 'ac-fullswing') ? 'Got it. Now click <b>Done</b>: it’s {his} turn.' : `Cards you play are gone: buy what you’ll need. Get <b>Full Swing</b> (2${sym('nerve')}): your ${armed(s) ? 'Tire Iron' : 'weapon'} adds to it.`),
     target: (s) => (inHand(s, 'ac-fullswing') ? '#overlay-root [data-act=endPlanning]' : '#overlay-root [data-buy="ac-fullswing"]'),
     when: (s) => s.phase === 'planning',
     done: (s) => (s.phase !== 'planning' && s.phase !== 'action') || s.round > 1,
@@ -197,7 +195,7 @@ export const STEPS: TutStep[] = [
   {
     chapter: 'Fight',
     title: 'You’ve got this',
-    text: `Rescue to power up, then finish {him}. Lost? Your ${glyph('target')} <b>goal</b> is always here: <b>Show me</b> points the way.`,
+    text: `Rescue to power up, then finish {him}. Follow your ${glyph('target')} <b>goal</b>, and press <b>Show me</b> whenever you’re unsure.`,
     target: ['#goal-strip.on', '.goal-mini'],
     reveal: AREAS,
   },
@@ -224,7 +222,8 @@ export class Tutorial {
   private shown = -1; // the step whose target was last scrolled into view
   constructor(private onEnd: (finished: boolean) => void) {
     window.addEventListener('resize', () => this.place());
-    window.addEventListener('scroll', () => this.place(), { passive: true });
+    // Capture catches scrolling inside panels too (the hand row, the shop), not just the page.
+    document.addEventListener('scroll', () => this.place(), { passive: true, capture: true });
   }
   get active() {
     return this.i >= 0;
@@ -299,12 +298,18 @@ export class Tutorial {
         <div class="tut-text">${text}</div>
         <div class="tut-row">
           <button class="btn small tut-skip" data-tut="skip">${step.pitch ? 'Skip tutorial' : 'Skip'}</button>
-          ${isDo ? '<span class="tut-do">▸ your move</span>' : `<button class="btn ${step.pitch ? '' : 'small'} primary" data-tut="next">${nextLabel}</button>`}
+          ${isDo ? '<span class="tut-do">do it to continue</span>' : `<button class="btn ${step.pitch ? '' : 'small'} primary" data-tut="next">${nextLabel}</button>`}
         </div>
       </div>`;
     this.root.querySelector('[data-tut=skip]')!.addEventListener('click', () => this.stop(false));
     this.root.querySelector('[data-tut=next]')?.addEventListener('click', () => this.next());
-    requestAnimationFrame(() => this.place());
+    // Keep re-placing for a moment: smooth scrolls and re-renders move the target after this frame.
+    const until = performance.now() + 900;
+    const settle = () => {
+      this.place();
+      if (performance.now() < until && this.root) requestAnimationFrame(settle);
+    };
+    requestAnimationFrame(settle);
   }
   /** Position the spotlight on the target and the card next to it. */
   place() {
