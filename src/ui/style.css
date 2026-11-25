@@ -1141,3 +1141,7 @@ b.ok { color: #2f6b3a; font-weight: 400; }
   .sel-bar .diff-note { display: none; }
   .hero-detail { grid-template-columns: 84px minmax(0, 1fr); }
 }
+
+/* Painted (Flux) art: src/art/gen.ts. Icons fill their disc; item paintings keep the kind colour as a frame. */
+.node .disc .icon.gen { width: 100%; height: 100%; border-radius: 50%; }
+.item-ico.gen, .t-ico .item-ico.gen { border-radius: 7px; }

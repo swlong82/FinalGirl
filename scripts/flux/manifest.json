@@ -1,0 +1,820 @@
+{
+ "model": "@cf/black-forest-labs/flux-2-klein-4b",
+ "assets": {
+  "backdrop/drivein": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/drivein.webp",
+   "bytes": 78470,
+   "renderedAt": "2026-11-25T01:59:18.685Z"
+  },
+  "backdrop/coast": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/coast.webp",
+   "bytes": 97752,
+   "renderedAt": "2026-11-25T01:59:28.700Z"
+  },
+  "backdrop/hospital": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/hospital.webp",
+   "bytes": 100660,
+   "renderedAt": "2026-11-25T01:59:49.026Z"
+  },
+  "backdrop/snow": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/snow.webp",
+   "bytes": 103600,
+   "renderedAt": "2026-11-25T02:00:00.998Z"
+  },
+  "backdrop/radio": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/radio.webp",
+   "bytes": 33240,
+   "renderedAt": "2026-11-25T02:00:09.660Z"
+  },
+  "portrait/heroine-rosa": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/portrait/heroine-rosa.webp",
+   "bytes": 21546,
+   "renderedAt": "2026-11-25T02:01:03.569Z"
+  },
+  "portrait/heroine-june": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/portrait/heroine-june.webp",
+   "bytes": 29518,
+   "renderedAt": "2026-11-25T02:01:19.708Z"
+  },
+  "portrait/heroine-margo": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/portrait/heroine-margo.webp",
+   "bytes": 25744,
+   "renderedAt": "2026-11-25T02:01:27.099Z"
+  },
+  "portrait/heroine-tess": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/portrait/heroine-tess.webp",
+   "bytes": 29696,
+   "renderedAt": "2026-11-25T02:01:32.835Z"
+  },
+  "portrait/heroine-ivy": {
+   "status": "pending"
+  },
+  "portrait/heroine-sunny": {
+   "status": "pending"
+  },
+  "portrait/heroine-dee": {
+   "status": "pending"
+  },
+  "portrait/killer-projectionist": {
+   "status": "pending"
+  },
+  "portrait/killer-tidewife": {
+   "status": "pending"
+  },
+  "portrait/killer-anesthetist": {
+   "status": "pending"
+  },
+  "portrait/killer-snowblind": {
+   "status": "pending"
+  },
+  "portrait/killer-caller": {
+   "status": "pending"
+  },
+  "backdrop/drivein-finale": {
+   "status": "pending"
+  },
+  "backdrop/coast-finale": {
+   "status": "pending"
+  },
+  "backdrop/hospital-finale": {
+   "status": "pending"
+  },
+  "backdrop/snow-finale": {
+   "status": "pending"
+  },
+  "backdrop/radio-finale": {
+   "status": "pending"
+  },
+  "still/kv-frontrow": {
+   "status": "pending"
+  },
+  "still/kv-reelchange": {
+   "status": "pending"
+  },
+  "still/kv-countdown": {
+   "status": "pending"
+  },
+  "still/kv-splice": {
+   "status": "pending"
+  },
+  "still/kv-onscreen": {
+   "status": "pending"
+  },
+  "still/kv-burn": {
+   "status": "pending"
+  },
+  "still/kv-logbook": {
+   "status": "pending"
+  },
+  "still/kv-silence": {
+   "status": "pending"
+  },
+  "still/ev-headlights": {
+   "status": "pending"
+  },
+  "still/ev-backseat": {
+   "status": "pending"
+  },
+  "still/ev-swings": {
+   "status": "pending"
+  },
+  "still/ev-usher": {
+   "status": "pending"
+  },
+  "still/ev-second": {
+   "status": "pending"
+  },
+  "still/ev-campers": {
+   "status": "pending"
+  },
+  "still/ev-intermission": {
+   "status": "pending"
+  },
+  "still/ev-caralarm": {
+   "status": "pending"
+  },
+  "still/ev-popcorn": {
+   "status": "pending"
+  },
+  "still/ev-sprinklers": {
+   "status": "pending"
+  },
+  "still/ev-trucker": {
+   "status": "pending"
+  },
+  "still/ev-speaker": {
+   "status": "pending"
+  },
+  "still/ev-fog": {
+   "status": "pending"
+  },
+  "still/ev-moon": {
+   "status": "pending"
+  },
+  "still/ev-power": {
+   "status": "pending"
+  },
+  "still/tw-shallows": {
+   "status": "pending"
+  },
+  "still/tw-undertow": {
+   "status": "pending"
+  },
+  "still/tw-lamp": {
+   "status": "pending"
+  },
+  "still/tw-wet": {
+   "status": "pending"
+  },
+  "still/tw-hymn": {
+   "status": "pending"
+  },
+  "still/tw-hook": {
+   "status": "pending"
+  },
+  "still/tw-return": {
+   "status": "pending"
+  },
+  "still/tw-weeping": {
+   "status": "pending"
+  },
+  "still/tc-bonfire": {
+   "status": "pending"
+  },
+  "still/tc-latecheckin": {
+   "status": "pending"
+  },
+  "still/tc-fishermen": {
+   "status": "pending"
+  },
+  "still/tc-honeymoon": {
+   "status": "pending"
+  },
+  "still/tc-kids": {
+   "status": "pending"
+  },
+  "still/tc-dunes": {
+   "status": "pending"
+  },
+  "still/tc-hightide": {
+   "status": "pending"
+  },
+  "still/tc-ebb": {
+   "status": "pending"
+  },
+  "still/tc-coastguard": {
+   "status": "pending"
+  },
+  "still/tc-bell": {
+   "status": "pending"
+  },
+  "still/tc-sheets": {
+   "status": "pending"
+  },
+  "still/tc-foghorn": {
+   "status": "pending"
+  },
+  "still/tc-fogbank": {
+   "status": "pending"
+  },
+  "still/tc-moonpath": {
+   "status": "pending"
+  },
+  "still/an-sleepwalk": {
+   "status": "pending"
+  },
+  "still/an-rounds": {
+   "status": "pending"
+  },
+  "still/an-countdown": {
+   "status": "pending"
+  },
+  "still/an-ether": {
+   "status": "pending"
+  },
+  "still/an-paged": {
+   "status": "pending"
+  },
+  "still/an-tray": {
+   "status": "pending"
+  },
+  "still/an-chart": {
+   "status": "pending"
+  },
+  "still/an-scrub": {
+   "status": "pending"
+  },
+  "still/sa-transfer": {
+   "status": "pending"
+  },
+  "still/sa-kids": {
+   "status": "pending"
+  },
+  "still/sa-intern": {
+   "status": "pending"
+  },
+  "still/sa-chaplain": {
+   "status": "pending"
+  },
+  "still/sa-walkin": {
+   "status": "pending"
+  },
+  "still/sa-janitor": {
+   "status": "pending"
+  },
+  "still/sa-codeblue": {
+   "status": "pending"
+  },
+  "still/sa-flicker": {
+   "status": "pending"
+  },
+  "still/sa-elevator": {
+   "status": "pending"
+  },
+  "still/sa-coffee": {
+   "status": "pending"
+  },
+  "still/sa-sirens": {
+   "status": "pending"
+  },
+  "still/sa-crashcart": {
+   "status": "pending"
+  },
+  "still/sa-musicbox": {
+   "status": "pending"
+  },
+  "still/sa-generator": {
+   "status": "pending"
+  },
+  "still/sa-steam": {
+   "status": "pending"
+  },
+  "still/sb-dugout": {
+   "status": "pending"
+  },
+  "still/sb-siren": {
+   "status": "pending"
+  },
+  "still/sb-whiteout": {
+   "status": "pending"
+  },
+  "still/sb-listen": {
+   "status": "pending"
+  },
+  "still/sb-probe": {
+   "status": "pending"
+  },
+  "still/sb-axe": {
+   "status": "pending"
+  },
+  "still/sb-patrol": {
+   "status": "pending"
+  },
+  "still/sb-thaw": {
+   "status": "pending"
+  },
+  "still/wl-team": {
+   "status": "pending"
+  },
+  "still/wl-hottub": {
+   "status": "pending"
+  },
+  "still/wl-nightski": {
+   "status": "pending"
+  },
+  "still/wl-bus": {
+   "status": "pending"
+  },
+  "still/wl-skater": {
+   "status": "pending"
+  },
+  "still/wl-bartender": {
+   "status": "pending"
+  },
+  "still/wl-lines": {
+   "status": "pending"
+  },
+  "still/wl-headlights": {
+   "status": "pending"
+  },
+  "still/wl-fire": {
+   "status": "pending"
+  },
+  "still/wl-cocoa": {
+   "status": "pending"
+  },
+  "still/wl-plow": {
+   "status": "pending"
+  },
+  "still/wl-howl": {
+   "status": "pending"
+  },
+  "still/wl-drift": {
+   "status": "pending"
+  },
+  "still/wl-stars": {
+   "status": "pending"
+  },
+  "still/cl-fans": {
+   "status": "pending"
+  },
+  "still/cl-ring": {
+   "status": "pending"
+  },
+  "still/cl-deadair": {
+   "status": "pending"
+  },
+  "still/cl-line": {
+   "status": "pending"
+  },
+  "still/cl-dedication": {
+   "status": "pending"
+  },
+  "still/cl-cord": {
+   "status": "pending"
+  },
+  "still/cl-signal": {
+   "status": "pending"
+  },
+  "still/cl-hold": {
+   "status": "pending"
+  },
+  "still/da-winners": {
+   "status": "pending"
+  },
+  "still/da-engineer": {
+   "status": "pending"
+  },
+  "still/da-dare": {
+   "status": "pending"
+  },
+  "still/da-newsman": {
+   "status": "pending"
+  },
+  "still/da-motorist": {
+   "status": "pending"
+  },
+  "still/da-board": {
+   "status": "pending"
+  },
+  "still/da-lightning": {
+   "status": "pending"
+  },
+  "still/da-yourname": {
+   "status": "pending"
+  },
+  "still/da-jingle": {
+   "status": "pending"
+  },
+  "still/da-bulletin": {
+   "status": "pending"
+  },
+  "still/da-coffee": {
+   "status": "pending"
+  },
+  "still/da-feedback": {
+   "status": "pending"
+  },
+  "still/da-storm": {
+   "status": "pending"
+  },
+  "still/da-moon": {
+   "status": "pending"
+  },
+  "icon/ambulance": {
+   "status": "pending"
+  },
+  "icon/bear": {
+   "status": "pending"
+  },
+  "icon/boat": {
+   "status": "pending"
+  },
+  "icon/bolt": {
+   "status": "pending"
+  },
+  "icon/cabin": {
+   "status": "pending"
+  },
+  "icon/candle": {
+   "status": "pending"
+  },
+  "icon/car": {
+   "status": "pending"
+  },
+  "icon/chair": {
+   "status": "pending"
+  },
+  "icon/cross": {
+   "status": "pending"
+  },
+  "icon/desk": {
+   "status": "pending"
+  },
+  "icon/dial": {
+   "status": "pending"
+  },
+  "icon/dock": {
+   "status": "pending"
+  },
+  "icon/door": {
+   "status": "pending"
+  },
+  "icon/drawer": {
+   "status": "pending"
+  },
+  "icon/elevator": {
+   "status": "pending"
+  },
+  "icon/files": {
+   "status": "pending"
+  },
+  "icon/gate": {
+   "status": "pending"
+  },
+  "icon/glass": {
+   "status": "pending"
+  },
+  "icon/grass": {
+   "status": "pending"
+  },
+  "icon/hearth": {
+   "status": "pending"
+  },
+  "icon/hook": {
+   "status": "pending"
+  },
+  "icon/ice": {
+   "status": "pending"
+  },
+  "icon/lamp": {
+   "status": "pending"
+  },
+  "icon/lighthouse": {
+   "status": "pending"
+  },
+  "icon/mic": {
+   "status": "pending"
+  },
+  "icon/mug": {
+   "status": "pending"
+  },
+  "icon/payphone": {
+   "status": "pending"
+  },
+  "icon/peak": {
+   "status": "pending"
+  },
+  "icon/pill": {
+   "status": "pending"
+  },
+  "icon/pine": {
+   "status": "pending"
+  },
+  "icon/pipe": {
+   "status": "pending"
+  },
+  "icon/popcorn": {
+   "status": "pending"
+  },
+  "icon/pot": {
+   "status": "pending"
+  },
+  "icon/projector": {
+   "status": "pending"
+  },
+  "icon/record": {
+   "status": "pending"
+  },
+  "icon/screen": {
+   "status": "pending"
+  },
+  "icon/shed": {
+   "status": "pending"
+  },
+  "icon/ski": {
+   "status": "pending"
+  },
+  "icon/snowcat": {
+   "status": "pending"
+  },
+  "icon/steam": {
+   "status": "pending"
+  },
+  "icon/swing": {
+   "status": "pending"
+  },
+  "icon/ticket": {
+   "status": "pending"
+  },
+  "icon/tower": {
+   "status": "pending"
+  },
+  "icon/wave": {
+   "status": "pending"
+  },
+  "icon/wreck": {
+   "status": "pending"
+  },
+  "item/orrin-s-logbook": {
+   "status": "pending"
+  },
+  "item/the-unfinished-reel": {
+   "status": "pending"
+  },
+  "item/the-keeper-s-last-letter": {
+   "status": "pending"
+  },
+  "item/wedding-ring-in-the-weed": {
+   "status": "pending"
+  },
+  "item/ward-c-patient-log": {
+   "status": "pending"
+  },
+  "item/dr-lull-s-dictaphone": {
+   "status": "pending"
+  },
+  "item/patrol-report-jan-74": {
+   "status": "pending"
+  },
+  "item/corder-s-avalanche-beacon": {
+   "status": "pending"
+  },
+  "item/overnight-call-log": {
+   "status": "pending"
+  },
+  "item/unaired-reel-to-reel": {
+   "status": "pending"
+  },
+  "item/tire-iron": {
+   "status": "pending"
+  },
+  "item/hedge-shears": {
+   "status": "pending"
+  },
+  "item/groundskeeper-s-shotgun": {
+   "status": "pending"
+  },
+  "item/road-flare": {
+   "status": "pending"
+  },
+  "item/fire-extinguisher": {
+   "status": "pending"
+  },
+  "item/usher-flashlight": {
+   "status": "pending"
+  },
+  "item/first-aid-tin": {
+   "status": "pending"
+  },
+  "item/aspirin-cola": {
+   "status": "pending"
+  },
+  "item/box-of-sugar-candy": {
+   "status": "pending"
+  },
+  "item/padlock-chain": {
+   "status": "pending"
+  },
+  "item/walkie-talkie": {
+   "status": "pending"
+  },
+  "item/station-wagon-keys": {
+   "status": "pending"
+  },
+  "item/thermos-of-black-coffee": {
+   "status": "pending"
+  },
+  "item/pulled-speaker-box": {
+   "status": "pending"
+  },
+  "item/firecrackers": {
+   "status": "pending"
+  },
+  "item/boat-hook": {
+   "status": "pending"
+  },
+  "item/fillet-knife": {
+   "status": "pending"
+  },
+  "item/spear-gun": {
+   "status": "pending"
+  },
+  "item/marine-flare-gun": {
+   "status": "pending"
+  },
+  "item/rock-salt": {
+   "status": "pending"
+  },
+  "item/storm-lantern": {
+   "status": "pending"
+  },
+  "item/marine-first-aid-kit": {
+   "status": "pending"
+  },
+  "item/flask-of-brandy": {
+   "status": "pending"
+  },
+  "item/saltwater-taffy": {
+   "status": "pending"
+  },
+  "item/mooring-rope": {
+   "status": "pending"
+  },
+  "item/outboard-key": {
+   "status": "pending"
+  },
+  "item/jeep-keys": {
+   "status": "pending"
+  },
+  "item/transistor-radio": {
+   "status": "pending"
+  },
+  "item/buoy-bell": {
+   "status": "pending"
+  },
+  "item/scalpel": {
+   "status": "pending"
+  },
+  "item/fire-axe": {
+   "status": "pending"
+  },
+  "item/bone-saw": {
+   "status": "pending"
+  },
+  "item/defibrillator-paddles": {
+   "status": "pending"
+  },
+  "item/co2-extinguisher": {
+   "status": "pending"
+  },
+  "item/penlight": {
+   "status": "pending"
+  },
+  "item/gauze-tape": {
+   "status": "pending"
+  },
+  "item/mild-sedative": {
+   "status": "pending"
+  },
+  "item/smelling-salts": {
+   "status": "pending"
+  },
+  "item/heavy-gurney": {
+   "status": "pending"
+  },
+  "item/doctor-s-pager": {
+   "status": "pending"
+  },
+  "item/intercom-handset": {
+   "status": "pending"
+  },
+  "item/service-elevator-key": {
+   "status": "pending"
+  },
+  "item/epinephrine-pen": {
+   "status": "pending"
+  },
+  "item/broken-ski-pole": {
+   "status": "pending"
+  },
+  "item/climbing-ice-axe": {
+   "status": "pending"
+  },
+  "item/lodge-hunting-rifle": {
+   "status": "pending"
+  },
+  "item/avalanche-flare-pistol": {
+   "status": "pending"
+  },
+  "item/headlamp": {
+   "status": "pending"
+  },
+  "item/wool-blanket": {
+   "status": "pending"
+  },
+  "item/hand-warmers": {
+   "status": "pending"
+  },
+  "item/peppermint-schnapps": {
+   "status": "pending"
+  },
+  "item/energy-bar": {
+   "status": "pending"
+  },
+  "item/ski-rack": {
+   "status": "pending"
+  },
+  "item/spare-transceiver": {
+   "status": "pending"
+  },
+  "item/air-horn": {
+   "status": "pending"
+  },
+  "item/snowmobile-keys": {
+   "status": "pending"
+  },
+  "item/mic-stand": {
+   "status": "pending"
+  },
+  "item/tower-wrench": {
+   "status": "pending"
+  },
+  "item/pneumatic-nail-gun": {
+   "status": "pending"
+  },
+  "item/halon-extinguisher": {
+   "status": "pending"
+  },
+  "item/heavy-flashlight": {
+   "status": "pending"
+  },
+  "item/station-first-aid-box": {
+   "status": "pending"
+  },
+  "item/headache-pills": {
+   "status": "pending"
+  },
+  "item/birthday-cake": {
+   "status": "pending"
+  },
+  "item/filing-cabinet": {
+   "status": "pending"
+  },
+  "item/test-tone-generator": {
+   "status": "pending"
+  },
+  "item/loaded-cart-tape": {
+   "status": "pending"
+  },
+  "item/station-van-keys": {
+   "status": "pending"
+  },
+  "item/two-way-radio": {
+   "status": "pending"
+  }
+ },
+ "lastRun": {
+  "at": "2026-11-25 02:01 UTC",
+  "rendered": 1,
+  "stop": "queue finished"
+ }
+}
