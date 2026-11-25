@@ -51,7 +51,7 @@ export interface DifficultyDef {
 export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   story: {
     label: 'Matinee',
-    text: '6 nerve a turn, a gentler Horror track, a better final-health token for her and a worse one for him.',
+    text: '6 nerve a turn, a gentler Horror track, a better final-health token for her and a worse one for {him}.',
     nerve: 6,
     track: [5, 5, 4, 4, 3, 3, 2],
     heroineTokens: [1, 2, 3],
@@ -71,7 +71,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   },
   nightmare: {
     label: 'Nightmare',
-    text: '4 nerve a turn, a harsh Horror track, and he is very hard to keep down.',
+    text: '4 nerve a turn, a harsh Horror track, and {he} is very hard to keep down.',
     nerve: 4,
     track: [4, 4, 3, 3, 2, 2, 1],
     heroineTokens: [0, 1, 1, 2],
@@ -82,19 +82,19 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
 };
 
 export const TIEBREAK: Record<TieBreak, { label: string; text: string }> = {
-  adverse: { label: 'Player-adverse', text: 'When the rules leave a genuine tie, the outcome least favorable to you happens: he goes for you, takes the route toward you, kills the named survivor first.' },
-  plausible: { label: 'Most plausible', text: 'Ties go to what fits the story: he keeps after the target he was already chasing, stays on familiar ground near his lair, and cuts down the anonymous crowd before the people with names.' },
-  comedic: { label: 'Comedic', text: 'Ties go to the funniest outcome: he wanders after the farthest option, takes the long way round, and always gets the guy who was two days from retirement. Every tie comes with a pratfall in the Script.' },
+  adverse: { label: 'Player-adverse', text: 'When the rules leave a genuine tie, the outcome least favorable to you happens: {he} goes for you, takes the route toward you, kills the named survivor first.' },
+  plausible: { label: 'Most plausible', text: 'Ties go to what fits the story: {he} keeps after the target {he} was already chasing, stays on familiar ground near {his} lair, and cuts down the anonymous crowd before the people with names.' },
+  comedic: { label: 'Comedic', text: 'Ties go to the funniest outcome: {he} wanders after the farthest option, takes the long way round, and always gets the guy who was two days from retirement. Every tie comes with a pratfall in the Script.' },
   random: { label: 'Unpredictable', text: 'Genuine ties are settled by a seeded coin flip (still replayable).' },
 };
 
 const GAGS = [
-  'He stops, looks both ways, and flips an imaginary coin.',
-  'He walks face-first into a hanging sign, recovers, and pretends that was the plan.',
-  'He stands perfectly still for a full ten seconds, deciding. Somewhere, a cricket chirps.',
-  'He trips over a garden hose that was definitely not there before.',
-  'He pauses to adjust his mask in a reflection. It takes a while.',
-  'He starts one way, stops, sighs audibly, and turns around.',
+  '{He} stops, looks both ways, and flips an imaginary coin.',
+  '{He} walks face-first into a hanging sign, recovers, and pretends that was the plan.',
+  '{He} stands perfectly still for a full ten seconds, deciding. Somewhere, a cricket chirps.',
+  '{He} trips over a garden hose that was definitely not there before.',
+  '{He} pauses to adjust {his} mask in a reflection. It takes a while.',
+  '{He} starts one way, stops, sighs audibly, and turns around.',
 ];
 
 /** Order tied options by the tie-break policy (most preferred first). */
@@ -511,7 +511,7 @@ export function addHorror(c: Content, s: GameState, n: number) {
   h.horror = Math.max(0, Math.min(MAX_HORROR, raw));
   if (h.horror !== before) s.fx.push({ t: 'horror', n: h.horror - before });
   if (raw > MAX_HORROR) {
-    log(s, 'Her terror spills over, and he feeds on it. (Bloodlust +1.)', 'killer');
+    log(s, 'Her terror spills over, and {he} feeds on it. (Bloodlust +1.)', 'killer');
     addBloodlust(c, s, raw - MAX_HORROR);
   } else if (raw < 0) {
     log(s, 'Perfectly calm. (+1 nerve.)', 'good');
@@ -558,7 +558,7 @@ function hurtKiller(c: Content, s: GameState, n: number) {
     log(s, `${c.killer.power.name} absorbs ${a}.`, 'info');
     if (k.powerHealth <= 0) {
       k.power = 'spent';
-      log(s, `${c.killer.power.name} is broken. He loses that power.`, 'good');
+      log(s, `${c.killer.power.name} is broken. {He} loses that power.`, 'good');
     }
     s.fx.push({ t: 'hit', n: a });
     if (n <= 0) return;
@@ -714,7 +714,7 @@ function addBloodlust(c: Content, s: GameState, n: number) {
       effs.push(...(lv.effects ?? []));
       if (k.bloodlust === tr.revealAt && k.power === 'hidden') effs.push({ op: 'revealPower' });
     } else {
-      log(s, `His bloodlust is already at its peak. ${tr.max.text}`, 'killer');
+      log(s, `{His} bloodlust is already at its peak. ${tr.max.text}`, 'killer');
       effs.push(...tr.max.effects);
     }
   }
@@ -1197,7 +1197,7 @@ function exec(c: Content, s: GameState, e: Effect) {
     }
     case 'rally': {
       if (h.loc === k.loc) {
-        log(s, 'Nobody will come into a room with him in it.', 'bad');
+        log(s, 'Nobody will come into a room with {him} in it.', 'bad');
         break;
       }
       let left = e.n;
@@ -1264,7 +1264,7 @@ function exec(c: Content, s: GameState, e: Effect) {
     case 'hide':
       h.hidden = true;
       s.fx.push({ t: 'hide' });
-      log(s, 'She slips out of sight. Hidden until he has passed.', 'good');
+      log(s, 'She slips out of sight. Hidden until {he} has passed.', 'good');
       break;
     case 'barricade': {
       const at = e.at === 'here' ? h.loc : e.at;
@@ -1353,7 +1353,7 @@ function exec(c: Content, s: GameState, e: Effect) {
     case 'killerStun':
       k.stunned += e.n;
       s.fx.push({ t: 'stun' });
-      log(s, `${c.killer.name} is stunned. He will lose his next move.`, 'good');
+      log(s, `${c.killer.name} is stunned. {He} will lose {his} next move.`, 'good');
       break;
     case 'killerMove': {
       for (let i = 0; i < e.steps; i++) {
@@ -1391,7 +1391,7 @@ function exec(c: Content, s: GameState, e: Effect) {
       if (k.loc !== start) log(s, `${c.killer.name} prowls to ${nodeName(c, k.loc)}.`, 'killer');
       if (k.loc === h.loc && start !== h.loc && !h.hidden) {
         s.fx.push({ t: 'killerAppears' });
-        log(s, `He's found her.`, 'killer');
+        log(s, `{He}'s found her.`, 'killer');
         pushFront(s, [{ op: 'horror', n: 1 }]);
       }
       break;
@@ -1467,7 +1467,7 @@ function exec(c: Content, s: GameState, e: Effect) {
     case '_behavior': {
       if (k.stunned > 0) {
         k.stunned--;
-        log(s, `${c.killer.name} staggers, dazed. He loses his move.`, 'good');
+        log(s, `${c.killer.name} staggers, dazed. {He} loses {his} move.`, 'good');
         break;
       }
       pushFront(s, (k.finale ? c.killer.finale.behavior : c.killer.behavior).effects);
@@ -1577,7 +1577,7 @@ function ruleUpkeep(c: Content, s: GameState) {
       const dark = next >= 3 && (next % 4 === 3 || next % 4 === 0);
       if (dark !== env.dark) {
         env.dark = dark;
-        log(s, dark ? 'BLACKOUT: the power fails. Search −1 die, hide +1 die, and he moves +1.' : 'The lights stutter back on.', dark ? 'killer' : 'good');
+        log(s, dark ? 'BLACKOUT: the power fails. Search −1 die, hide +1 die, and {he} moves +1.' : 'The lights stutter back on.', dark ? 'killer' : 'good');
         s.fx.push({ t: 'env', text: dark ? 'Blackout' : 'Power Restored' });
       }
       break;
@@ -1671,7 +1671,7 @@ export function reqCheck(c: Content, s: GameState, d: ActionCardDef): { ok: bool
       if (!s.piles[h.loc]?.cards.length) return { ok: false, why: 'Nothing left to find here' };
       return { ok: true };
     case 'reach':
-      return canReach(c, s) || minionsAt(s, h.loc).length ? { ok: true } : { ok: false, why: 'He must be here (or in range of a weapon in hand)' };
+      return canReach(c, s) || minionsAt(s, h.loc).length ? { ok: true } : { ok: false, why: '{He} must be here (or in range of a weapon in hand)' };
     default:
       return { ok: true };
   }
@@ -1711,7 +1711,7 @@ export function check(c: Content, s: GameState, a: Action): Check {
       if (!card) return no('Not in hand');
       const d = actionDef(c, card.id);
       const cost = cardCost(c, d);
-      if (d.kind === 'reaction') return no('Reactions are played when he attacks you', cost);
+      if (d.kind === 'reaction') return no('Reactions are played when {he} attacks you', cost);
       const r = reqCheck(c, s, d);
       if (!r.ok) return no(r.why!, cost);
       return yes(cost);
@@ -1745,7 +1745,7 @@ export function check(c: Content, s: GameState, a: Action): Check {
       return ok ? yes() : no(`Keep up to ${p.keep}`);
     }
     case 'react': {
-      if (p?.kind !== 'reaction') return no('Only when he attacks you');
+      if (p?.kind !== 'reaction') return no('Only when {he} attacks you');
       const card = h.hand.find((x) => x.uid === a.uid);
       if (!card) return no('Not in hand');
       const d = actionDef(c, card.id);
@@ -1757,7 +1757,7 @@ export function check(c: Content, s: GameState, a: Action): Check {
       return p?.kind === 'reaction' ? yes() : no('Nothing to take');
     case 'aim': {
       if (p?.kind !== 'aim') return no('Nothing to aim');
-      if (a.at === 'killer') return p.killer ? yes() : no('He is out of reach');
+      if (a.at === 'killer') return p.killer ? yes() : no('{He} is out of reach');
       if (!a.split) return yes();
       const here = new Set(minionsAt(s, h.loc).map((m) => m.uid));
       const vals = Object.entries(a.split);
@@ -2017,6 +2017,6 @@ export function rating(s: GameState): { stars: number; blurb: string } {
   if (sc >= 200) return { stars: 5, blurb: 'A midnight-movie legend.' };
   if (sc >= 165) return { stars: 4, blurb: 'Cult classic.' };
   if (sc >= 130) return { stars: 3, blurb: 'Solid double feature.' };
-  return { stars: 2, blurb: 'She got him. Barely.' };
+  return { stars: 2, blurb: 'She got {him}. Barely.' };
 }
 

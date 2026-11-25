@@ -82,9 +82,9 @@ export const whiteoutLodge: LocationPack = {
   items: [
     { id: 'skipole', name: 'Broken Ski Pole', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 2 },
     { id: 'iceaxe', name: 'Climbing Ice Axe', kind: 'weapon', text: 'Weapon (two hands): +2 damage.', hands: 2, damage: 2 },
-    { id: 'rifle', name: 'Lodge Hunting Rifle', kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches him 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
-    { id: 'flarepistol', name: 'Avalanche Flare Pistol', kind: 'consumable', hands: 1, text: 'Killer here or 1 away: 2 damage and stun him.', uses: 1, use: { when: 'killerNear', label: 'Fire', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },
-    { id: 'powder', name: 'Fire Extinguisher', kind: 'consumable', hands: 1, text: 'Killer here: blind him. Stun 1 round.', uses: 1, use: { when: 'killerHere', label: 'Spray', effects: [{ op: 'killerStun', n: 1 }] } },
+    { id: 'rifle', name: 'Lodge Hunting Rifle', kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches {him} 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
+    { id: 'flarepistol', name: 'Avalanche Flare Pistol', kind: 'consumable', hands: 1, text: 'Killer here or 1 away: 2 damage and stun {him}.', uses: 1, use: { when: 'killerNear', label: 'Fire', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },
+    { id: 'powder', name: 'Fire Extinguisher', kind: 'consumable', hands: 1, text: 'Killer here: blind {him}. Stun 1 round.', uses: 1, use: { when: 'killerHere', label: 'Spray', effects: [{ op: 'killerStun', n: 1 }] } },
     { id: 'headlamp', name: 'Headlamp', kind: 'tool', text: 'Search cards roll +1 die while it is in hand.', hands: 1, searchDice: 1 },
     { id: 'blanket', name: 'Wool Blanket', kind: 'consumable', hands: 0, text: 'Heal 2 and thaw out.', uses: 1, use: { when: 'anytime', label: 'Wrap up', effects: [{ op: 'heal', n: 2 }, { op: 'warm' }] }, copies: 2 },
     { id: 'handwarmers', name: 'Hand Warmers', kind: 'consumable', hands: 0, text: 'Thaw out (cold → 0) and +1 nerve.', uses: 1, use: { when: 'anytime', label: 'Crack', effects: [{ op: 'warm' }, { op: 'nerve', n: 1 }] } },

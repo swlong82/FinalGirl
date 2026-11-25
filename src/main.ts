@@ -61,6 +61,7 @@ import {
 } from './engine/rules';
 import type { Action, ActionCardDef, Content, Difficulty, Effect, GameState, HeldItem, TieBreak } from './engine/types';
 import { startGrain, setGrainIntensity } from './ui/grain';
+import { fillPronouns } from './engine/pronoun';
 
 // ── App state ───────────────────────────────────────────────────────────────
 type Screen = 'title' | 'feature' | 'heroine' | 'intro' | 'game' | 'stats';
@@ -201,8 +202,8 @@ function describeEffect(e: Effect): string {
           searchDice: `search ${e.n > 0 ? '+' : ''}${e.n} die`,
           hideDice: `hide +${e.n} dice`,
           attackDice: `attack +${e.n} dice`,
-          killerAttack: `his attack +${e.n}`,
-          killerMove: `his move +${e.n}`,
+          killerAttack: `{his} attack +${e.n}`,
+          killerMove: `{his} move +${e.n}`,
         } as Record<string, string>
       )[e.key];
     case 'warm':
@@ -218,23 +219,23 @@ function describeEffect(e: Effect): string {
     case 'minionsAct':
       return `the ${content?.killer.minions?.plural ?? 'minions'} act`;
     case 'enemiesAct':
-      return 'his minions, then he, act';
+      return '{his} minions, then {he}, act';
     case 'counter':
       return `hit back ${e.n}`;
     case 'killerDamage':
-      return `${e.n} damage to him`;
+      return `${e.n} damage to {him}`;
     case 'block':
       return e.n >= 99 ? 'block all' : `block ${e.n}`;
     case 'bloodlust':
       return `bloodlust +${e.n}`;
     case 'killerHeal':
-      return `he heals ${e.n}`;
+      return `{he} heals ${e.n}`;
     case 'killerStun':
-      return 'he loses his next move';
+      return '{he} loses {his} next move';
     case 'killerMove':
-      return e.toward === 'heroine' ? `he comes ${e.steps} closer` : e.toward === 'lair' ? `he moves ${e.steps} toward his lair` : `he moves ${e.steps} toward ${content ? nodeName(content, e.toward) : e.toward}`;
+      return e.toward === 'heroine' ? `{he} comes ${e.steps} closer` : e.toward === 'lair' ? `{he} moves ${e.steps} toward {his} lair` : `{he} moves ${e.steps} toward ${content ? nodeName(content, e.toward) : e.toward}`;
     case 'killerTeleport':
-      return e.to === 'heroine' ? 'he appears beside you' : 'he relocates';
+      return e.to === 'heroine' ? '{he} appears beside you' : '{he} relocates';
     case 'target':
       return e.who === 'heroine' ? 'targets you' : e.who === 'npc' ? 'targets the closest survivor' : 'targets whoever is closest';
     case 'hunt':
@@ -242,7 +243,7 @@ function describeEffect(e: Effect): string {
     case 'attack':
       return (e.n ?? 1) > 1 ? `attacks ×${e.n}` : 'attacks';
     case 'revealPower':
-      return 'reveals his power';
+      return 'reveals {his} power';
     case 'event':
       return 'new Event';
     case 'if':
@@ -254,9 +255,9 @@ function describeEffect(e: Effect): string {
 function condText(c: Extract<Effect, { op: 'if' }>['cond']): string {
   switch (c.c) {
     case 'killerHere':
-      return 'he is here';
+      return '{he} is here';
     case 'killerAdjacent':
-      return 'he is next door';
+      return '{he} is next door';
     case 'heroineAt':
       return `you are at ${content ? nodeName(content, c.node) : c.node}`;
     case 'alone':
@@ -287,11 +288,11 @@ type ShelfId = 'free' | 'move' | 'fight' | 'search' | 'defend' | 'recover' | 'tr
 const SHELVES: { id: ShelfId; name: string; blurb: string }[] = [
   { id: 'free', name: 'Free', blurb: 'cost 0, even when you’re out of nerve, while copies last' },
   { id: 'move', name: 'Move', blurb: 'run, reach survivors, get to an exit' },
-  { id: 'fight', name: 'Fight', blurb: 'hurt him: he must be in reach' },
+  { id: 'fight', name: 'Fight', blurb: 'hurt {him}: {he} must be in reach' },
   { id: 'search', name: 'Search', blurb: 'find weapons and items where you stand' },
-  { id: 'defend', name: 'Defend', blurb: 'play during his attack to block it' },
+  { id: 'defend', name: 'Defend', blurb: 'play during {his} attack to block it' },
   { id: 'recover', name: 'Recover', blurb: 'heal wounds, calm your horror' },
-  { id: 'tricks', name: 'Tricks', blurb: 'hide, barricade, lure him, call survivors' },
+  { id: 'tricks', name: 'Tricks', blurb: 'hide, barricade, lure {him}, call survivors' },
 ];
 function shelfOf(c: Content, d: ActionCardDef): ShelfId {
   if (cardCost(c, d) === 0) return 'free';
@@ -547,7 +548,7 @@ function startNewGame() {
   screen = 'game';
   persist();
   render();
-  showTip('start', 'Each turn: play cards with <b>nerve</b>, buy new ones in <b>Planning</b>, then he moves and a <b>Terror</b> card flips. When the 10 Terror cards run out, the <b>Finale</b> begins.');
+  showTip('start', 'Each turn: play cards with <b>nerve</b>, buy new ones in <b>Planning</b>, then {he} moves and a <b>Terror</b> card flips. When the 10 Terror cards run out, the <b>Finale</b> begins.');
 }
 
 function startTutorial() {
@@ -673,7 +674,7 @@ function renderStats() {
   const recent = stats
     .slice(-8)
     .reverse()
-    .map((r) => `<tr><td>${new Date(r.at).toLocaleDateString()}</td><td>${esc(HEROINES.find((h) => h.id === r.heroine)?.name ?? r.heroine)}</td><td>${esc(KILLERS.find((k) => k.id === r.killer)?.name ?? r.killer)}</td><td>${esc(DIFFICULTY[r.difficulty]?.label ?? '')}</td><td>${r.outcome === 'slain' ? 'killed him' : r.outcome === 'died' ? 'died' : 'he escaped'}</td><td>${r.score}</td></tr>`)
+    .map((r) => `<tr><td>${new Date(r.at).toLocaleDateString()}</td><td>${esc(HEROINES.find((h) => h.id === r.heroine)?.name ?? r.heroine)}</td><td>${esc(KILLERS.find((k) => k.id === r.killer)?.name ?? r.killer)}</td><td>${esc(DIFFICULTY[r.difficulty]?.label ?? '')}</td><td>${r.outcome === 'slain' ? `killed ${KILLERS.find((k) => k.id === r.killer)?.pronoun === 'she' ? 'her' : 'him'}` : r.outcome === 'died' ? 'died' : 'he escaped'}</td><td>${r.score}</td></tr>`)
     .join('');
   app.innerHTML = `<div class="screen">${backdrop()}
     <h2 class="section">Box Office</h2>
@@ -774,7 +775,7 @@ function itemFacts(c: Content, it: HeldItem): string[] {
   if (d.damage) out.push(`+${d.damage} dmg`);
   if ((d.range ?? [0]).some((r) => r > 0)) out.push('reach 1');
   if (d.searchDice) out.push(`+${d.searchDice} search`);
-  if (d.kind === 'lore') out.push('+1 dmg vs him');
+  if (d.kind === 'lore') out.push('+1 dmg vs {him}');
   if (it.usesLeft !== undefined) out.push(`${it.usesLeft} left`);
   return out;
 }
@@ -846,7 +847,7 @@ function renderHeroinePanel(c: Content, s: GameState) {
       <div><div class="p-name">${esc(c.heroine.name)}</div><div class="p-role">${esc(c.heroine.title)}</div></div></header>
     <div class="vitals">
       ${vital('Health', `${h.health}<small>/${h.maxHealth}</small>`, h.token === null ? 'no backup' : `+ <span class="tok">?</span> backup`, h.health <= 2 ? 'bad' : '', h.token === null ? 'Backup token used: the next time she runs out of health, she dies.' : 'Health, plus a hidden backup token (the final-health token). When her health runs out the token is revealed: a number gets her back up with that much health, a blank means death.')}
-      ${vital('Horror', `${h.horror}<small>/${MAX_HORROR}</small>`, `${horrorDice(s)} dice a roll`, h.horror >= 4 ? 'bad' : '', 'The higher your horror, the fewer dice you roll. Past 6, it feeds his bloodlust.')}
+      ${vital('Horror', `${h.horror}<small>/${MAX_HORROR}</small>`, `${horrorDice(s)} dice a roll`, h.horror >= 4 ? 'bad' : '', 'The higher your horror, the fewer dice you roll. Past 6, it feeds {his} bloodlust.')}
       ${vital('Nerve', String(h.nerve), h.nerve < 0 ? 'in debt' : `base ${base} a turn`, h.nerve < 0 ? 'bad' : 'gold', `Pays for cards (◉ is nerve). Each turn starts at ${base}, plus bonuses from rescues, being perfectly calm (horror 0) and some events. Discard a card for +1. Below zero ends your Action phase.`)}
     </div>
     <div class="htrack" title="Horror track: as horror rises, you roll fewer dice"><span class="ht-k"><b>horror</b><b>dice</b></span>${htrack}</div>
@@ -876,7 +877,7 @@ function renderKillerPanel(c: Content, s: GameState) {
         : `<p class="prose small spent">Broken.</p>`;
   const mdef = c.killer.minions;
   const minions = mdef
-    ? sec(esc(mdef.plural), `${s.minions.length}/${mdef.max} out`, `<div class="facts"><i>${mdef.health} hp</i><i>move ${mdef.move}</i><i>attack ${mdef.attack}</i><i>${mdef.order === 'before' ? 'acts first' : 'acts after him'}</i></div><p class="prose small">${esc(mdef.text.split('. ')[0])}.</p>`)
+    ? sec(esc(mdef.plural), `${s.minions.length}/${mdef.max} out`, `<div class="facts"><i>${mdef.health} hp</i><i>move ${mdef.move}</i><i>attack ${mdef.attack}</i><i>${mdef.order === 'before' ? 'acts first' : 'acts after {him}'}</i></div><p class="prose small">${esc(mdef.text.split('. ')[0])}.</p>`)
     : '';
   const named = s.specials.length || s.specialsGone.length
     ? sec('Named survivors', '', `<ul class="list">${[...s.specials.map((x) => `<li><b>${esc(specialDef(c, x.id).name)}</b> · ${esc(nodeName(c, x.at))}<br><span>${esc(specialDef(c, x.id).text)}</span></li>`), ...s.specialsGone.map((x) => `<li class="gone"><b>${esc(specialDef(c, x.id).name)}</b> · ${x.how}</li>`)].join('')}</ul>`)
@@ -884,16 +885,16 @@ function renderKillerPanel(c: Content, s: GameState) {
   document.getElementById('killer-panel')!.innerHTML = `<div class="pane dark">
     <header class="p-id">${killerPortrait({ finale: k.finale, art: c.killer.art })}
       <div><div class="p-name">${esc(c.killer.name)}</div><div class="p-role">${esc(c.killer.epithet)}</div></div></header>
-    <div class="boss-hp ${k.health <= k.maxHealth / 3 ? 'low' : ''}" title="${k.token === null ? 'His backup token is used. Next time he hits zero, he is dead.' : 'He has a hidden backup token (final-health token). When a hit takes him below zero it is revealed: a number gets him back up with that much health, a blank means he is dead.'}">
+    <div class="boss-hp ${k.health <= k.maxHealth / 3 ? 'low' : ''}" title="${k.token === null ? '{His} backup token is used. Next time {he} hits zero, {he} is dead.' : '{He} has a hidden backup token (final-health token). When a hit takes {him} below zero it is revealed: a number gets {him} back up with that much health, a blank means {he} is dead.'}">
       <div class="bh-top"><span class="bh-l">Health</span><span class="bh-n">${k.health}<small>/${k.maxHealth}</small></span>${k.power === 'active' && k.powerHealth ? `<span class="bh-tmp">+${k.powerHealth} shield</span>` : ''}<span class="bh-tok ${k.token === null ? 'used' : ''}">${k.token === null ? 'no backup' : '+ ? backup'}</span></div>
       <div class="bh-bar" style="--n:${k.maxHealth}"><i style="width:${(k.health / Math.max(1, k.maxHealth)) * 100}%"></i>${k.power === 'active' ? `<b style="width:${Math.min(100, (k.powerHealth / Math.max(1, k.maxHealth)) * 100)}%"></b>` : ''}</div>
-      ${k.health === 0 && k.token !== null ? '<div class="bh-note">Down at 0: the next hit reveals his backup token. Blank = dead; a number = he gets up.</div>' : ''}
+      ${k.health === 0 && k.token !== null ? '<div class="bh-note">Down at 0: the next hit reveals {his} backup token. Blank = dead; a number = {he} gets up.</div>' : ''}
     </div>
     <div class="vitals two">
       ${vital('Move', String(killerMoveValue(c, s)), k.stunned ? 'stunned' : 'per turn', k.stunned ? 'good' : '')}
       ${vital('Attack', String(killerAttack(c, s)), 'damage per attack', '')}
     </div>
-    ${sec(k.finale ? `Finale: ${esc(c.killer.finale.name)}` : 'His turn', `next: <b>${esc(target === h.loc ? 'you' : nodeName(c, target))}</b>`, `<p class="prose small">${esc(beh.text)}</p>`, `next ${k.finale ? 'fin' : ''}`)}
+    ${sec(k.finale ? `Finale: ${esc(c.killer.finale.name)}` : '{His} turn', `next: <b>${esc(target === h.loc ? 'you' : nodeName(c, target))}</b>`, `<p class="prose small">${esc(beh.text)}</p>`, `next ${k.finale ? 'fin' : ''}`)}
     ${sec(`Bloodlust ${k.bloodlust}`, esc(cur.name ?? ''), `<div class="btrack"><span class="bt-k"><b>move</b><b>attack</b></span>${btrack}</div>`)}
     ${sec(k.power === 'hidden' ? 'Power' : esc(c.killer.power.name), k.power === 'active' ? `${k.powerHealth} temp hp` : k.power === 'spent' ? 'spent' : 'hidden', power, `power ${k.power}`)}
     ${minions}
@@ -927,7 +928,7 @@ function updateBoard() {
     const pile = s.piles[id];
     if (pile) badges.push(`<span class="badge search ${pile.cards.length ? '' : 'empty'}" title="Item pile: ${pile.cards.length} left${pile.up && pile.cards.length ? `. Top card: ${esc(itemDef(c, pile.cards[0]).name)}` : ''}">${glyph('search')}${pile.cards.length}</span>`);
     if (isExit(c, id)) badges.push(`<span class="badge exitb" title="Exit: survivors here with you are rescued">EXIT</span>`);
-    if ((s.barricades[id] ?? 0) > 0) badges.push(`<span class="badge barr" title="Barricade: costs him ${s.barricades[id]} movement">${glyph('barricade')}${s.barricades[id]}</span>`);
+    if ((s.barricades[id] ?? 0) > 0) badges.push(`<span class="badge barr" title="Barricade: costs {him} ${s.barricades[id]} movement">${glyph('barricade')}${s.barricades[id]}</span>`);
     const rk = c.location.rule.kind;
     if (rk === 'cold' && hasTag(c, id, 'outdoor')) badges.push(`<span class="badge env" title="Outdoors: ending a turn here adds cold">${glyph('snow')}</span>`);
     if (rk === 'cold' && hasTag(c, id, 'warm')) badges.push(`<span class="badge env warm" title="Warm: ending a turn here thaws you">${glyph('fire')}</span>`);
@@ -1020,8 +1021,8 @@ function shortWhy(why?: string): string | undefined {
     [/^Not with the killer/, 'killer here'],
     [/^Only at a search/, 'no search'],
     [/^Nothing left to find/, 'searched out'],
-    [/^He must be here/, 'out of reach'],
-    [/^Reactions are played/, 'his turn'],
+    [/^\{He\} must be here/, 'out of reach'],
+    [/^Reactions are played/, '{his} turn'],
     [/^Out of nerve/, 'out of nerve'],
   ];
   return map.find(([re]) => re.test(why))?.[1] ?? why.toLowerCase();
@@ -1066,10 +1067,10 @@ function updateBottom() {
   else if (s.phase === 'action')
     main = `<button class="endturn" data-act="endAction" ${check(c, s, { type: 'endAction' }).ok ? '' : 'disabled'}>End Action <small style="display:block;font-size:10px;opacity:.7">${h.nerve} nerve → Planning · E</small></button>`;
   else if (s.phase === 'planning')
-    main = `<button class="endturn shop-btn" data-go="openPlan">Shop <small style="display:block;font-size:10px;opacity:.8">${h.nerve} nerve · B</small></button><button class="endturn" data-act="endPlanning">Done <small style="display:block;font-size:10px;opacity:.7">his turn · E</small></button>`;
+    main = `<button class="endturn shop-btn" data-go="openPlan">Shop <small style="display:block;font-size:10px;opacity:.8">${h.nerve} nerve · B</small></button><button class="endturn" data-act="endPlanning">Done <small style="display:block;font-size:10px;opacity:.7">{his} turn · E</small></button>`;
   else if (s.phase === 'upkeep')
     main = `<button class="endturn" data-act="endUpkeep" ${check(c, s, { type: 'endUpkeep' }).ok ? '' : 'disabled'}>Next turn <small style="display:block;font-size:10px;opacity:.7">E</small></button>`;
-  else main = `<button class="endturn" disabled>His turn…</button>`;
+  else main = `<button class="endturn" disabled>{His} turn…</button>`;
   const bar = document.getElementById('bottombar')!;
   const keepX = bar.querySelector<HTMLElement>('.hand-row')?.scrollLeft ?? 0;
   bar.innerHTML = `
@@ -1141,7 +1142,7 @@ function updateOverlay() {
       fx = `New behavior: ${c.killer.finale.behavior.text}`;
       cls = 'killer terror';
     } else {
-      kind = 'His power is revealed';
+      kind = '{His} power is revealed';
       name = c.killer.power.name;
       text = c.killer.power.text;
       cls = 'killer terror';
@@ -1322,7 +1323,7 @@ function updateOverlay() {
       <div class="shop-body" data-scroll="shop">${shelves}</div>
       <footer class="shop-foot">${moveWarn}
         <div class="shop-hand"><span class="sh-l">Your hand</span>${handChips || '<i class="chip-c">empty</i>'}</div>
-        <div class="row-btns"><button class="btn" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo your last buy (Z)">${glyph('undo')} Undo</button><button class="btn" data-go="hidePlan">Peek at the board <small>(B)</small></button><button class="btn primary" data-act="endPlanning">Done: his turn <small>(E)</small></button></div>
+        <div class="row-btns"><button class="btn" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo your last buy (Z)">${glyph('undo')} Undo</button><button class="btn" data-go="hidePlan">Peek at the board <small>(B)</small></button><button class="btn primary" data-act="endPlanning">Done: {his} turn <small>(E)</small></button></div>
       </footer>
     </div></div>`;
     const body = root.querySelector<HTMLElement>('.shop-body');
@@ -1348,7 +1349,7 @@ function updateOverlay() {
       const db = s.killer.bloodlust - turnStart.bloodlust;
       if (db > 0) chips.push(`<span class="chip-s warn">bloodlust +${db}</span>`);
       const dkh = s.killer.health - turnStart.killerHealth;
-      if (dkh > 0) chips.push(`<span class="chip-s warn">he healed ${dkh}</span>`);
+      if (dkh > 0) chips.push(`<span class="chip-s warn">{he} healed ${dkh}</span>`);
       const dm = s.minions.length - turnStart.minions;
       if (dm > 0) chips.push(`<span class="chip-s warn">+${dm} ${esc(dm > 1 ? c.killer.minions?.plural ?? 'minions' : (c.killer.minions?.name ?? 'minion').replace(/^(A|An) /, ''))}</span>`);
       if (s.killer.finale && !turnStart.finale) chips.push('<span class="chip-s bad">the Finale begins</span>');
@@ -1358,7 +1359,7 @@ function updateOverlay() {
     root.innerHTML = `<div class="overlay"><div class="killerturn">
       <h2>${esc(c.killer.name)}</h2>
       <div class="kt-sum">${chips.join('')}</div>
-      <ul class="kt-log">${lines || '<li>He waits in the dark.</li>'}</ul>
+      <ul class="kt-log">${lines || '<li>{He} waits in the dark.</li>'}</ul>
       <p class="dim">Upkeep: you may rearrange items between your hands and backpack now.</p>
       <div class="row-btns"><button class="btn" data-go="hideUpkeep">Rearrange items</button><button class="btn primary" data-act="endUpkeep">Next turn <small>(space)</small></button></div>
     </div></div>`;
@@ -1384,10 +1385,10 @@ function updateOverlay() {
             h.horror >= 4
               ? 'High horror means fewer dice on every roll. Buy from the <b>Recover</b> shelf (Steady Yourself, Deep Breath) to calm down.'
               : !hasReaction
-                ? 'Keep a <b>Defend</b> card (Duck, Brace, Dodge) in hand: it blocks his attack during his turn.'
+                ? 'Keep a <b>Defend</b> card (Duck, Brace, Dodge) in hand: it blocks {his} attack during {his} turn.'
                 : s.killer.bloodlust >= 4
-                  ? 'Every survivor he kills raises his <b>bloodlust</b>, and he hits harder. Get them out before he reaches them.'
-                  : 'When your health is low, stay out of his reach: the killer panel shows where he goes next.';
+                  ? 'Every survivor {he} kills raises {his} <b>bloodlust</b>, and {he} hits harder. Get them out before {he} reaches them.'
+                  : 'When your health is low, stay out of {his} reach: the killer panel shows where {he} goes next.';
           return `<div class="end-why"><h4>What happened</h4><ul>${lines}</ul><p class="tip">${glyph('bulb')} ${tip}</p></div>`;
         })();
     root.innerHTML = `<div class="overlay"><div class="modal ending ${win ? 'win' : 'lose'}">
@@ -1485,14 +1486,14 @@ function showMapKey() {
   const ruleTxt = c ? `<tr><td>${glyph(c.location.rule.kind === 'cold' ? 'snow' : c.location.rule.kind === 'tide' ? 'wave' : c.location.rule.kind === 'calls' ? 'phone' : 'reel')}</td><td><b>${esc(c.location.rule.name)}</b>: ${esc(c.location.rule.text)}</td></tr>` : '';
   modal(`<h2>Map key</h2><table class="keytable">
     <tr><td><span class="kpin you"></span></td><td><b>You</b>: the white pin with your name.</td></tr>
-    <tr><td><span class="kpin him"></span></td><td><b>The killer</b>: the red pin. A red dashed line means he is <b>one step away</b>.</td></tr>
-    <tr><td>${glyph('person')}</td><td><b>Survivors</b>: when you move, up to ${c ? escortCap(c) : 2} come with you (never into his location). Get them to an exit.</td></tr>
+    <tr><td><span class="kpin him"></span></td><td><b>The killer</b>: the red pin. A red dashed line means {he} is <b>one step away</b>.</td></tr>
+    <tr><td>${glyph('person')}</td><td><b>Survivors</b>: when you move, up to ${c ? escortCap(c) : 2} come with you (never into {his} location). Get them to an exit.</td></tr>
     <tr><td><span class="badge exitb">EXIT</span></td><td><b>Exit</b> (green ring): survivors here with you are rescued, and each one fills a rescue slot.</td></tr>
     <tr><td><span class="badge search">${glyph('search')}4</span></td><td><b>Item pile</b>: search cards draw from it. Hover to see the top card when it is face up.</td></tr>
-    <tr><td><span class="badge barr">${glyph('barricade')}2</span></td><td><b>Barricade</b>: each point costs him 1 movement.</td></tr>
+    <tr><td><span class="badge barr">${glyph('barricade')}2</span></td><td><b>Barricade</b>: each point costs {him} 1 movement.</td></tr>
     <tr><td><span class="named">${victimIcon()}<i>Name</i></span></td><td><b>Named survivor</b>: follows the survivor rules with one exception (hover to read it). Rescuing them pays an extra reward; losing them costs you.</td></tr>
-    <tr><td><span class="minion">☠</span></td><td><b>Minions</b>: some killers bring help. They have their own health, move and attack. Survivors will follow you into their location, just not into his.</td></tr>
-    <tr><td><span class="kring lair"></span></td><td><b>Red ring</b>: his lair.</td></tr>
+    <tr><td><span class="minion">☠</span></td><td><b>Minions</b>: some killers bring help. They have their own health, move and attack. Survivors will follow you into their location, just not into {his}.</td></tr>
+    <tr><td><span class="kring lair"></span></td><td><b>Red ring</b>: {his} lair.</td></tr>
     <tr><td><span class="kring reach"></span></td><td><b>Glowing gold</b>: where you can step while a move card is resolving.</td></tr>
     ${ruleTxt}
   </table><p>Hover over (or tap) any location to see its panic table and everything else about it.</p>`);
@@ -1513,7 +1514,7 @@ function inspectNode(id: string | null) {
   if (id === s.heroine.loc) lines.push('<b>You are here.</b>');
   if (id === s.killer.loc) lines.push(`<b class="bad">${esc(c.killer.name)} is here.</b>`);
   if (n.exit) lines.push('<b class="good">Exit</b>: survivors here with you are rescued.');
-  if (id === c.location.lair) lines.push('<b>His lair.</b>');
+  if (id === c.location.lair) lines.push('<b>{His} lair.</b>');
   if (v) lines.push(`${v} survivor${v > 1 ? 's' : ''}.`);
   for (const x of specialsAt(s, id)) lines.push(`<b>${esc(specialDef(c, x.id).name)}</b>: ${esc(specialDef(c, x.id).text)}`);
   const mins = minionsAt(s, id);
@@ -1794,11 +1795,11 @@ function contextualTips() {
   else if (s.pending?.kind === 'reaction') showTip('react', 'Reaction cards are played only now, against one attack. They cost nerve from your next turn.');
   else if (s.phase === 'planning') showTip('plan', 'Buy cards with leftover nerve. Anything you played this turn is locked until after Planning, so you cannot just repeat your best card.');
   else if (s.phase !== 'action') return;
-  else if ((s.victims[s.heroine.loc] ?? 0) > 0 && !isExit(c, s.heroine.loc)) showTip('escort', `Survivors here follow you when you move (up to ${escortCap(c)}), but never into his location. Walk them to an <b>exit</b>.`);
-  else if (s.killer.loc === s.heroine.loc) showTip('killer', `${esc(c.killer.name)} is here. Attack cards hit him; weapons and lore add damage. When he attacks <b>survivors die first</b>.`);
-  else if (s.minions.some((x) => x.loc === s.heroine.loc)) showTip('minions', `${esc(c.killer.minions?.plural ?? 'Minions')} are here. Attack cards can hit them (damage is split between them). If he is here too, you choose: him or them.`);
+  else if ((s.victims[s.heroine.loc] ?? 0) > 0 && !isExit(c, s.heroine.loc)) showTip('escort', `Survivors here follow you when you move (up to ${escortCap(c)}), but never into {his} location. Walk them to an <b>exit</b>.`);
+  else if (s.killer.loc === s.heroine.loc) showTip('killer', `${esc(c.killer.name)} is here. Attack cards hit {him}; weapons and lore add damage. When {he} attacks <b>survivors die first</b>.`);
+  else if (s.minions.some((x) => x.loc === s.heroine.loc)) showTip('minions', `${esc(c.killer.minions?.plural ?? 'Minions')} are here. Attack cards can hit them (damage is split between them). If {he} is here too, you choose: {him} or them.`);
   else if (s.specials.length) showTip('named', 'A <b>named survivor</b> is on the board. They follow the normal rules with one exception (hover them on the map), and pay an extra reward when rescued.');
-  else if (s.killer.bloodlust >= 2) showTip('bloodlust', 'Every death feeds his <b>bloodlust</b>, which sets how far he moves and how hard he hits.');
+  else if (s.killer.bloodlust >= 2) showTip('bloodlust', 'Every death feeds {his} <b>bloodlust</b>, which sets how far {he} moves and how hard {he} hits.');
 }
 
 function setMood(horror: number, finale: boolean, near: boolean) {
@@ -1830,31 +1831,31 @@ function showRules() {
   const t = dv.track;
   modal(`<h2>How to Play</h2>
   <p><button class="btn small primary" data-go="tutorial">▶ Play the guided first night</button></p>
-  <p><b>Goal: kill the killer.</b> You win if he dies, you lose if you do, and if you both fall in the same moment, you win. There is no dawn: the night ends when one of you does.</p>
+  <p><b>Goal: kill the killer.</b> You win if {he} dies, you lose if you do, and if you both fall in the same moment, you win. There is no dawn: the night ends when one of you does.</p>
   <h3>A turn has five phases</h3>
   <p><b>1 · Action.</b> Play action cards from your hand, paying their nerve cost. You may also discard any card for +1 nerve. If nerve drops below zero, finish that card and your Action phase ends. Items and your ability can be used here too.<br>
   <b>2 · Planning.</b> Spend leftover nerve in the <b>shop</b> (the face-up tableau of card piles), as many cards as you can afford (hand limit ${HAND_LIMIT}). Its shelves group cards by job: Free, Move, Fight, Search, Defend, Recover, Tricks. Only the three Free basics (Walk, Look Around, Duck) cost 0, and can be taken even at negative nerve. Peek at the board any time with <b>B</b>. <b>Cards you play don't come back to your hand</b>: they go back to their shop piles when Planning ends (so they can't be rebought this Planning). Buy what you'll need next turn, starting with a way to move. Nerve then resets to ${dv.nerve} (${esc(dv.label)}), plus any bonuses.<br>
-  <b>3 · Killer.</b> He follows his <b>behavior</b> (pick a target, move, attack), then a <b>Terror</b> card is drawn.<br>
-  <b>4 · Panic.</b> If anyone died this turn, survivors in his location roll a die and run along that location's panic table.<br>
+  <b>3 · Killer.</b> {He} follows {his} <b>behavior</b> (pick a target, move, attack), then a <b>Terror</b> card is drawn.<br>
+  <b>4 · Panic.</b> If anyone died this turn, survivors in {his} location roll a die and run along that location's panic table.<br>
   <b>5 · Upkeep.</b> The location's rule and ongoing Events resolve, and you may rearrange your items.</p>
   <h3>Horror Rolls</h3>
   <p>Most cards roll dice. Your <b>Horror Level</b> sets how many (${esc(dv.label)}, horror→dice: ${t.map((d, i) => `${i}→${d}`).join(', ')}). <b>5–6</b> is a success, <b>3–4</b> a partial, <b>1–2</b> nothing. Turn a partial into a success by discarding 2 cards. Then the card's matching row happens: <b>2+</b> means two or more successes, <b>1</b> exactly one, <b>✗</b> none. Failures can hurt.</p>
   <h3>The Terror clock and the Finale</h3>
-  <p>The Terror deck holds ${TERROR_DEAL} cards. When it runs out, the <b>Finale</b> is revealed in Upkeep: his behavior changes, his power is revealed, and every Upkeep after that raises his bloodlust.</p>
+  <p>The Terror deck holds ${TERROR_DEAL} cards. When it runs out, the <b>Finale</b> is revealed in Upkeep: {his} behavior changes, {his} power is revealed, and every Upkeep after that raises {his} bloodlust.</p>
   <h3>Bloodlust</h3>
-  <p>His track sets his <b>move</b> and <b>attack</b>. Every survivor he kills adds 1, and so does horror pushed past the top of your track. Some levels trigger effects, and at bloodlust ${content?.killer.bloodlust.revealAt ?? 4} his special power (with temporary health) is revealed.</p>
+  <p>{His} track sets {his} <b>move</b> and <b>attack</b>. Every survivor {he} kills adds 1, and so does horror pushed past the top of your track. Some levels trigger effects, and at bloodlust ${content?.killer.bloodlust.revealAt ?? 4} {his} special power (with temporary health) is revealed.</p>
   <h3>Survivors</h3>
-  <p>When you leave a location, up to 2 survivors there come with you, but they won't walk into his location. Anywhere you stand on an <b>exit</b> during your Action phase, survivors with you are rescued. Each rescue fills a <b>rescue slot</b> and pays its reward; fill them all to unlock your heroine's ability. When he attacks, survivors in his location are attacked <b>before you</b>.</p>
+  <p>When you leave a location, up to 2 survivors there come with you, but they won't walk into {his} location. Anywhere you stand on an <b>exit</b> during your Action phase, survivors with you are rescued. Each rescue fills a <b>rescue slot</b> and pays its reward; fill them all to unlock your heroine's ability. When {he} attacks, survivors in {his} location are attacked <b>before you</b>.</p>
   <h3>Attacking, damage, and final health</h3>
-  <p>Attack cards need him in your location, unless a weapon in hand reaches farther. If a <b>heavy</b> attack (Full Swing, Desperate Strike) deals at least 1, your best reaching weapon, each lore item you've found, and focus (Psych Up's “next hit +damage”) add damage. <b>Light</b> attacks (Shove, Swing) are flat. Both of you have a hidden <b>backup token</b> (final-health token, the ?): when health runs out it's revealed. A number means getting back up with that much health, and the current phase ends at once. A blank means death.</p>
+  <p>Attack cards need {him} in your location, unless a weapon in hand reaches farther. If a <b>heavy</b> attack (Full Swing, Desperate Strike) deals at least 1, your best reaching weapon, each lore item you've found, and focus (Psych Up's “next hit +damage”) add damage. <b>Light</b> attacks (Shove, Swing) are flat. Both of you have a hidden <b>backup token</b> (final-health token, the ?): when health runs out it's revealed. A number means getting back up with that much health, and the current phase ends at once. A blank means death.</p>
   <h3>Named survivors and minions</h3>
-  <p>Some survivors have names. They follow all the survivor rules except one printed exception (hover them on the map), come along before the crowd, and pay an extra reward when rescued, or cost you when they die. Some killers also bring <b>minions</b> with their own health, move and attack. If he and his minions are both in reach, an attack hits one or the other: him (weapon and lore add damage) or the minions (weapon adds damage, split between them, leftovers lost). Survivors will follow you into a room with minions, never into his.</p>
+  <p>Some survivors have names. They follow all the survivor rules except one printed exception (hover them on the map), come along before the crowd, and pay an extra reward when rescued, or cost you when they die. Some killers also bring <b>minions</b> with their own health, move and attack. If {he} and {his} minions are both in reach, an attack hits one or the other: {him} (weapon and lore add damage) or the minions (weapon adds damage, split between them, leftovers lost). Survivors will follow you into a room with minions, never into {his}.</p>
   <h3>Reactions</h3>
-  <p>When he attacks <b>you</b>, you may play reaction cards against that one attack. They cost nerve from your next turn.</p>
+  <p>When {he} attacks <b>you</b>, you may play reaction cards against that one attack. They cost nerve from your next turn.</p>
   <h3>Items</h3>
   <p>Two hands: a two-handed item fills both. The backpack holds anything, but items needing hands don't work from it. You may rearrange only when you gain an item and during Upkeep. Search cards draw from the item pile at your location; whatever you don't keep goes back on top, face up.</p>
   <h3>Ties</h3>
-  <p>If the rules leave a genuine tie (two equally close targets with as many survivors, two equally short routes, or a named survivor standing with the crowd when he strikes), the tie-break policy decides (Settings): <b>${esc(TIEBREAK[prefs.tiebreak].label)}</b>. ${esc(TIEBREAK[prefs.tiebreak].text)} The Script logs each tie-break.</p>
+  <p>If the rules leave a genuine tie (two equally close targets with as many survivors, two equally short routes, or a named survivor standing with the crowd when {he} strikes), the tie-break policy decides (Settings): <b>${esc(TIEBREAK[prefs.tiebreak].label)}</b>. ${esc(TIEBREAK[prefs.tiebreak].text)} The Script logs each tie-break.</p>
   <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p>
   <h3>Keys</h3><p>1–0 play cards · S stop moving · A answer · H hint · Z undo · E end phase · Space continue · R rules</p>`);
 }
@@ -2168,6 +2169,36 @@ window.addEventListener('keydown', (e) => {
     if (s.phase === 'upkeep') return act({ type: 'endUpkeep' });
   }
 });
+
+// ── Killer pronouns ─────────────────────────────────────────────────────────
+// Text about the killer carries {he}/{him}/{his} placeholders (engine logs,
+// shared location text, UI copy). Rather than fill them at each of the many
+// places HTML is built, fill them once as they reach the page, in text and
+// in tooltips, for the killer on screen (or the one being picked).
+const PRONOUN_TOKEN = /\{(?:he|He|him|Him|his|His)\}/;
+function screenPronoun() {
+  return (screen === 'game' && content ? content.killer.pronoun : KILLERS.find((k) => k.id === pick.killer)?.pronoun) ?? 'he';
+}
+function fillNode(n: Node) {
+  const p = screenPronoun();
+  if (n.nodeType === Node.TEXT_NODE) {
+    if (n.nodeValue && PRONOUN_TOKEN.test(n.nodeValue)) n.nodeValue = fillPronouns(n.nodeValue, p);
+    return;
+  }
+  if (!(n instanceof Element)) return;
+  for (const el of [n, ...n.querySelectorAll('[title]')]) {
+    const t = el.getAttribute('title');
+    if (t && PRONOUN_TOKEN.test(t)) el.setAttribute('title', fillPronouns(t, p));
+  }
+  const walk = document.createTreeWalker(n, NodeFilter.SHOW_TEXT);
+  for (let t = walk.nextNode(); t; t = walk.nextNode()) if (t.nodeValue && PRONOUN_TOKEN.test(t.nodeValue)) t.nodeValue = fillPronouns(t.nodeValue, p);
+}
+new MutationObserver((muts) => {
+  for (const m of muts) {
+    if (m.type === 'childList') m.addedNodes.forEach(fillNode);
+    else fillNode(m.target);
+  }
+}).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['title'] });
 
 window.addEventListener('resize', syncHandMore);
 startGrain(document.getElementById('grain') as HTMLCanvasElement);

@@ -32,15 +32,15 @@ export const coreActions: ActionCardDef[] = [
 
   // ── Survival ──
   { id: 'ac-hide', name: 'Hide', cost: 1, kind: 'action', tags: ['hide'], roll: true, req: 'killerAway', great: [{ op: 'hide' }], good: [{ op: 'hide' }, { op: 'endPhase' }], fail: [{ op: 'horror', n: 1 }], flavor: 'Under the bed. In the closet. Don’t breathe.', copies: 2 },
-  { id: 'ac-barricade', name: 'Barricade', cost: 2, kind: 'action', tags: ['barricade'], roll: true, req: 'killerAway', great: [{ op: 'barricade', at: 'here', strength: 2 }], good: [{ op: 'barricade', at: 'here', strength: 1 }], fail: [{ op: 'barricade', at: 'here', strength: 1 }, { op: 'horror', n: 1 }], flavor: 'He has to break through to get in here.', copies: 2 },
+  { id: 'ac-barricade', name: 'Barricade', cost: 2, kind: 'action', tags: ['barricade'], roll: true, req: 'killerAway', great: [{ op: 'barricade', at: 'here', strength: 2 }], good: [{ op: 'barricade', at: 'here', strength: 1 }], fail: [{ op: 'barricade', at: 'here', strength: 1 }, { op: 'horror', n: 1 }], flavor: '{He} has to break through to get in here.', copies: 2 },
   { id: 'ac-rest', name: 'Catch Your Breath', cost: 2, kind: 'action', tags: ['heal'], roll: true, req: 'killerAway', great: [{ op: 'heal', n: 2 }], good: [{ op: 'heal', n: 1 }], fail: [{ op: 'horror', n: 1 }], flavor: 'Bind it tight. Keep going.', copies: 2 },
   { id: 'ac-deepbreath', name: 'Deep Breath', cost: 2, kind: 'action', tags: ['calm'], roll: true, great: [{ op: 'horror', n: -3 }], good: [{ op: 'horror', n: -2 }], fail: [{ op: 'horror', n: -1 }], flavor: 'You are still alive. Hold on to that.', copies: 2 },
   { id: 'ac-adrenaline', name: 'Adrenaline', cost: 1, kind: 'action', tags: ['nerve'], roll: false, always: [{ op: 'nerve', n: 2 }, { op: 'horror', n: 1 }], flavor: 'Heart hammering. Costs 1, gives 2 (+1 horror): worth it only to reach a big card.', copies: 2 },
   { id: 'ac-overhere', name: 'Over Here!', cost: 1, kind: 'action', tags: ['rally'], roll: true, great: [{ op: 'rally', n: 3 }], good: [{ op: 'rally', n: 2 }], fail: [{ op: 'rally', n: 1 }, { op: 'horror', n: 1 }], flavor: 'Survivors next door run to you.', copies: 2 },
-  { id: 'ac-scream', name: 'Scream', cost: 1, kind: 'action', tags: ['lure'], roll: false, always: [{ op: 'killerMove', toward: 'heroine', steps: 1 }, { op: 'horror', n: 1 }], flavor: 'He comes 1 step toward you: away from the others.', copies: 1 },
+  { id: 'ac-scream', name: 'Scream', cost: 1, kind: 'action', tags: ['lure'], roll: false, always: [{ op: 'killerMove', toward: 'heroine', steps: 1 }, { op: 'horror', n: 1 }], flavor: '{He} comes 1 step toward you: away from the others.', copies: 1 },
 
   // ── Reactions (only when he attacks you) ──
   { id: 'ac-brace', name: 'Brace', cost: 1, kind: 'reaction', tags: ['reaction'], roll: true, great: [{ op: 'block', n: 99 }], good: [{ op: 'block', n: 2 }], fail: [{ op: 'block', n: 1 }], flavor: 'Reaction. Arms up, take it on the shoulder.', copies: 2 },
   { id: 'ac-dodge', name: 'Dodge', cost: 2, kind: 'reaction', tags: ['reaction'], roll: false, always: [{ op: 'block', n: 99 }], flavor: 'Reaction. The blade bites the wall, not you.', copies: 1 },
-  { id: 'ac-counter', name: 'Counter', cost: 3, kind: 'reaction', tags: ['reaction', 'attack'], roll: true, great: [{ op: 'block', n: 99 }, { op: 'counter', n: 2 }], good: [{ op: 'block', n: 1 }, { op: 'counter', n: 1 }], fail: [], flavor: 'Reaction. Step inside his swing and hit back.', copies: 1 },
+  { id: 'ac-counter', name: 'Counter', cost: 3, kind: 'reaction', tags: ['reaction', 'attack'], roll: true, great: [{ op: 'block', n: 99 }, { op: 'counter', n: 2 }], good: [{ op: 'block', n: 1 }, { op: 'counter', n: 1 }], fail: [], flavor: 'Reaction. Step inside {his} swing and hit back.', copies: 1 },
 ];

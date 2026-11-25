@@ -77,7 +77,7 @@ export const tideCabins: LocationPack = {
   items: [
     { id: 'gaff', name: 'Boat Hook', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 2 },
     { id: 'fillet', name: 'Fillet Knife', kind: 'weapon', text: 'Weapon: +2 damage. Dulls after 3 hits.', hands: 1, damage: 2, uses: 3 },
-    { id: 'speargun', name: 'Spear Gun', kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches him 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
+    { id: 'speargun', name: 'Spear Gun', kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches {him} 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
     { id: 'flaregun', name: 'Marine Flare Gun', kind: 'consumable', hands: 1, text: 'Killer here or 1 away: 2 damage and stun her.', uses: 1, use: { when: 'killerNear', label: 'Fire', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },
     { id: 'salt', name: 'Rock Salt', kind: 'consumable', hands: 1, text: 'Killer here: she recoils. Stun 1 round.', uses: 1, use: { when: 'killerHere', label: 'Throw', effects: [{ op: 'killerStun', n: 1 }] } },
     { id: 'lantern', name: 'Storm Lantern', kind: 'tool', text: 'Search cards roll +1 die while it is in hand.', hands: 1, searchDice: 1 },

@@ -72,7 +72,7 @@ export const deadAir: LocationPack = {
   ],
   events: [
     { id: 'da-feedback', name: 'Feedback Shriek', tone: 'dread', text: 'A rising howl from every monitor, like the building is screaming.', effects: [], upkeep: [{ op: 'if', cond: { c: 'killerAdjacent' }, then: [{ op: 'horror', n: 1 }] }] },
-    { id: 'da-storm', name: 'Prairie Storm', tone: 'calm', text: 'Rain hammers the roof. Nobody can hear a thing, including him.', effects: [], ongoing: { hideDice: 1, searchDice: -1 } },
+    { id: 'da-storm', name: 'Prairie Storm', tone: 'calm', text: 'Rain hammers the roof. Nobody can hear a thing, including {him}.', effects: [], ongoing: { hideDice: 1, searchDice: -1 } },
     { id: 'da-moon', name: 'Hunter’s Moon', tone: 'calm', text: 'An enormous orange moon over the wheat. Everything outside is lit up.', effects: [], ongoing: { searchDice: 1 } },
   ],
   specials: [
@@ -81,9 +81,9 @@ export const deadAir: LocationPack = {
   items: [
     { id: 'micstand', name: 'Mic Stand', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 2 },
     { id: 'towerwrench', name: 'Tower Wrench', kind: 'weapon', text: 'Weapon (two hands): +2 damage.', hands: 2, damage: 2, copies: 2 },
-    { id: 'nailgun', name: 'Pneumatic Nail Gun', kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches him 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
-    { id: 'roadflare', name: 'Road Flare', kind: 'consumable', hands: 1, text: 'Killer here: 2 damage and stun him.', uses: 1, use: { when: 'killerHere', label: 'Strike', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },
-    { id: 'halon', name: 'Halon Extinguisher', kind: 'consumable', hands: 1, text: 'Killer here: blind him. Stun 1 round.', uses: 1, use: { when: 'killerHere', label: 'Spray', effects: [{ op: 'killerStun', n: 1 }] } },
+    { id: 'nailgun', name: 'Pneumatic Nail Gun', kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches {him} 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
+    { id: 'roadflare', name: 'Road Flare', kind: 'consumable', hands: 1, text: 'Killer here: 2 damage and stun {him}.', uses: 1, use: { when: 'killerHere', label: 'Strike', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },
+    { id: 'halon', name: 'Halon Extinguisher', kind: 'consumable', hands: 1, text: 'Killer here: blind {him}. Stun 1 round.', uses: 1, use: { when: 'killerHere', label: 'Spray', effects: [{ op: 'killerStun', n: 1 }] } },
     { id: 'maglite', name: 'Heavy Flashlight', kind: 'tool', text: 'Search cards roll +1 die while it is in hand.', hands: 1, searchDice: 1 },
     { id: 'firstaid-r', name: 'Station First-Aid Box', kind: 'consumable', hands: 0, text: 'Heal 2.', uses: 1, use: { when: 'anytime', label: 'Patch up', effects: [{ op: 'heal', n: 2 }] }, copies: 2 },
     { id: 'pills', name: 'Headache Pills', kind: 'consumable', hands: 0, text: 'Horror −2.', uses: 1, use: { when: 'anytime', label: 'Take', effects: [{ op: 'horror', n: -2 }] } },
@@ -92,6 +92,6 @@ export const deadAir: LocationPack = {
     { id: 'tonegen', name: 'Test-Tone Generator', kind: 'consumable', hands: 0, text: 'Lure: the killer moves 2 toward the Generator Shed.', uses: 1, use: { when: 'anytime', label: 'Switch on', effects: [{ op: 'killerMove', toward: 'generator', steps: 2 }] } },
     { id: 'cartmachine', name: 'Loaded Cart Tape', kind: 'consumable', hands: 0, text: 'Lure: the killer moves 2 toward the Record Library.', uses: 1, use: { when: 'anytime', label: 'Play', effects: [{ op: 'killerMove', toward: 'library', steps: 2 }] } },
     { id: 'vankeys', name: 'Station Van Keys', kind: 'consumable', hands: 0, text: 'At the Lobby: drive up to 2 survivors down to the Gravel Turnout.', uses: 1, use: { when: 'atNode', node: 'lobby', label: 'Drive', effects: [{ op: 'teleportHeroine', to: 'turnout' }] } },
-    { id: 'twoway', name: 'Two-Way Radio', kind: 'consumable', hands: 0, text: 'Call the sheriff: the killer is drawn 2 toward his lair.', uses: 1, use: { when: 'anytime', label: 'Call it in', effects: [{ op: 'killerMove', toward: 'lair', steps: 2 }] } },
+    { id: 'twoway', name: 'Two-Way Radio', kind: 'consumable', hands: 0, text: 'Call the sheriff: the killer is drawn 2 toward {his} lair.', uses: 1, use: { when: 'anytime', label: 'Call it in', effects: [{ op: 'killerMove', toward: 'lair', steps: 2 }] } },
   ],
 };

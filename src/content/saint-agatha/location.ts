@@ -8,7 +8,7 @@ export const saintAgatha: LocationPack = {
   era: 'Harlow County, Ohio — the night of the closure, March 1989',
   palette: { sky: '#0d1012', glow: '#b8ffd8', accent: '#7ae0a0' },
   art: 'hospital',
-  rule: { kind: 'power', name: 'Rolling Blackouts', text: 'From turn 3 the power fails on a cycle (turns 3–4, 7–8, 11–12). In the dark: search cards roll −1 die and hide cards +1 die, and he still knows every hall: he moves +1.' },
+  rule: { kind: 'power', name: 'Rolling Blackouts', text: 'From turn 3 the power fails on a cycle (turns 3–4, 7–8, 11–12). In the dark: search cards roll −1 die and hide cards +1 die, and {he} still knows every hall: {he} moves +1.' },
   lore: [
     "Saint Agatha's opened in 1921 and grew wing by wing for sixty years. The West Wing is the oldest, all green tile and brass fixtures, and tonight is the last night it will ever be used.",
     "In 1964 the West Wing was home to Ward C, where an anesthetist named Dr. Ambrose Lull ran a 'restorative sleep' program for patients with insomnia and nerves. Eleven patients went to sleep in Ward C. None of them woke up. Lull disappeared before the inquest, and Ward C was bricked over.",
@@ -71,7 +71,7 @@ export const saintAgatha: LocationPack = {
   ],
   events: [
     { id: 'sa-musicbox', name: 'Music Box', tone: 'dread', text: 'A lullaby drifts down every hallway at once.', effects: [], upkeep: [{ op: 'if', cond: { c: 'killerAdjacent' }, then: [{ op: 'horror', n: 1 }] }] },
-    { id: 'sa-generator', name: 'Backup Generator', tone: 'calm', text: 'The emergency lights kick on, harsh and white. Nowhere to hide, but nowhere for him to hide either.', effects: [], ongoing: { searchDice: 1 } },
+    { id: 'sa-generator', name: 'Backup Generator', tone: 'calm', text: 'The emergency lights kick on, harsh and white. Nowhere to hide, but nowhere for {him} to hide either.', effects: [], ongoing: { searchDice: 1 } },
     { id: 'sa-steam', name: 'Steam Leak', tone: 'calm', text: 'A pipe bursts and the corridor fills with white vapor.', effects: [], ongoing: { hideDice: 1, searchDice: -1 } },
   ],
   specials: [
@@ -81,8 +81,8 @@ export const saintAgatha: LocationPack = {
     { id: 'scalpel', name: 'Scalpel', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 2 },
     { id: 'axe', name: 'Fire Axe', kind: 'weapon', text: 'Weapon (two hands): +2 damage.', hands: 2, damage: 2 },
     { id: 'bonesaw', name: 'Bone Saw', kind: 'weapon', text: 'Weapon (two hands): +3 damage. Dull after 2 hits.', hands: 2, damage: 3, uses: 2 },
-    { id: 'defib', name: 'Defibrillator Paddles', kind: 'consumable', hands: 1, text: 'Killer here: 2 damage and stun him.', uses: 1, use: { when: 'killerHere', label: 'Clear!', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },
-    { id: 'extinguisher-h', name: 'CO₂ Extinguisher', kind: 'consumable', hands: 1, text: 'Killer here: blind him. Stun 1 round.', uses: 1, use: { when: 'killerHere', label: 'Spray', effects: [{ op: 'killerStun', n: 1 }] } },
+    { id: 'defib', name: 'Defibrillator Paddles', kind: 'consumable', hands: 1, text: 'Killer here: 2 damage and stun {him}.', uses: 1, use: { when: 'killerHere', label: 'Clear!', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },
+    { id: 'extinguisher-h', name: 'CO₂ Extinguisher', kind: 'consumable', hands: 1, text: 'Killer here: blind {him}. Stun 1 round.', uses: 1, use: { when: 'killerHere', label: 'Spray', effects: [{ op: 'killerStun', n: 1 }] } },
     { id: 'penlight', name: 'Penlight', kind: 'tool', text: 'Search cards roll +1 die while it is in hand.', hands: 1, searchDice: 1 },
     { id: 'gauze', name: 'Gauze & Tape', kind: 'consumable', hands: 0, text: 'Heal 2.', uses: 1, use: { when: 'anytime', label: 'Bandage', effects: [{ op: 'heal', n: 2 }] } },
     { id: 'sedative', name: 'Mild Sedative', kind: 'consumable', hands: 0, text: 'Horror −2.', uses: 1, use: { when: 'anytime', label: 'Take', effects: [{ op: 'horror', n: -2 }] } },

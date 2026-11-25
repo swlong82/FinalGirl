@@ -193,6 +193,7 @@ export interface KillerPack {
   weakness: { text: string };
   items: ItemDef[]; // lore items, always dealt into the search piles
   quotes: string[];
+  pronoun?: 'he' | 'she'; // fills {he}/{him}/{his} in shared text (default he)
 }
 
 export type Difficulty = 'story' | 'standard' | 'nightmare';

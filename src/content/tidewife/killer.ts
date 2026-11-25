@@ -39,6 +39,7 @@ export const tidewife: KillerPack = {
     upkeep: [{ op: 'bloodlust', n: 1 }],
   },
   revive: { name: 'The Lantern Goes Out', text: 'Her lantern shatters. In the dark her veil lifts, and there is only water underneath.', effects: [{ op: 'horror', n: 2 }] },
+  pronoun: 'she',
   quotes: ['"Have you seen his boat?"', '"The lamp is lit. Come home."', '"Stay. Stay with me."', '"The water is warm, love."'],
   minions: { name: 'A Drowned One', plural: 'Drowned', text: 'Everyone she has taken, back from the shallows. 1 health, move 1, attack 1. They go for the closest survivor (you, if there are none) and act before she does.', health: 1, move: 1, attack: 1, max: 2, who: 'npc', order: 'before' },
   terror: [

@@ -21,7 +21,7 @@ export const heroines: HeroineDef[] = [
     passive: { name: 'Quick Feet', text: 'The first move card you play each turn moves 1 extra step.' },
     traits: { moveBonus: 1 },
     rescue: { slots: [resolve1, nerve2, heal1, item1], repeat: nerve1 },
-    ability: { name: 'Hot Butter', text: 'Once per turn, killer here: 1 damage to him.', when: 'killerHere', effects: [{ op: 'killerDamage', n: 1 }] },
+    ability: { name: 'Hot Butter', text: 'Once per turn, killer here: 1 damage to {him}.', when: 'killerHere', effects: [{ op: 'killerDamage', n: 1 }] },
     look: { skin: '#b07a55', hair: '#1a0f0a', hairStyle: 'ponytail', accent: '#ff4d6d', prop: 'apron' },
   },
   {
@@ -99,7 +99,7 @@ export const heroines: HeroineDef[] = [
     passive: { name: 'Smooth Voice', text: 'Reaction cards roll +1 die. Answering a ringing phone costs no nerve.' },
     traits: { freeAnswer: true, reactDice: 1 },
     rescue: { slots: [nerve2, calm1, nerve2, resolve1], repeat: nerve2 },
-    ability: { name: 'Cue the Jingle', text: 'Once per turn: the killer moves 2 toward his lair. Horror −1.', effects: [{ op: 'killerMove', toward: 'lair', steps: 2 }, { op: 'horror', n: -1 }] },
+    ability: { name: 'Cue the Jingle', text: 'Once per turn: the killer moves 2 toward {his} lair. Horror −1.', effects: [{ op: 'killerMove', toward: 'lair', steps: 2 }, { op: 'horror', n: -1 }] },
     look: { skin: '#a8714f', hair: '#1c1020', hairStyle: 'ponytail', accent: '#f15bb5', prop: 'headphones' },
   },
 ];
