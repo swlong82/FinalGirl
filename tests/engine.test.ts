@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildContent, HEROINES, KILLERS, LOCATIONS } from '../src/content/registry';
 import { check, DIFFICULTY, dispatch, distances, HAND_LIMIT, isExit, neighbors, newGame, panicTable, SETUP_SURVIVORS, TERROR_DEAL } from '../src/engine/rules';
-import { simulate } from '../src/engine/bot';
+import { botAction, simulate } from '../src/engine/bot';
+import { advise, currentGoal } from '../src/engine/coach';
+import { TUTORIAL, tutorialGame } from '../src/engine/tutorial';
 import type { Action, Content, GameState } from '../src/engine/types';
 
 const C = (h = 'june', l = 'holloway-drive-in', k = 'the-projectionist') => buildContent(l, k, h);
@@ -734,5 +736,53 @@ describe('light attacks', () => {
     s = act(c, s, { type: 'resolveRoll' });
     expect(s.log.some((l) => l.text === 'Damage 7 = Full Swing 3 + Tire Iron 1 + lore item 1 + Psych Up 2.')).toBe(true);
     expect(s.mods.damage).toBe(0);
+  });
+});
+
+describe('tutorial and coach', () => {
+  it('the tutorial plays out as staged: search, rescue, a dodged attack, then a big hit', () => {
+    const c = C(TUTORIAL.heroine, TUTORIAL.location, TUTORIAL.killer);
+    let s = tutorialGame(c);
+    const uid = (id: string) => s.heroine.hand.find((x) => x.id === id)!.uid;
+    expect(currentGoal(c, s)).toMatchObject({ kind: 'rescue', node: 'lotA' });
+    s = act(c, s, { type: 'playCard', uid: uid('ac-look') });
+    s = act(c, s, { type: 'resolveRoll' });
+    expect(s.pending?.kind).toBe('search');
+    const drawn = (s.pending as { drawn: string[] }).drawn;
+    s = act(c, s, { type: 'keep', picks: [drawn.indexOf('tire-iron')] });
+    s = act(c, s, { type: 'playCard', uid: uid('ac-walk') });
+    s = act(c, s, { type: 'step', to: 'lotA' });
+    expect(currentGoal(c, s)).toMatchObject({ kind: 'escort', node: 'gate' });
+    s = act(c, s, { type: 'step', to: 'gate' });
+    expect(s.saved).toBe(1);
+    s = act(c, s, { type: 'endAction' });
+    s = act(c, s, { type: 'buy', id: 'ac-fullswing' });
+    s = act(c, s, { type: 'endPlanning' });
+    expect(s.pending?.kind).toBe('reaction'); // he steps out of the shed and swings
+    s = act(c, s, { type: 'react', uid: uid('ac-duck') });
+    if (s.pending?.kind === 'roll') s = act(c, s, { type: 'resolveRoll' });
+    expect(s.heroine.health).toBe(s.heroine.maxHealth); // Duck blocks it
+    s = act(c, s, { type: 'endUpkeep' });
+    expect(s.round).toBe(2);
+    expect(s.killer.loc).toBe(s.heroine.loc);
+    expect(currentGoal(c, s).kind).toBe('fight');
+    s = act(c, s, { type: 'playCard', uid: uid('ac-fullswing') });
+    s = act(c, s, { type: 'resolveRoll' });
+    expect(s.killer.maxHealth - s.killer.health).toBe(4); // Full Swing 3 + Tire Iron 1
+  });
+
+  it('the coach always has a goal and a reason, on every map', () => {
+    for (const l of LOCATIONS)
+      for (const k of KILLERS) {
+        const c = C('june', l.id, k.id);
+        let s = newGame(c, 11);
+        for (let i = 0; i < 600 && !s.outcome; i++) {
+          if (s.phase === 'action' || s.phase === 'planning') {
+            expect(currentGoal(c, s).title.length).toBeGreaterThan(0);
+            expect(advise(c, s).why.length).toBeGreaterThan(0);
+          }
+          s = dispatch(c, s, botAction(c, s));
+        }
+      }
   });
 });

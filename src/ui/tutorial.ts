@@ -1,109 +1,227 @@
-// Interactive coach-mark tutorial: a spotlight on the element that matters and
-// a card that explains it. "info" steps advance with Next; "do" steps advance
-// when the game state shows the player actually did the thing.
+// The first night, taught by playing. One 10-second pitch, then short bubbles
+// (20 words or fewer) that each appear the moment their idea matters: a
+// spotlight on the one thing to click, and the game's other panels dimmed until
+// they're introduced. "Do" steps advance when the game state shows the player
+// did the thing; "when" steps wait, hidden, until their moment comes.
+// The scenario it rides on is staged in engine/tutorial.ts.
+import { killerPortrait, victimIcon } from '../art/art';
+import { glyph } from './glyphs';
 import { sym } from './symbols';
 import type { GameState } from '../engine/types';
 
+/** Parts of the screen kept dim until a step introduces them. */
+type Area = 'killer' | 'log' | 'clock' | 'phases' | 'rule';
+const AREAS: Area[] = ['killer', 'log', 'clock', 'phases', 'rule'];
+
+const CHAPTERS = ['Search', 'Rescue', 'Shop', 'His turn', 'Fight'] as const;
+type Chapter = (typeof CHAPTERS)[number];
+
 export interface TutStep {
+  chapter?: Chapter;
   title: string;
-  text: string;
-  target?: string; // CSS selector to spotlight
-  done?: (s: GameState) => boolean; // present = "do" step
+  text: string | ((s: GameState) => string);
+  /** What to spotlight: a selector, or several (the first one on screen wins). */
+  target?: string | string[] | ((s: GameState) => string | undefined);
+  /** Present = a "do" step: it advances once this is true. */
+  done?: (s: GameState) => boolean;
+  /** Present = wait, hidden, until this is true. */
+  when?: (s: GameState) => boolean;
+  /** Areas this step brings out of the dark. */
+  reveal?: Area[];
+  pitch?: boolean;
+  /** Where the bubble would rather sit (default below the target). */
+  prefer?: 'above' | 'below';
 }
 
+// The tutorial runs on fixed content (the drive-in, the Projectionist, Rosa).
+const ATTACKS = ['ac-fullswing', 'ac-desperate', 'ac-swing', 'ac-shove'];
+const inHand = (s: GameState, id: string) => s.heroine.hand.find((x) => x.id === id);
+const cardSel = (id: string) => (s: GameState) => {
+  const x = inHand(s, id);
+  return x ? `[data-card="${x.uid}"]` : undefined;
+};
+const attackCard = (s: GameState) => ATTACKS.map((id) => inHand(s, id)).find(Boolean);
+const attackName = (id: string) => ({ 'ac-fullswing': 'Full Swing', 'ac-desperate': 'Desperate Strike', 'ac-swing': 'Swing', 'ac-shove': 'Shove' })[id] ?? 'an attack';
+const searched = (s: GameState) => s.heroine.items.length + s.heroine.pack.length > 0 || s.log.some((l) => /^(Look Around|Search|Ransack):/.test(l.text));
+const struck = (s: GameState) => s.discard.some((id) => ATTACKS.includes(id));
+/** The roll's main button reads "Keep it" while a buy-up is on offer, else "Resolve" (see main.ts). */
+const rollButton = (s: GameState) => {
+  const r = s.rolling;
+  if (!r) return 'Resolve';
+  const succ = r.dice.filter((d) => d >= 5).length + r.converted.length;
+  const partial = r.dice.some((d, i) => d >= 3 && d <= 4 && !r.converted.includes(i));
+  return partial && succ < 2 && r.converted.length < 1 && s.heroine.hand.length >= 2 ? 'Keep it' : 'Resolve';
+};
+const armed = (s: GameState) => s.heroine.items.some((x) => x.id === 'tire-iron');
+
+const star = `<svg viewBox="0 0 24 24" class="pf-star" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" fill="#f9c74f" stroke="#7a5200" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
+
+const PITCH = `<div class="pitch-flow">
+  <div class="pf"><div class="pf-i pf-v">${victimIcon()}</div><b>Rescue</b><span>survivors</span></div><i class="pf-arrow">→</i>
+  <div class="pf"><div class="pf-i">${star}</div><b>Power up</b><span>every rescue helps</span></div><i class="pf-arrow">→</i>
+  <div class="pf"><div class="pf-i pf-k">${killerPortrait({ art: 'projectionist' })}</div><b>Kill {him}</b><span>the only way to win</span></div>
+</div>
+<p class="pitch-sub">That’s the whole game. Learn it by playing one turn: about two minutes.</p>`;
+
 export const STEPS: TutStep[] = [
+  { pitch: true, title: 'Last Light in 10 seconds', text: PITCH },
+  // ── Search ──
   {
-    title: 'Welcome to your first night',
-    text: 'You are <b>Rosa</b>, working the snack bar on the Holloway Drive-In’s last night. A killer is loose on the lot. <b>The only way to win is to kill him.</b> There is no dawn to wait for: the night ends when one of you does. Saving people along the way is how you get strong enough.',
+    chapter: 'Search',
+    title: 'Grab a weapon',
+    text: 'You’re standing on an item pile. Play <b>Look Around</b> to search it.',
+    target: cardSel('ac-look'),
+    done: (s) => s.pending?.kind === 'roll' || searched(s) || s.round > 1,
   },
   {
-    title: 'Five phases a turn',
-    text: '<b>Action</b>: you play cards. <b>Planning</b>: you buy new ones. <b>Killer</b>: he moves and attacks, then a Terror card flips. <b>Panic</b>: survivors near a fresh kill scatter. <b>Upkeep</b>: the location’s rule, and you may rearrange items.',
-    target: '#phasebar',
+    chapter: 'Search',
+    title: 'Roll!',
+    text: (s) => `${sym('dice')} A <b>5 or 6</b> is a hit. More hits, better result. Then click <b>${rollButton(s)}</b>.`,
+    target: ['#overlay-root .dicetray.live .dice', '#overlay-root .dicetray.live'],
+    prefer: 'above',
+    when: (s) => s.pending?.kind === 'roll',
+    done: (s) => s.pending?.kind !== 'roll',
   },
   {
-    title: 'You',
-    text: `<b>Health</b> comes with a hidden backup token (the <b>?</b>) that may get you back up once. <b>Horror</b> climbs left to right on the track, and the row under it shows how many dice you roll at that level: more fear, fewer dice. <b>Nerve</b> (${sym('nerve')}) pays for cards: 6 a turn on Matinee, plus bonuses. Your items are below: tap one to read or use it.`,
-    target: '#heroine-panel',
+    chapter: 'Search',
+    title: 'Keep the weapon',
+    text: 'Tap the <b>Tire Iron</b>, then <b>Keep</b>. Weapons make your hits hurt.',
+    target: (s) => {
+      const i = s.pending?.kind === 'search' ? s.pending.drawn.indexOf('tire-iron') : -1;
+      return i >= 0 ? `#overlay-root [data-spick="${i}"]` : '#overlay-root .search-ov';
+    },
+    prefer: 'above',
+    when: (s) => s.pending?.kind === 'search',
+    done: (s) => s.pending?.kind !== 'search',
   },
+  // ── Rescue ──
   {
-    title: 'Him',
-    text: 'His <b>bloodlust</b> track sets how far he moves and how hard he hits (move/attack). Every survivor he kills raises it. His behavior line says exactly what he will do on his turn.',
-    target: '#killer-panel',
-  },
-  {
-    title: 'The Terror clock',
-    text: 'Ten Terror cards, one per turn. When they run out, the <b>Finale</b> begins and he comes for you. Be ready by then.',
-    target: '.terror-clock',
-  },
-  {
-    title: 'Your hand',
-    text: `Each card shows its <b>cost</b>, its dice, and three outcomes: <b>2+</b> successes, exactly <b>1</b>, or <b>✗</b>. A die showing 5–6 succeeds; 3–4 is a partial: once per roll you can buy one up by discarding 2 cards. The small <b>discard +1${sym('nerve')}</b> on a card trades it for nerve.`,
-    target: '.hand-row',
-  },
-  {
-    title: 'Search for something useful',
-    text: 'You are standing on an item pile. Play <b>Look Around</b> (free). If it succeeds you choose what to keep.',
-    target: '[data-kind=search]',
-    done: (s) => (s.piles.concession?.cards.length ?? 9) < 6 || s.heroine.items.length + s.heroine.pack.length > 0 || s.round > 1,
-  },
-  {
+    chapter: 'Rescue',
     title: 'Someone needs you',
-    text: 'A survivor is waiting in <b>Parking Rows A</b>, right next to the <b>Ticket Booth</b> exit. Play <b>Walk</b>. Rosa’s Quick Feet gives her first move card each turn an extra step.',
-    target: '[data-card]',
+    text: 'A survivor is hiding in <b>Parking Rows A</b>, next door. Play <b>Walk</b>.',
+    target: (s) => cardSel('ac-walk')(s) ?? '[data-kind=move]',
     done: (s) => s.pending?.kind === 'move' || s.heroine.loc !== 'concession' || s.saved > 0 || s.round > 1,
   },
   {
+    chapter: 'Rescue',
     title: 'Step by step',
-    text: 'Click the glowing <b>Parking Rows A</b>. Each step costs one movement point.',
+    text: 'Click the glowing <b>Parking Rows A</b>.',
     target: '[data-node=lotA]',
-    done: (s) => s.heroine.loc === 'lotA' || s.saved > 0 || s.round > 1,
+    done: (s) => s.heroine.loc !== 'concession' || s.pending?.kind !== 'move' || s.round > 1,
   },
   {
+    chapter: 'Rescue',
     title: 'Get them out',
-    text: 'Survivors follow you when you move (up to 2), but never into his location. Step onto the <b>Ticket Booth</b> exit: everyone with you there is rescued.',
+    text: 'The survivor follows you. Step onto the <b>EXIT</b>, the <b>Ticket Booth</b>. {He}’s close: hurry!',
     target: '[data-node=gate]',
     done: (s) => s.saved > 0 || s.round > 1,
   },
   {
-    title: 'Rescue rewards',
-    text: 'Each rescue fills the next slot and pays its reward: Rosa’s first is <b>Resolve</b>, +1 die on every attack for the rest of the night. Fill all four to unlock her ability.',
+    chapter: 'Rescue',
+    title: 'Saved!',
+    text: 'Every rescue powers you up. This one: <b>+1 die</b> on attacks. Four unlock Rosa’s special ability.',
     target: '#heroine-panel .rescue',
   },
   {
-    title: 'End your Action phase',
-    text: 'Click <b>End Action</b>. Nerve you didn’t spend carries into Planning.',
+    chapter: 'Rescue',
+    title: 'Turn over',
+    text: `Click <b>End Action</b>. Leftover ${sym('nerve')} <b>nerve</b> goes shopping.`,
     target: '[data-act=endAction]',
     done: (s) => s.phase !== 'action' || s.round > 1,
+    reveal: ['phases'],
+  },
+  // ── Shop ──
+  {
+    chapter: 'Shop',
+    title: 'Shop for the fight',
+    text: (s) => (inHand(s, 'ac-fullswing') ? 'Got it. Now click <b>Done</b>: it’s {his} turn.' : `Buy <b>Full Swing</b> (2${sym('nerve')}). ${armed(s) ? 'Your Tire Iron adds to its damage.' : 'Your weapon adds to its damage.'}`),
+    target: (s) => (inHand(s, 'ac-fullswing') ? '#overlay-root [data-act=endPlanning]' : '#overlay-root [data-buy="ac-fullswing"]'),
+    when: (s) => s.phase === 'planning',
+    done: (s) => (s.phase !== 'planning' && s.phase !== 'action') || s.round > 1,
+  },
+  // ── His turn ──
+  {
+    chapter: 'His turn',
+    title: '{He} attacks!',
+    text: 'Play <b>Duck</b> to dodge. Defend cards work only now, during {his} turn.',
+    target: ['#overlay-root [data-react]', '#overlay-root .react-ov'],
+    when: (s) => s.pending?.kind === 'reaction',
+    done: (s) => s.phase === 'upkeep' || s.round > 1,
+    reveal: ['killer'],
   },
   {
-    title: 'Planning: stock up',
-    text: 'Buy cards for next turn with the nerve you didn’t spend, as many as you can afford. The <b>Free</b> shelf costs nothing, even when you’re broke. Cards you just played come back after Planning. <b>Peek at the board</b> (B) any time; click <b>Done</b> when you’re set.',
-    target: '.shop-meter.m-nerve',
-    done: (s) => s.phase === 'hunter' || s.phase === 'upkeep' || s.round > 1,
-  },
-  {
-    title: 'His turn',
-    text: 'Everything he did is listed here: his behavior, the Terror card, any panic. Then click <b>Next turn</b>.',
-    target: '#overlay-root .killerturn',
+    chapter: 'His turn',
+    title: '{His} turn, summed up',
+    text: 'Every turn {he} moves and attacks, then a <b>Terror</b> card flips. Click <b>Next turn</b>.',
+    target: ['#overlay-root .killerturn [data-act=endUpkeep]', '#overlay-root .killerturn'],
+    prefer: 'above',
+    when: (s) => s.phase === 'upkeep',
     done: (s) => s.round > 1,
+    reveal: ['killer'],
+  },
+  // ── Fight ──
+  {
+    chapter: 'Fight',
+    title: 'Fight back',
+    text: (s) => {
+      const x = attackCard(s);
+      return x ? `{He}’s right here. Play <b>${attackName(x.id)}</b>${armed(s) && x.id !== 'ac-shove' && x.id !== 'ac-swing' ? ': your Tire Iron adds +1' : ''}.` : '{He}’s right here. Play an attack card.';
+    },
+    target: (s) => {
+      const x = attackCard(s);
+      return x ? `[data-card="${x.uid}"]` : undefined;
+    },
+    when: (s) => s.phase === 'action' && !s.pending && s.killer.loc === s.heroine.loc,
+    done: (s) => struck(s) || s.round > 2 || (s.round > 1 && s.phase === 'action' && !s.pending && s.killer.loc !== s.heroine.loc),
   },
   {
-    title: 'When he finds you',
-    text: 'If he attacks <b>you</b>, you can play a <b>reaction</b> card (like Duck) to soften or cancel that one hit. If survivors share his location, he goes for them first. Attack cards hurt him; a weapon in hand and his lore items add damage.',
-    target: '#killer-panel .behavior',
+    chapter: 'Fight',
+    title: 'Watch {his} health',
+    text: (s) =>
+      !struck(s)
+        ? '{His} <b>health</b> is up here. Bring it to zero to win.'
+        : s.killer.health < s.killer.maxHealth
+          ? `Hit! {He}’s down to <b>${s.killer.health}</b>. Bring {his} health to zero to win.`
+          : 'A miss: it happens. {His} <b>health</b> is up here. Zero wins.',
+    target: ['#killer-panel .boss-hp', '#sum-k'],
+    when: (s) => !s.pending,
+    reveal: ['killer'],
   },
   {
-    title: 'You’re on your own now',
-    text: 'Search, rescue, then <b>hunt him down</b>, ideally before the Finale. Two hands, one backpack: you can only rearrange when you find an item or in Upkeep. Stuck? Press <b>Hint</b> (H), or open the <b>Map key</b> (bottom right of the map) for every icon. Undo (Z) works until you roll dice. Good luck.',
+    chapter: 'Fight',
+    title: 'The clock',
+    text: 'One <b>Terror</b> card flips every turn. When all 10 are gone, the <b>Finale</b>: {he} hunts only you.',
     target: '.terror-clock',
+    reveal: ['clock'],
+  },
+  {
+    chapter: 'Fight',
+    title: 'You’ve got this',
+    text: `Rescue to power up, then finish {him}. Lost? Your ${glyph('target')} <b>goal</b> is always here: <b>Show me</b> points the way.`,
+    target: ['#goal-strip.on', '.goal-mini'],
+    reveal: AREAS,
   },
 ];
+
+/**
+ * Phones pin the hand bar over the bottom of the page: if the target sits
+ * under it, scroll the page so it's in the clear. True if it scrolled.
+ */
+export function clearOfBar(el: HTMLElement): boolean {
+  const bar = document.getElementById('bottombar');
+  if (!bar || bar.contains(el) || el.closest('.overlay') || getComputedStyle(bar).position !== 'fixed') return false;
+  const top = bar.getBoundingClientRect().top;
+  const r = el.getBoundingClientRect();
+  if (r.bottom <= top - 8) return false;
+  window.scrollBy({ top: r.bottom - top + 40, behavior: 'auto' });
+  return true;
+}
 
 export class Tutorial {
   private i = -1;
   private root?: HTMLDivElement;
   private lastState?: GameState;
+  private shown = -1; // the step whose target was last scrolled into view
   constructor(private onEnd: (finished: boolean) => void) {
     window.addEventListener('resize', () => this.place());
     window.addEventListener('scroll', () => this.place(), { passive: true });
@@ -113,6 +231,8 @@ export class Tutorial {
   }
   start() {
     this.i = 0;
+    this.shown = -1;
+    document.body.classList.add('tut-on', ...AREAS.map((a) => `tut-dim-${a}`));
     this.render();
   }
   stop(finished = false) {
@@ -120,6 +240,7 @@ export class Tutorial {
     this.i = -1;
     this.root?.remove();
     this.root = undefined;
+    document.body.classList.remove('tut-on', ...AREAS.map((a) => `tut-dim-${a}`));
     this.onEnd(finished);
   }
   /** Call after every game update. */
@@ -140,6 +261,15 @@ export class Tutorial {
     if (this.lastState) this.sync(this.lastState);
     else this.render();
   }
+  private target(step: TutStep): HTMLElement | null {
+    const t = typeof step.target === 'function' ? (this.lastState ? step.target(this.lastState) : undefined) : step.target;
+    if (!t) return null;
+    for (const sel of Array.isArray(t) ? t : [t]) {
+      const el = document.querySelector<HTMLElement>(sel);
+      if (el && el.getClientRects().length) return el;
+    }
+    return null;
+  }
   private render() {
     const step = STEPS[this.i];
     if (!step) return;
@@ -148,15 +278,28 @@ export class Tutorial {
       this.root.id = 'tut';
       document.body.appendChild(this.root);
     }
+    for (const a of step.reveal ?? []) document.body.classList.remove(`tut-dim-${a}`);
+    const s = this.lastState;
+    const waiting = !!step.when && (!s || !step.when(s));
+    this.root.classList.toggle('waiting', waiting);
+    if (waiting) {
+      this.root.innerHTML = '';
+      return;
+    }
     const isDo = !!step.done;
+    const text = typeof step.text === 'function' ? (s ? step.text(s) : '') : step.text;
+    const ch = step.chapter ? CHAPTERS.indexOf(step.chapter) : -1;
+    const chapters = ch < 0 ? '' : `<div class="tut-chap">${CHAPTERS.map((c, n) => `<i class="${n < ch ? 'done' : n === ch ? 'on' : ''}" title="${c}"></i>`).join('')}<span>${step.chapter}</span></div>`;
+    const last = this.i === STEPS.length - 1;
+    const nextLabel = step.pitch ? 'Let’s go' : last ? 'Play!' : 'Got it';
     this.root.innerHTML = `<div class="tut-spot"></div>
-      <div class="tut-card" role="dialog" aria-live="polite">
-        <div class="tut-step">First night · ${this.i + 1}/${STEPS.length}</div>
+      <div class="tut-card ${step.pitch ? 'pitch' : ''}" role="dialog" aria-live="polite">
+        ${chapters}
         <h4>${step.title}</h4>
-        <p>${step.text}</p>
+        <div class="tut-text">${text}</div>
         <div class="tut-row">
-          <button class="btn small" data-tut="skip">Skip tutorial</button>
-          ${isDo ? '<span class="tut-do">▸ your move</span>' : `<button class="btn small primary" data-tut="next">${this.i === STEPS.length - 1 ? 'Play!' : 'Next'}</button>`}
+          <button class="btn small tut-skip" data-tut="skip">${step.pitch ? 'Skip tutorial' : 'Skip'}</button>
+          ${isDo ? '<span class="tut-do">▸ your move</span>' : `<button class="btn ${step.pitch ? '' : 'small'} primary" data-tut="next">${nextLabel}</button>`}
         </div>
       </div>`;
     this.root.querySelector('[data-tut=skip]')!.addEventListener('click', () => this.stop(false));
@@ -165,38 +308,59 @@ export class Tutorial {
   }
   /** Position the spotlight on the target and the card next to it. */
   place() {
-    if (!this.root || this.i < 0) return;
+    if (!this.root || this.i < 0 || this.root.classList.contains('waiting')) return;
     const step = STEPS[this.i];
-    const spot = this.root.querySelector<HTMLDivElement>('.tut-spot')!;
-    const card = this.root.querySelector<HTMLDivElement>('.tut-card')!;
-    const el = step.target ? document.querySelector<HTMLElement>(step.target) : null;
-    // A decision overlay (dice, search, reaction, aim) is up and this step isn't about it: step aside.
+    const spot = this.root.querySelector<HTMLDivElement>('.tut-spot');
+    const card = this.root.querySelector<HTMLDivElement>('.tut-card');
+    if (!spot || !card) return;
+    const el = this.target(step);
+    // A decision overlay (dice, search, reaction, shop) is up and this step isn't about it: step aside.
     const overlay = document.querySelector('#overlay-root .overlay');
-    this.root.style.display = overlay && !(el && overlay.contains(el)) ? 'none' : '';
+    this.root.style.display = overlay && !step.pitch && !(el && overlay.contains(el)) ? 'none' : '';
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    if (!el || el.getClientRects().length === 0) {
+    const cw = Math.min(step.pitch ? 520 : 340, vw - 32);
+    if (!el) {
       spot.style.cssText = `left:${vw / 2}px;top:${vh / 2}px;width:0;height:0`;
-      card.style.cssText = `left:${Math.max(16, vw / 2 - 180)}px;top:${Math.max(16, vh / 2 - 120)}px`;
+      card.style.cssText = `left:0;top:0;width:${cw}px;visibility:hidden`;
+      const ch = card.offsetHeight || 200;
+      card.style.cssText = `left:${Math.max(16, vw / 2 - cw / 2)}px;top:${Math.max(16, vh / 2 - ch / 2)}px;width:${cw}px`;
       return;
     }
+    if (this.shown !== this.i) {
+      this.shown = this.i;
+      el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    }
+    if (clearOfBar(el)) return; // scrolled: the scroll event places us again
     const r = el.getBoundingClientRect();
     if (r.bottom < 0 || r.top > vh) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     const pad = 8;
     spot.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + pad * 2}px;height:${r.height + pad * 2}px`;
-    const cw = Math.min(360, vw - 32);
+    card.classList.remove('docked');
     card.style.cssText = `left:0;top:0;width:${cw}px;visibility:hidden`;
-    const ch = card.offsetHeight || 200;
+    let ch = card.offsetHeight || 200;
     const clampX = (x: number) => Math.min(vw - cw - 16, Math.max(16, x));
     const clampY = (y: number) => Math.min(vh - ch - 8, Math.max(8, y));
-    // Prefer below, then above, then beside — never on top of the target.
+    // Never on top of the target: below or above (the step's preference first),
+    // then beside; failing all three (a phone, a full-screen panel), shrink and
+    // dock at the screen edge farther from it.
+    const below = r.bottom + 16 + ch <= vh - 8 ? r.bottom + 16 : null;
+    const above = r.top - 16 - ch >= 8 ? r.top - 16 - ch : null;
     let left = clampX(r.left + r.width / 2 - cw / 2);
-    let top: number;
-    if (r.bottom + 16 + ch <= vh - 8) top = r.bottom + 16;
-    else if (r.top - 16 - ch >= 8) top = r.top - 16 - ch;
-    else {
-      top = clampY(r.top + r.height / 2 - ch / 2);
-      left = r.right + 16 + cw <= vw - 16 ? r.right + 16 : clampX(r.left - 16 - cw);
+    let top = step.prefer === 'above' ? (above ?? below) : (below ?? above);
+    if (top === null) {
+      const right = r.right + 16 + cw <= vw - 16 ? r.right + 16 : null;
+      const leftSide = r.left - 16 - cw >= 16 ? r.left - 16 - cw : null;
+      if (right !== null || leftSide !== null) {
+        top = clampY(r.top + r.height / 2 - ch / 2);
+        left = (right ?? leftSide)!;
+      } else {
+        card.classList.add('docked');
+        ch = card.offsetHeight || 120;
+        // Top by default (panel headers matter least); bottom when the target is up there.
+        top = r.top + r.height / 2 > vh * 0.4 ? 8 : vh - ch - 8;
+        left = clampX(vw / 2 - cw / 2);
+      }
     }
     card.style.cssText = `left:${left}px;top:${top}px;width:${cw}px`;
   }

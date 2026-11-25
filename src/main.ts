@@ -7,16 +7,16 @@ import { audio } from './audio/audio';
 import { heroinePortrait, heroineToken, icon, killerPortrait, mapBackdrop, pip, victimIcon } from './art/art';
 import { eventStill, itemIcon, posterFrame } from './art/scenes';
 import { startParticles } from './ui/particles';
-import { botAction, cheapest } from './engine/bot';
+import { cheapest } from './engine/bot';
+import { advise, adviceTarget, currentGoal, planNeeds, type Goal } from './engine/coach';
 import { glyph } from './ui/glyphs';
 import { TUTORIAL, tutorialGame } from './engine/tutorial';
 import { isLegacySave, migrateSave } from './engine/migrate';
-import { Tutorial } from './ui/tutorial';
+import { clearOfBar, Tutorial } from './ui/tutorial';
 import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } from './content/registry';
 import {
   abilityUnlocked,
   actionDef,
-  activeItems,
   bloodlustLevel,
   cardCost,
   check,
@@ -73,7 +73,7 @@ const STATS_KEY = 'lastlight.stats.v1';
 const TUT_KEY = 'lastlight.tutorial.v2';
 const tutorial = new Tutorial((finished) => {
   store(TUT_KEY, true);
-  if (finished) toast('Tutorial complete. The night is yours. Press <b>H</b> any time for a hint.', 6000);
+  if (finished) toast('Tutorial done. The night is yours: follow your <b>goal</b>, and press <b>Show me</b> (H) whenever you’re stuck.', 7000);
 });
 
 interface GameRecord {
@@ -645,7 +645,7 @@ function renderGame() {
     app.innerHTML = `<div class="game" id="game">
       <header class="topbar"></header>
       <aside class="side left ${sideOpen.left ? '' : 'collapsed'}"><button class="side-toggle" data-go="toggleSide" data-side="left" id="sum-h"></button><div class="panel" id="heroine-panel"></div></aside>
-      <main class="stage"><div class="phasebar" id="phasebar"></div><div class="board" id="board"></div></main>
+      <main class="stage"><div class="phasebar" id="phasebar"></div><div class="board" id="board"></div><div class="goal-strip" id="goal-strip"></div></main>
       <aside class="side right ${sideOpen.right ? '' : 'collapsed'}"><button class="side-toggle" data-go="toggleSide" data-side="right" id="sum-k"></button><div class="panel" id="killer-panel"></div><div class="panel log-panel"><h4>Script</h4><div class="log" id="log"></div></div></aside>
       <footer class="bottombar" id="bottombar"></footer>
       <section class="items-sheet pane" id="items-sheet" hidden aria-label="Items and ability"></section>
@@ -900,7 +900,7 @@ function renderHeroinePanel(c: Content, s: GameState) {
     </div>
     <div class="htrack" title="Horror track: as horror rises, you roll fewer dice"><span class="ht-k"><b>${sym('horror')}</b><b>${sym('dice')}</b></span>${htrack}</div>
     ${sec('Rescues', `${h.rescued} saved${h.resolve ? ` · +${h.resolve} attack die` : ''}`, `<div class="rtrack" title="Fill every slot to unlock ${esc(c.heroine.ability.name)}">${rtrack}<i class="rt-link"></i><span class="rt ab ${unlocked ? 'done' : ''}" title="${esc(c.heroine.ability.name)}: ${esc(c.heroine.ability.text)}">★</span></div><p class="prose small">${nextTxt}</p>
-      ${abilityBox}`)}
+      ${abilityBox}`, 'rescue')}
     ${invSecs}
     ${sec('Passive', esc(c.heroine.passive.name), `<p class="prose small">${esc(c.heroine.passive.text)}</p>`)}
   </div>`;
@@ -970,9 +970,11 @@ function updateBoard() {
   const h = s.heroine;
   const moving = s.pending?.kind === 'move';
   const reach = moving ? neighbors(c, h.loc) : [];
+  const goal = s.phase === 'action' && !s.outcome ? currentGoal(c, s) : undefined;
   document.querySelectorAll<HTMLButtonElement>('.node').forEach((el) => {
     const id = el.dataset.node!;
     el.classList.toggle('reach', reach.includes(id));
+    el.classList.toggle('goal', !!goal?.node && goal.node === id && id !== h.loc);
     el.classList.toggle('here', id === h.loc);
     const badges: string[] = [];
     const pile = s.piles[id];
@@ -1048,8 +1050,10 @@ function updateBoard() {
       .join('');
     const bring = here ? `<span class="hint-group">Bring up to <span class="bring">${Array.from({ length: cap + 1 }, (_, n) => `<button class="btn tiny ${h.bring === n ? 'sel' : ''}" data-bring="${n}">${n}</button>`).join('')}</span> of ${here}${named ? ` ${named}` : ''}</span>` : '';
     hint.innerHTML = `<span class="hint-group"><b class="steps">${p.left}</b> step${p.left > 1 ? 's' : ''} left: click a glowing location, or stop here</span>${bring}`;
-  } else if (s.phase === 'action') hint.innerHTML = `Play a card from your hand. ${touchOnly.matches ? 'Tap' : 'Hover'} a location for details.`;
-  else hint.innerHTML = '';
+  } else hint.innerHTML = '';
+  const strip = document.getElementById('goal-strip')!;
+  strip.innerHTML = goal ? goalBar(goal) : '';
+  strip.classList.toggle('on', !!goal);
 }
 
 /** Phone only: the backpack button. Glows when an item or the ability can be used now. */
@@ -1132,10 +1136,12 @@ function updateBottom() {
   else main = `<button class="endturn" disabled>{His} turn…</button>`;
   const bar = document.getElementById('bottombar')!;
   const keepX = bar.querySelector<HTMLElement>('.hand-row')?.scrollLeft ?? 0;
+  const goal = s.phase === 'action' && !s.outcome ? currentGoal(c, s) : undefined;
+  const mini = goal ? `<div class="goal-mini">${glyph('target')}<b>${esc(goal.title)}</b><span>${esc(goal.detail)}</span><button class="btn tiny gb-show" data-go="hint">Show me</button></div>` : '';
   bar.innerHTML = `
     <div>${pile}<div class="hand-wrap"><div class="actions hand-row">${cards}${answer}</div><button class="hand-more l" data-hscroll="-1" aria-label="Scroll hand left"></button><button class="hand-more r" data-hscroll="1" aria-label="Scroll hand right"></button></div></div>
     <div class="endcol"><div class="endtools">${itemsButton(c, s)}<button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo (Z): not after dice rolls or draws">${glyph('undo')} Undo</button><button class="btn small" data-go="hint" ${s.phase === 'action' || s.phase === 'planning' ? '' : 'disabled'} title="What would a survivor do? (H)">${glyph('bulb')} Hint</button></div>
-    ${main}</div>`;
+    ${main}</div>${mini}`;
   const row = bar.querySelector<HTMLElement>('.hand-row')!;
   row.scrollLeft = keepX;
   row.addEventListener('scroll', syncHandMore, { passive: true });
@@ -1389,12 +1395,15 @@ function updateOverlay() {
     // The classic first-game trap: ending Planning with no way to move.
     const canMove = h.hand.some((x) => actionDef(c, x.id).tags.includes('move'));
     const walkLeft = (s.tableau['ac-walk'] ?? 0) > 0;
+    const goal = currentGoal(c, s);
+    const needs = full ? [] : planNeeds(c, s);
     const moveWarn = canMove || full ? '' : `<div class="shop-warn">${walkLeft ? 'No movement card for next turn. Take a free <b>Walk</b>.' : 'No movement card for next turn. Buy one from the <b>Move</b> shelf.'}</div>`;
     root.innerHTML = `<div class="overlay draft-ov shop-ov"><div class="draft tableau shop">
       <header class="shop-head">
         <div class="shop-title">
           <div class="kind">Turn ${s.round} · Planning</div>
           <h2>Stock up</h2>
+          <p class="shop-goal" ${tutorial.active ? 'hidden' : ''}>${glyph('target')} Next turn: <b>${esc(goal.title)}</b>. ${needs.length ? `You still need ${needs.join(' and ')}.` : 'Your hand covers it.'}</p>
           <p>${note}</p>
         </div>
         <div class="shop-meter m-nerve ${h.nerve <= 0 ? 'empty' : ''}"><span class="ml">${sym('nerve', { big: true })} Nerve to spend</span><span class="mv">${h.nerve}</span><span class="ms">resets to ${resetTo} next turn</span></div>
@@ -1403,7 +1412,7 @@ function updateOverlay() {
       <div class="shop-body" data-scroll="shop">${shelves}</div>
       <footer class="shop-foot">${moveWarn}
         <div class="shop-hand"><span class="sh-l">Your hand</span>${handChips || '<i class="chip-c">empty</i>'}</div>
-        <div class="row-btns"><button class="btn" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo your last buy (Z)">${glyph('undo')} Undo</button><button class="btn" data-go="hidePlan">Peek at the board <small>(B)</small></button><button class="btn primary" data-act="endPlanning">Done: {his} turn <small>(E)</small></button></div>
+        <div class="row-btns"><button class="btn" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo your last buy (Z)">${glyph('undo')} Undo</button><button class="btn" data-go="hint" title="What should I buy? (H)">${glyph('bulb')} Hint</button><button class="btn" data-go="hidePlan">Peek at the board <small>(B)</small></button><button class="btn primary" data-act="endPlanning">Done: {his} turn <small>(E)</small></button></div>
       </footer>
     </div></div>`;
     const body = root.querySelector<HTMLElement>('.shop-body');
@@ -1497,6 +1506,7 @@ function updateOverlay() {
 // ── Dispatch + FX ───────────────────────────────────────────────────────────
 function act(a: Action) {
   if (!game || !content || overlayLocked) return;
+  clearCoach();
   if (a.type === 'endAction' && game.heroine.nerve > 0 && !confirmEnd()) return;
   if (a.type === 'endAction') document.querySelector('.toast')?.remove();
   if (a.type === 'endPlanning') {
@@ -1522,7 +1532,7 @@ function act(a: Action) {
   if (gained.length) {
     selItem = gained[gained.length - 1].uid;
     // On a phone the inventory is folded away: open it on the new find.
-    if (phoneLayout.matches) itemsOpen = true;
+    if (phoneLayout.matches && !tutorial.active) itemsOpen = true; // the tutorial says what she found; keep the hand in view
     setTimeout(revealItemDetail, 50);
   }
   else if (selItem !== null && ![...game.heroine.items, ...game.heroine.pack].some((x) => x.uid === selItem)) selItem = null;
@@ -1624,46 +1634,68 @@ function inspectNode(id: string | null) {
   el.style.top = `${Math.min(top, 62)}%`;
 }
 
-function describeAction(c: Content, s: GameState, a: Action): string {
-  const cardName = (uid: number) => {
-    const x = s.heroine.hand.find((i) => i.uid === uid);
-    return x ? esc(actionDef(c, x.id).name) : 'a card';
-  };
-  switch (a.type) {
-    case 'playCard':
-      return `Play <b>${cardName(a.uid)}</b>.`;
-    case 'step':
-      return `Step to <b>${esc(nodeName(c, a.to))}</b>.`;
-    case 'stopMove':
-      return '<b>Stop moving</b> here.';
-    case 'useItem': {
-      const it = activeItems(c, s).find((i) => i.uid === a.uid);
-      return it ? `Use <b>${esc(itemDef(c, it.id).name)}</b>.` : 'Use an item.';
-    }
-    case 'useAbility':
-      return `Use <b>${esc(c.heroine.ability.name)}</b>.`;
-    case 'buy':
-      return `Buy <b>${esc(actionDef(c, a.id).name)}</b>.`;
-    case 'endPlanning':
-      return '<b>Finish Planning</b>.';
-    case 'endAction':
-      return '<b>End your Action phase</b>.';
-    case 'answer':
-      return '<b>Answer</b> the phone.';
-    case 'ready':
-      return 'Take an item in hand.';
-    case 'toggleFollow':
-      return 'Change who follows you.';
-    case 'aim':
-      return a.at === 'killer' ? `Hit <b>${esc(c.killer.name)}</b>.` : `Hit the <b>${esc(c.killer.minions?.plural ?? 'minions')}</b>.`;
-    default:
-      return `<b>${a.type}</b>.`;
-  }
+/** The goal banner on the map: what she's after right now, and a way to be shown. */
+function goalBar(g: Goal): string {
+  return `<span class="gb-k">${glyph('target')} Goal</span><b class="gb-t">${esc(g.title)}</b><span class="gb-d">${esc(g.detail)}</span><button class="btn tiny gb-show" data-go="hint" title="${esc(g.why ?? 'Show me the next move')} (H)">Show me</button>`;
 }
 
+// ── Coach pointer: Hint / Show me rings the thing to click and says why ──
+let coach: { sel: string; why: string; until: number } | null = null;
 function showHint() {
-  if (!game || !content || (game.phase !== 'action' && game.phase !== 'planning')) return;
-  toast(`${glyph('bulb', 'tip')} ${describeAction(content, game, botAction(content, game))}`, 4000);
+  if (!game || !content || game.outcome) return;
+  if (game.phase !== 'action' && game.phase !== 'planning' && !game.pending) return;
+  const { action, why } = advise(content, game);
+  if (!why) return;
+  const sel = adviceTarget(action);
+  if (!sel || !document.querySelector(sel)) {
+    clearCoach();
+    return toast(`${glyph('bulb', 'tip')} ${why}`, 6000);
+  }
+  document.querySelector('.toast')?.remove();
+  const mine = { sel, why, until: performance.now() + 7000 };
+  coach = mine;
+  const el = document.querySelector<HTMLElement>(sel)!;
+  if (!clearOfBar(el)) el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  // One loop per Show me: it stops when this pointer expires or a newer one replaces it.
+  const tick = () => {
+    if (coach === mine && placeCoach()) requestAnimationFrame(tick);
+  };
+  tick();
+}
+/** Keep the ring on its target while it moves or re-renders; false once it has expired. */
+function placeCoach(): boolean {
+  let ring = document.getElementById('coach-ring');
+  if (!coach || performance.now() > coach.until) {
+    clearCoach();
+    return false;
+  }
+  const el = document.querySelector<HTMLElement>(coach.sel);
+  // The target can vanish for a frame during a re-render: hide the ring and keep waiting.
+  if (!el || !el.getClientRects().length) {
+    ring?.remove();
+    return true;
+  }
+  if (!ring) {
+    ring = document.createElement('div');
+    ring.id = 'coach-ring';
+    ring.innerHTML = `<span class="cr-tip">${glyph('bulb')}<span>${coach.why}</span></span>`;
+    document.body.appendChild(ring);
+  }
+  const r = el.getBoundingClientRect();
+  ring.style.cssText = `left:${r.left - 6}px;top:${r.top - 6}px;width:${r.width + 12}px;height:${r.height + 12}px`;
+  // The callout sits above the target (below if there's no room), kept on screen.
+  const tip = ring.querySelector<HTMLElement>('.cr-tip')!;
+  const tw = tip.offsetWidth;
+  const th = tip.offsetHeight;
+  const above = r.top - 6 - th - 10 > 8;
+  const x = Math.min(window.innerWidth - tw - 8, Math.max(8, r.left + r.width / 2 - tw / 2));
+  tip.style.left = `${x - (r.left - 6)}px`;
+  tip.style.top = above ? `${-th - 10}px` : `${r.height + 12 + 10}px`;
+  return true;
+}
+function clearCoach() {
+  coach = null;
+  document.getElementById('coach-ring')?.remove();
 }
 
 function canUndo(): boolean {

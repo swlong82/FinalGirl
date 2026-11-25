@@ -16,6 +16,7 @@ Runs in any modern browser on desktop or mobile, with no install. Headphones rec
 - **Feature Four: Whiteout**. Killer: *The Snowblind*. Location: *Kettle Peak Lodge*.
 - **Feature Five: Dead Air**. Killer: *The Caller*. Location: *KXRL Hilltop Studio*.
 - **Season 1 is complete**: 5 features, 7 heroines, and a signature rule for every location (tide, blackouts, cold, ringing phones, intermission).
+- **v1.0.15: learn by playing.** A 10-second pitch, then a tutorial you play (short bubbles, a staged first fight), and a goal bar that always says what to do next; **Show me** points at the exact card or place and says why.
 - **v1.0.14: symbols, not words.** Horror, dice, nerve and health show as symbols beside their numbers everywhere (cards, status, vitals, shop); painted versions are queued in the art pipeline.
 - **v1.0.13: your pockets, on a phone.** A backpack button beside Undo and Hint opens your items and ability in a sheet, glows when something is usable, and opens by itself when you find an item. The feature picker also scrolls to the killer and location a feature picks.
 - **v1.0.11: a killer worth the fight.** Killer health is back to full, so a stacked heavy hit no longer nearly one-shots him; horror past the top now feeds his bloodlust at most once a turn.
