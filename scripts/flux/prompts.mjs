@@ -56,7 +56,7 @@ const HEROINES = {
   tess: 'a steady young woman with long blonde hair, faded red lifeguard windbreaker, a silver whistle on a lanyard around her neck, dark lake at night behind her, cyan rim light',
   ivy: 'a clever young woman with a dark purple pixie cut, oversized cardigan, holding a Super 8 film camera, projector beam behind her, violet rim light',
   sunny: 'an outdoorsy young woman with long copper hair and rosy cheeks, 1980s ski instructor parka, ski goggles pushed up on her forehead, snowy pines behind her, orange rim light',
-  dee: 'a calm young Latina woman with a dark ponytail, big radio headphones around her neck, 1985 college sweatshirt, glowing studio mixing console behind her, magenta rim light',
+  dee: 'a composed adult woman in her early twenties with warm brown skin and long dark hair tied back, large over-ear radio headphones resting around her neck, grey 1985 university sweatshirt, a glowing radio mixing board behind her, magenta rim light',
 };
 for (const [id, p] of Object.entries(HEROINES))
   add(`portrait/heroine-${id}`, 'portrait', `${PORTRAIT}, ${p}, brave and wary expression, ${STYLE}`, 768, 768, [512, 512]);
