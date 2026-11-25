@@ -428,7 +428,7 @@ function renderFeature() {
         .map(
           (f) => `<button class="shelf-item ${f === curated ? 'sel' : ''}" data-feature="${f.id}" ${f.available ? '' : 'disabled'} title="${esc(f.title)} · ${esc(f.subtitle)}">
           ${comboPoster(f.location, f.killer)}
-          <span class="shelf-label">${esc(f.title.split(':')[0])}</span>
+          <span class="shelf-label">${esc(f.title.split(':')[0])}</span>${f === FEATURES[0] ? '<span class="start-here">Start here</span>' : ''}
         </button>`,
         )
         .join('')}</div></div>`,
@@ -1308,7 +1308,7 @@ function updateOverlay() {
       <div class="shop-body" data-scroll="shop">${shelves}</div>
       <footer class="shop-foot">${moveWarn}
         <div class="shop-hand"><span class="sh-l">Your hand</span>${handChips || '<i class="chip-c">empty</i>'}</div>
-        <div class="row-btns"><button class="btn" data-go="hidePlan">Peek at the board <small>(B)</small></button><button class="btn primary" data-act="endPlanning">Done: his turn <small>(E)</small></button></div>
+        <div class="row-btns"><button class="btn" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo your last buy (Z)">${glyph('undo')} Undo</button><button class="btn" data-go="hidePlan">Peek at the board <small>(B)</small></button><button class="btn primary" data-act="endPlanning">Done: his turn <small>(E)</small></button></div>
       </footer>
     </div></div>`;
     const body = root.querySelector<HTMLElement>('.shop-body');

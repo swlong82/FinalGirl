@@ -1255,3 +1255,6 @@ b.ok { color: #2f6b3a; font-weight: 400; }
 .act.fcard .cost .whyno { color: #a0122c; font-weight: 500; letter-spacing: .03em; }
 .dicetray .res .row-hit { font-size: 14px; color: var(--muted); letter-spacing: .06em; }
 .dicetray .res .row-hit b { color: var(--gold); font-weight: 600; }
+.shelf-item { position: relative; }
+.shelf-item .start-here { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); z-index: 2; font-family: var(--ui); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #1b120c; background: var(--gold); padding: 1px 7px; border-radius: 8px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 0, 0, .6); }
+.shop-foot .btn .glyph { vertical-align: -.18em; }
