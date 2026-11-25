@@ -390,6 +390,7 @@ export interface GameState {
     abilityUsed: boolean;
     movesThisTurn: number;
     horrorTakenThisTurn: number;
+    overflowRound?: number; // the turn her horror last spilled over into his bloodlust (once a turn)
     broke: boolean; // nerve went below zero this Action phase
     bring: number; // how many survivors (in total) she tries to bring
     leave: string[]; // named survivors she has asked to stay put // how many survivors she tries to bring when she moves

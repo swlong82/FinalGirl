@@ -307,6 +307,10 @@ describe('the killer', () => {
     s = act(c, s, { type: 'playCard', uid });
     expect(s.heroine.horror).toBe(6);
     expect(s.killer.bloodlust).toBe(1);
+    // A second spill-over in the same turn doesn't feed him again.
+    const uid3 = giveCard(s, 'ac-adrenaline');
+    s = act(c, s, { type: 'playCard', uid: uid3 });
+    expect(s.killer.bloodlust).toBe(1);
     s.heroine.horror = 0;
     const n = s.heroine.nerve;
     s.pending = undefined;

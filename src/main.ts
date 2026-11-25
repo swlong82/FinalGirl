@@ -856,7 +856,7 @@ function renderHeroinePanel(c: Content, s: GameState) {
       <div><div class="p-name">${esc(c.heroine.name)}</div><div class="p-role">${esc(c.heroine.title)}</div></div></header>
     <div class="vitals">
       ${vital('Health', `${h.health}<small>/${h.maxHealth}</small>`, h.token === null ? 'no backup' : `+ <span class="tok">?</span> backup`, h.health <= 2 ? 'bad' : '', h.token === null ? 'Backup token used: the next time she runs out of health, she dies.' : 'Health, plus a hidden backup token (the final-health token). When her health runs out the token is revealed: a number gets her back up with that much health, a blank means death.')}
-      ${vital('Horror', `${h.horror}<small>/${MAX_HORROR}</small>`, `${horrorDice(s)} dice a roll`, h.horror >= 4 ? 'bad' : '', 'The higher your horror, the fewer dice you roll. Past 6, it feeds {his} bloodlust.')}
+      ${vital('Horror', `${h.horror}<small>/${MAX_HORROR}</small>`, `${horrorDice(s)} dice a roll`, h.horror >= 4 ? 'bad' : '', 'The higher your horror, the fewer dice you roll. Past 6, it feeds {his} bloodlust (at most once a turn).')}
       ${vital('Nerve', String(h.nerve), h.nerve < 0 ? 'in debt' : `base ${base} a turn`, h.nerve < 0 ? 'bad' : 'gold', `Pays for cards (◉ is nerve). Each turn starts at ${base}, plus bonuses from rescues, being perfectly calm (horror 0) and some events. Discard a card for +1. Below zero ends your Action phase.`)}
     </div>
     <div class="htrack" title="Horror track: as horror rises, you roll fewer dice"><span class="ht-k"><b>horror</b><b>dice</b></span>${htrack}</div>
@@ -1878,7 +1878,7 @@ function showRules() {
   <h3>The Terror clock and the Finale</h3>
   <p>The Terror deck holds ${TERROR_DEAL} cards. When it runs out, the <b>Finale</b> is revealed in Upkeep: {his} behavior changes, {his} power is revealed, and every Upkeep after that raises {his} bloodlust.</p>
   <h3>Bloodlust</h3>
-  <p>{His} track sets {his} <b>move</b> and <b>attack</b>. Every survivor {he} kills adds 1, and so does horror pushed past the top of your track. Some levels trigger effects, and at bloodlust ${content?.killer.bloodlust.revealAt ?? 4} {his} special power (with temporary health) is revealed.</p>
+  <p>{His} track sets {his} <b>move</b> and <b>attack</b>. Every survivor {he} kills adds 1, and so does horror pushed past the top of your track (at most once a turn). Some levels trigger effects, and at bloodlust ${content?.killer.bloodlust.revealAt ?? 4} {his} special power (with temporary health) is revealed.</p>
   <h3>Survivors</h3>
   <p>When you leave a location, up to 2 survivors there come with you, but they won't walk into {his} location. Anywhere you stand on an <b>exit</b> during your Action phase, survivors with you are rescued. Each rescue fills a <b>rescue slot</b> and pays its reward; fill them all to unlock your heroine's ability. When {he} attacks, survivors in {his} location are attacked <b>before you</b>.</p>
   <h3>Attacking, damage, and final health</h3>

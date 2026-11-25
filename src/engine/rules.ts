@@ -57,7 +57,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     track: [4, 4, 3, 3, 2, 2, 2],
     heroineTokens: [1, 2, 3],
     killerTokens: [0, 0, 2, 3],
-    killerHp: -4,
+    killerHp: -2,
     attack: 0,
   },
   standard: {
@@ -67,7 +67,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     track: [3, 3, 3, 2, 2, 2, 2],
     heroineTokens: [0, 1, 2, 3],
     killerTokens: [0, 2, 3, 4],
-    killerHp: -2,
+    killerHp: 0,
     attack: 0,
   },
   nightmare: {
@@ -77,7 +77,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     track: [3, 3, 2, 2, 2, 2, 1],
     heroineTokens: [0, 1, 1, 2],
     killerTokens: [2, 2, 3, 4],
-    killerHp: -1,
+    killerHp: 1,
     attack: 0,
   },
 };
@@ -512,8 +512,14 @@ export function addHorror(c: Content, s: GameState, n: number) {
   h.horror = Math.max(0, Math.min(MAX_HORROR, raw));
   if (h.horror !== before) s.fx.push({ t: 'horror', n: h.horror - before });
   if (raw > MAX_HORROR) {
-    log(s, 'Her terror spills over, and {he} feeds on it. (Bloodlust +1.)', 'killer');
-    addBloodlust(c, s, raw - MAX_HORROR);
+    // Spill-over feeds him at most once a turn: with fewer dice, maxed horror is common,
+    // and letting every overflow raise bloodlust snowballed the night.
+    if (h.overflowRound === s.round) log(s, 'Her horror is maxed out. ({He} has already fed on it this turn.)', 'info');
+    else {
+      h.overflowRound = s.round;
+      log(s, 'Her terror spills over, and {he} feeds on it. (Bloodlust +1, once a turn.)', 'killer');
+      addBloodlust(c, s, 1);
+    }
   } else if (raw < 0) {
     log(s, 'Perfectly calm. (+1 nerve.)', 'good');
     h.nerve += -raw;
