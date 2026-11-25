@@ -1346,3 +1346,13 @@ b.ok { color: #2f6b3a; font-weight: 400; }
   .shop-foot .row-btns .btn[data-go=undo] { flex: 0 0 auto; font-size: 0; padding: 10px 12px; }
   .shop-foot .row-btns .btn[data-go=undo] .glyph { width: 16px; height: 16px; }
 }
+
+/* ── Map links: a dark casing under a light core (road-map style), so every link
+   reads on bright art (snow, lit walls) and dark art alike. Strokes don't scale
+   with the board, so they look the same on any map size or shape. ── */
+.board svg.edges line.case { stroke: rgba(6, 4, 10, .62); stroke-width: 6px; stroke-linecap: round; stroke-dasharray: none; }
+.board svg.edges line.core { stroke: rgba(255, 244, 228, .82); stroke-width: 2px; stroke-linecap: round; stroke-dasharray: 7 6; }
+.board svg.edges .edge.hot line.case { stroke: rgba(6, 4, 10, .78); stroke-width: 8px; }
+.board svg.edges .edge.hot line.core { stroke: var(--gold); stroke-width: 3px; stroke-dasharray: 10 6; animation: dash 1s linear infinite; }
+.board.dark svg.edges line.core { stroke: rgba(255, 244, 228, .6); }
+.edges line.threat.on { stroke-width: 4px; }

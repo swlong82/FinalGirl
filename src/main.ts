@@ -637,11 +637,13 @@ function buildBoard() {
     .map(([a, b]) => {
       const A = loc.nodes.find((n) => n.id === a)!;
       const B = loc.nodes.find((n) => n.id === b)!;
-      return `<line data-edge="${a}|${b}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`;
+      // A dark casing under a light core reads on any backdrop, bright snow or black night.
+      const xy = `x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" vector-effect="non-scaling-stroke"`;
+      return `<g class="edge" data-edge="${a}|${b}"><line class="case" ${xy}/><line class="core" ${xy}/></g>`;
     })
     .join('');
   board.innerHTML = `<div class="bd">${mapBackdrop(loc, game!.killer.finale)}</div>
-    <svg class="edges" viewBox="0 0 1000 640" preserveAspectRatio="none">${edges}<line id="threat" class="threat" x1="0" y1="0" x2="0" y2="0"/></svg>
+    <svg class="edges" viewBox="0 0 1000 640" preserveAspectRatio="none">${edges}<line id="threat" class="threat" x1="0" y1="0" x2="0" y2="0" vector-effect="non-scaling-stroke"/></svg>
     <div class="ring here-ring" id="ring-h"></div>
     <div class="ring danger-ring" id="ring-k"></div>
     ${loc.nodes
@@ -953,7 +955,7 @@ function updateBoard() {
     // On touch, every location stays tappable (a tap reads it); with a mouse, hover does that.
     el.disabled = !touchOnly.matches && !reach.includes(id) && id !== h.loc;
   });
-  document.querySelectorAll<SVGLineElement>('svg.edges line[data-edge]').forEach((ln) => {
+  document.querySelectorAll<SVGGElement>('svg.edges [data-edge]').forEach((ln) => {
     const [a, b] = ln.dataset.edge!.split('|');
     ln.classList.toggle('hot', (a === h.loc && reach.includes(b)) || (b === h.loc && reach.includes(a)));
   });
