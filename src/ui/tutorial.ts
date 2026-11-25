@@ -22,7 +22,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'You',
-    text: '<b>Health</b> counts a hidden final-health token (the <b>?</b>) that may get you back up once. <b>Horror</b> climbs left to right on the track, and the row under it shows how many dice you roll at that level: more fear, fewer dice. <b>Nerve</b> pays for cards and resets to 7 on Matinee. Your items are below: tap one to read or use it.',
+    text: '<b>Health</b> comes with a hidden backup token (the <b>?</b>) that may get you back up once. <b>Horror</b> climbs left to right on the track, and the row under it shows how many dice you roll at that level: more fear, fewer dice. <b>Nerve</b> (◉) pays for cards: 6 a turn on Matinee, plus bonuses. Your items are below: tap one to read or use it.',
     target: '#heroine-panel',
   },
   {
@@ -94,7 +94,7 @@ export const STEPS: TutStep[] = [
   },
   {
     title: 'You’re on your own now',
-    text: 'Search, rescue, then <b>hunt him down</b>, ideally before the Finale. Two hands, one backpack: you can only rearrange when you find an item or in Upkeep. Stuck? Press <b>Hint</b> (H). Undo (Z) works until you roll dice. Good luck.',
+    text: 'Search, rescue, then <b>hunt him down</b>, ideally before the Finale. Two hands, one backpack: you can only rearrange when you find an item or in Upkeep. Stuck? Press <b>Hint</b> (H), or open the <b>Map key</b> (bottom right of the map) for every icon. Undo (Z) works until you roll dice. Good luck.',
     target: '.terror-clock',
   },
 ];

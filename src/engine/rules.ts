@@ -538,12 +538,12 @@ function hurtHeroine(c: Content, s: GameState, n: number) {
   const t = h.token;
   h.token = null;
   if (t <= 0) {
-    log(s, 'Her final-health token is blank.', 'bad');
+    log(s, 'Her backup token is blank.', 'bad');
     s.down = { ...s.down, heroine: true };
     return;
   }
   h.health = Math.min(h.maxHealth, t);
-  log(s, `She should be dead. She gets up anyway. (Final health: ${t}.) The phase ends.`, 'good');
+  log(s, `She should be dead. She gets up anyway: her backup token was ${t}, so she's back on ${t} health. The current phase ends.`, 'good');
   s.fx.push({ t: 'revive', who: 'heroine', n: t });
   endCurrentPhase(c, s);
 }
@@ -574,7 +574,7 @@ function hurtKiller(c: Content, s: GameState, n: number) {
     return;
   }
   if (over <= 0) {
-    log(s, `${c.killer.name} staggers. One more hit.`, 'good');
+    log(s, `${c.killer.name} drops to 0 and staggers. The next hit reveals the backup token.`, 'good');
     return;
   }
   const t = k.token;
@@ -585,7 +585,7 @@ function hurtKiller(c: Content, s: GameState, n: number) {
   }
   k.health = t;
   k.maxHealth = Math.max(k.maxHealth, t);
-  log(s, `${c.killer.revive.name.toUpperCase()}: ${c.killer.revive.text} (Final health: ${t}.) The phase ends.`, 'killer');
+  log(s, `${c.killer.revive.name.toUpperCase()}: ${c.killer.revive.text} (Backup token: ${t}, back up with ${t} health.) The current phase ends.`, 'killer');
   s.fx.push({ t: 'revive', who: 'killer', n: t });
   endCurrentPhase(c, s);
   pushFront(s, c.killer.revive.effects);
@@ -648,7 +648,7 @@ function endGame(c: Content, s: GameState, o: GameState['outcome']) {
     log(s, `${c.heroine.name} has fallen. The credits roll in silence.`, 'bad');
     s.fx.push({ t: 'lose' });
   } else {
-    log(s, `${c.killer.name} is finished. The reel runs out.`, 'good');
+    log(s, `${c.killer.name} is finished. It's over.`, 'good');
     s.fx.push({ t: 'win' });
   }
 }

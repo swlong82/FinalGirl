@@ -76,7 +76,7 @@ export function hospitalBackdrop(loc: LocationPack, finale: boolean): string {
   ${doors}
   <rect y="360" width="1000" height="280" fill="url(#${floor})"/>
   <rect y="360" width="1000" height="280" fill="url(#${floor}-tile)" opacity=".7" transform="skewX(-8)"/>
-  <g transform="translate(40 380)"><rect width="46" height="18" rx="2" fill="#2a0508"/><text x="23" y="14" font-family="Oswald, sans-serif" font-size="13" fill="#ff3355" text-anchor="middle" letter-spacing="2">EXIT</text></g>
+  <g transform="translate(36 380)"><rect width="60" height="18" rx="2" fill="#2a0508"/><text x="30" y="14" font-family="Oswald, sans-serif" font-size="12" fill="#b8323f" text-anchor="middle" letter-spacing="2">WARD C</text></g>
   <g opacity=".55"><path d="M600 470 h120 l10 -24 h-140 z" fill="#c9d6d0"/><path d="M610 470 v40 M710 470 v40" stroke="#5a6a62" stroke-width="3"/><circle cx="610" cy="514" r="5" fill="#2a2a2a"/><circle cx="710" cy="514" r="5" fill="#2a2a2a"/></g>
   <path d="M300 600 q30 -20 70 -6 q40 14 90 -4" stroke="#5a0a14" stroke-width="5" fill="none" opacity="${finale ? 0.8 : 0.35}"/>
   <rect width="1000" height="640" filter="url(#${fog})" class="fog" opacity=".5"/>
