@@ -118,6 +118,9 @@ let lastFinale = false;
 let recorded = false;
 // UI-only selections
 let planHidden = -1;
+/** Phone layout: the heroine and killer panels fold into one-line summaries. */
+const sideOpen = { left: false, right: false };
+const touchOnly = window.matchMedia('(hover: none)');
 let upkeepHidden = -1;
 let convertDie: number | null = null;
 let convertPick: number[] = [];
@@ -613,9 +616,9 @@ function renderGame() {
   if (!boardBuilt) {
     app.innerHTML = `<div class="game" id="game">
       <header class="topbar"></header>
-      <aside class="side left"><div class="panel" id="heroine-panel"></div></aside>
+      <aside class="side left ${sideOpen.left ? '' : 'collapsed'}"><button class="side-toggle" data-go="toggleSide" data-side="left" id="sum-h"></button><div class="panel" id="heroine-panel"></div></aside>
       <main class="stage"><div class="phasebar" id="phasebar"></div><div class="board" id="board"></div></main>
-      <aside class="side right"><div class="panel" id="killer-panel"></div><div class="panel log-panel"><h4>Script</h4><div class="log" id="log"></div></div></aside>
+      <aside class="side right ${sideOpen.right ? '' : 'collapsed'}"><button class="side-toggle" data-go="toggleSide" data-side="right" id="sum-k"></button><div class="panel" id="killer-panel"></div><div class="panel log-panel"><h4>Script</h4><div class="log" id="log"></div></div></aside>
       <footer class="bottombar" id="bottombar"></footer>
     </div><div id="overlay-root"></div>`;
     buildBoard();
@@ -842,6 +845,9 @@ function renderHeroinePanel(c: Content, s: GameState) {
   const used = handsUsed(c, h.items);
   const handTiles = h.items.map((it) => itemTile(c, s, it, 'hand', itemDef(c, it.id).hands === 2)).join('') + Array(Math.max(0, HAND_SLOTS - used)).fill('<div class="tile empty">Empty hand</div>').join('');
   const bag = h.pack.map((it) => itemTile(c, s, it, 'pack')).join('') || '<div class="bag-empty">Nothing stored yet.</div>';
+  const sumH = document.getElementById('sum-h');
+  if (sumH)
+    sumH.innerHTML = `<b>${esc(c.heroine.name.split(' ')[0])}</b><span>♥ ${h.health}/${h.maxHealth}${h.token !== null ? '+?' : ''}</span><span>horror ${h.horror}</span><span>${h.rescued} rescued</span><span>${h.items.length + h.pack.length} items</span><i>${sideOpen.left ? 'hide' : 'details'}</i>`;
   document.getElementById('heroine-panel')!.innerHTML = `<div class="pane">
     <header class="p-id">${heroinePortrait(c.heroine, { grim: h.horror / 6, hurt: 1 - total / (h.maxHealth + 1) })}
       <div><div class="p-name">${esc(c.heroine.name)}</div><div class="p-role">${esc(c.heroine.title)}</div></div></header>
@@ -882,6 +888,9 @@ function renderKillerPanel(c: Content, s: GameState) {
   const named = s.specials.length || s.specialsGone.length
     ? sec('Named survivors', '', `<ul class="list">${[...s.specials.map((x) => `<li><b>${esc(specialDef(c, x.id).name)}</b> · ${esc(nodeName(c, x.at))}<br><span>${esc(specialDef(c, x.id).text)}</span></li>`), ...s.specialsGone.map((x) => `<li class="gone"><b>${esc(specialDef(c, x.id).name)}</b> · ${x.how}</li>`)].join('')}</ul>`)
     : '';
+  const sumK = document.getElementById('sum-k');
+  if (sumK)
+    sumK.innerHTML = `<b>${esc(c.killer.name.replace(/^The /, ''))}</b><span>♥ ${k.health}/${k.maxHealth}${k.token !== null ? '+?' : ''}</span><span>move ${killerMoveValue(c, s)} · atk ${killerAttack(c, s)}</span><span>next: ${esc(target === h.loc ? 'you' : nodeName(c, target))}</span><i>${sideOpen.right ? 'hide' : 'details'}</i>`;
   document.getElementById('killer-panel')!.innerHTML = `<div class="pane dark">
     <header class="p-id">${killerPortrait({ finale: k.finale, art: c.killer.art })}
       <div><div class="p-name">${esc(c.killer.name)}</div><div class="p-role">${esc(c.killer.epithet)}</div></div></header>
@@ -941,7 +950,8 @@ function updateBoard() {
     const mins = minionsAt(s, id).length;
     el.querySelector('.vics')!.innerHTML =
       Array(s.victims[id] ?? 0).fill(victimIcon()).join('') + named.join('') + (mins ? `<span class="minion" title="${mins} ${esc(mins > 1 ? c.killer.minions!.plural : c.killer.minions!.name)}">${'☠'.repeat(mins)}</span>` : '');
-    el.disabled = !reach.includes(id) && id !== h.loc;
+    // On touch, every location stays tappable (a tap reads it); with a mouse, hover does that.
+    el.disabled = !touchOnly.matches && !reach.includes(id) && id !== h.loc;
   });
   document.querySelectorAll<SVGLineElement>('svg.edges line[data-edge]').forEach((ln) => {
     const [a, b] = ln.dataset.edge!.split('|');
@@ -997,7 +1007,7 @@ function updateBoard() {
       .join('');
     const bring = here ? `<span class="hint-group">Bring up to <span class="bring">${Array.from({ length: cap + 1 }, (_, n) => `<button class="btn tiny ${h.bring === n ? 'sel' : ''}" data-bring="${n}">${n}</button>`).join('')}</span> of ${here}${named ? ` ${named}` : ''}</span>` : '';
     hint.innerHTML = `<span class="hint-group"><b class="steps">${p.left}</b> step${p.left > 1 ? 's' : ''} left: click a glowing location, or stop here</span>${bring}`;
-  } else if (s.phase === 'action') hint.innerHTML = 'Play a card from your hand. Hover a location for details.';
+  } else if (s.phase === 'action') hint.innerHTML = `Play a card from your hand. ${touchOnly.matches ? 'Tap' : 'Hover'} a location for details.`;
   else hint.innerHTML = '';
 }
 
@@ -1534,6 +1544,7 @@ function inspectNode(id: string | null) {
   }
   el.innerHTML = `<h5>${esc(n.name)}</h5><p class="fl">${esc(n.flavor)}</p>${lines.map((l) => `<p>${l}</p>`).join('')}`;
   el.hidden = false;
+  el.dataset.at = id;
   const left = n.x / 10;
   const top = n.y / 6.4;
   el.style.left = left > 60 ? '' : `calc(${left}% + 6%)`;
@@ -1923,6 +1934,12 @@ function handleGameClick(t: HTMLElement): boolean {
   const disc = d('discard');
   if (disc) return act({ type: 'discardForNerve', uid: +disc }), true;
   const node = d('node');
+  if (node && touchOnly.matches && game.pending?.kind !== 'move') {
+    // No hover on touch: a tap reads the location (tap again to close).
+    const open = !document.getElementById('inspect')?.hidden && document.getElementById('inspect')?.dataset.at === node;
+    inspectNode(open ? null : node);
+    return true;
+  }
   if (node) inspectNode(null);
   if (node && node !== game.heroine.loc) return act({ type: 'step', to: node }), true;
   if (node && game.pending?.kind === 'move') return act({ type: 'stopMove' }), true; // click yourself to stop
@@ -1990,10 +2007,11 @@ function handleGameClick(t: HTMLElement): boolean {
 app.addEventListener('click', (e) => {
   if (performance.now() < clickGuardUntil) return;
   const t = e.target as HTMLElement;
-  const go = t.closest<HTMLElement>('[data-go]')?.dataset.go;
+  const goEl = t.closest<HTMLElement>('[data-go]');
+  const go = goEl?.dataset.go;
   if (go) {
     audio.play('click');
-    return navigate(go);
+    return navigate(go, goEl ?? undefined);
   }
   const f = t.closest<HTMLElement>('[data-feature]')?.dataset.feature;
   if (f) {
@@ -2049,7 +2067,7 @@ document.body.addEventListener('click', (e) => {
   handleGameClick(t);
 });
 
-function navigate(go: string) {
+function navigate(go: string, el?: HTMLElement) {
   switch (go) {
     case 'rules':
       return showRules();
@@ -2059,6 +2077,13 @@ function navigate(go: string) {
       return continueGame();
     case 'undo':
       return undo();
+    case 'toggleSide': {
+      const side = el?.dataset.side === 'right' ? 'right' : 'left';
+      sideOpen[side] = !sideOpen[side];
+      document.querySelector(`.side.${side}`)?.classList.toggle('collapsed', !sideOpen[side]);
+      if (game) updateGame();
+      return;
+    }
     case 'hidePlan':
       if (game) planHidden = game.round;
       return updateOverlay();
@@ -2121,6 +2146,7 @@ function navigate(go: string) {
 }
 
 app.addEventListener('mouseover', (e) => {
+  if (touchOnly.matches) return; // a tap fakes a hover; taps open the details themselves
   const n = (e.target as HTMLElement).closest<HTMLElement>('[data-node]')?.dataset.node;
   inspectNode(n ?? null);
 });

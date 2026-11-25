@@ -16,6 +16,7 @@ Runs in any modern browser on desktop or mobile, with no install. Headphones rec
 - **Feature Four: Whiteout**. Killer: *The Snowblind*. Location: *Kettle Peak Lodge*.
 - **Feature Five: Dead Air**. Killer: *The Caller*. Location: *KXRL Hilltop Studio*.
 - **Season 1 is complete**: 5 features, 7 heroines, and a signature rule for every location (tide, blackouts, cold, ringing phones, intermission).
+- **v1.0.7: show your work.** Every hit on the killer shows how it added up (card + weapon + lore + Psych Up), waiting bonuses show as chips, the Tidewife is *she* everywhere, and phones get a real layout: map first, tap-to-open panels, and the hand in a bar fixed to the bottom.
 - **v1.0.6: a shop you can read.** Planning is a shop with shelves (Free, Move, Fight, Search, Defend, Recover, Tricks), big nerve and hand counters, a warning if you'd leave with no way to move, and a Back-to-the-shop banner when you peek at the board (B). Plus a round of fixes from a first-time-player playtest: clearer health and backup tokens, reasons on greyed cards, a scrollable full hand, no more clicks falling through, and an end screen that says what happened.
 - **v1.0.5: harder fights, fuller nights.** She has less health and he has more, a survivor wanders in every Upkeep, and the feature and heroine pickers fit on one screen however many seasons arrive.
 - **v1.0.4: fewer freebies, more people.** No limit on buys, but only Walk, Look Around and Duck are free. Six survivors are on the board from the start, so your rescue track (and ability) fills early.
