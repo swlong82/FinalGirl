@@ -479,7 +479,7 @@ function renderTitle() {
       <button class="btn" data-go="stats">Box Office (Stats)</button>
       <button class="btn" data-go="settings">Sound &amp; Settings</button>
     </div>
-    <div class="fineprint">Original game, characters, art &amp; audio. All visuals and sound are generated in code. Headphones recommended.</div>
+    <div class="fineprint">Original game, characters, art &amp; audio. Painted art rendered with Flux; sound generated in code. Headphones recommended.</div>
   </div>`;
 }
 
