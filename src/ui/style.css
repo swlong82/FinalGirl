@@ -1619,3 +1619,16 @@ body.focus-move .node:not(.reach):not(.here):hover { opacity: .85; }
 body.focus-move svg.edges .edge:not(.hot) { opacity: .45; }
 #heroine-panel .view-sw { color: #7a5200; border-color: rgba(122, 82, 0, .4); }
 .view-simple #heroine-panel .vital.hp { display: flex; align-items: baseline; justify-content: center; gap: 10px; padding: 6px 10px; min-height: 0; }
+
+/* v1.0.18 follow-ups: labels on the stat box; simple view trims a little more */
+.bottombar .status em { font: 600 9px/1 var(--ui); letter-spacing: .12em; text-transform: uppercase; font-style: normal; color: var(--muted); margin-left: 3px; }
+.bottombar .status .st-l em { display: block; margin: 2px 0 0; text-align: center; }
+.view-simple .endtools [data-go=hint] { display: none; }
+.view-simple #phasebar .ph:not(.on), .view-simple #phasebar > i { display: none; }
+.view-simple #killer-panel .sec.events, .view-simple #killer-panel .facts { display: none; }
+@media (min-width: 901px) {
+  .view-sw { position: sticky; bottom: 0; z-index: 2; background: rgba(18, 13, 20, .94); }
+  #heroine-panel .view-sw { background: rgba(235, 226, 205, .96); }
+}
+.view-simple #heroine-panel .rescue .prose.small { display: block; }
+.view-simple #heroine-panel .rescue .prose.small.next-rescue { display: none; }

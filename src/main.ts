@@ -12,7 +12,7 @@ import { advise, adviceTarget, currentGoal, planNeeds, type Goal } from './engin
 import { glyph } from './ui/glyphs';
 import { TUTORIAL, tutorialGame } from './engine/tutorial';
 import { isLegacySave, migrateSave } from './engine/migrate';
-import { clearOfBar, LESSONS, teachContent, Tutorial, type TutStep } from './ui/tutorial';
+import { clearOfBar, LESSONS, teachContent, Tutorial } from './ui/tutorial';
 import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } from './content/registry';
 import {
   abilityUnlocked,
@@ -78,16 +78,16 @@ const tutorial = new Tutorial(() => store(TUT_KEY, true), { taught: (ids) => ids
 // One-time lessons: each shows the first time its moment comes, then never again.
 let lessonGap = 0; // no new lesson before this time (one at a time, with a breath between)
 let lessonHeld: GameState | null = null; // ...nor until the game moves on from this state
-let lessonOn: TutStep | null = null;
+let tipPhase = ''; // a tip belongs to the phase it was shown in
+let lessonDo = false; // the open lesson closes when the player does the thing
 const lessons = new Tutorial(
   (finished) => {
-    // After a "do" lesson the player has just acted: the next may follow. After "Got it"
-    // or Hide, the next waits for the player's next move, and a moment besides.
-    const read = !(finished && lessonOn?.done);
-    lessonOn = null;
-    lessonGap = performance.now() + (read ? 2500 : 0);
-    lessonHeld = read ? game : null;
-    setTimeout(() => game && screen === 'game' && syncTeach(game), read ? 2560 : 60);
+    // Never two in a row without the player doing something in between: a lesson the player
+    // closed by acting already has that; after "Got it" or Hide, wait for their next move.
+    const acted = finished && lessonDo;
+    lessonGap = performance.now() + (acted ? 600 : 2500);
+    lessonHeld = acted ? null : game;
+    setTimeout(() => game && screen === 'game' && syncTeach(game), acted ? 660 : 2560);
   },
   { lesson: true },
 );
@@ -151,6 +151,15 @@ let searchPicks: number[] = [];
 let swapFor: number | null = null;
 let selItem: number | null = null;
 let lastHorrorShown: number | null = null;
+let heldGoal: { round: number; goal: Goal } | null = null;
+/** The goal on screen: recomputed only when she's free to act (or moving), so a roll or a pick mid-move never flips it. */
+function shownGoal(c: Content, s: GameState): Goal | undefined {
+  if (s.phase !== 'action' || s.outcome) return undefined;
+  if (s.pending && s.pending.kind !== 'move' && heldGoal?.round === s.round) return heldGoal.goal;
+  const goal = currentGoal(c, s);
+  heldGoal = { round: s.round, goal };
+  return goal;
+}
 let aimMode: 'choose' | 'split' = 'choose';
 let splitDraft: Record<number, number> = {};
 
@@ -176,7 +185,8 @@ function syncTeach(s: GameState) {
   const next = LESSONS.find((l) => !seenLessons.has(l.id!) && l.trigger!(s));
   if (!next) return;
   markLesson(next.id!);
-  lessonOn = next;
+  lessonDo = !!next.done;
+  document.querySelector('.tip-note')?.remove(); // one voice at a time
   lessons.start([next], s);
 }
 
@@ -808,6 +818,8 @@ function updateGame() {
   document.body.classList.toggle('focus-act', s.phase === 'action' && !s.pending && !s.outcome);
   document.body.classList.toggle('focus-move', s.pending?.kind === 'move');
   document.querySelector('.log-panel')?.classList.toggle('folded', simple && !logOpen);
+  if (tipPhase && tipPhase !== s.phase) document.querySelector('.tip-note')?.remove();
+  tipPhase = s.phase;
 
   if (k.finale !== lastFinale) {
     lastFinale = k.finale;
@@ -951,7 +963,7 @@ function renderHeroinePanel(c: Content, s: GameState) {
       ${vital(sym('nerve', { big: true }), String(h.nerve), h.nerve < 0 ? 'in debt' : `${base} each turn`, h.nerve < 0 ? 'bad' : 'gold', `Nerve pays for cards. Each turn starts at ${base}, plus bonuses from rescues, being perfectly calm (horror 0) and some events. Discard a card for +1. Below zero ends your Action phase.`)}
     </div>
     <div class="htrack" title="Horror track: as horror rises, you roll fewer dice"><span class="ht-k"><b>${sym('horror')}</b><b>${sym('dice')}</b></span>${htrack}</div>
-    ${sec('Rescues', `${h.rescued} saved${h.resolve ? ` · +${h.resolve} attack die` : ''}`, `<div class="rtrack" title="Fill every slot to unlock ${esc(c.heroine.ability.name)}">${rtrack}<i class="rt-link"></i><span class="rt ab ${unlocked ? 'done' : ''}" title="${esc(c.heroine.ability.name)}: ${esc(c.heroine.ability.text)}">★</span></div><p class="prose small">${nextTxt}</p>
+    ${sec('Rescues', `${h.rescued} saved${h.resolve ? ` · +${h.resolve} attack die` : ''}`, `<div class="rtrack" title="Fill every slot to unlock ${esc(c.heroine.ability.name)}">${rtrack}<i class="rt-link"></i><span class="rt ab ${unlocked ? 'done' : ''}" title="${esc(c.heroine.ability.name)}: ${esc(c.heroine.ability.text)}">★</span></div><p class="prose small next-rescue">${nextTxt}</p>
       ${abilityBox}`, 'rescue')}
     ${invSecs}
     ${sec('Passive', esc(c.heroine.passive.name), `<p class="prose small">${esc(c.heroine.passive.text)}</p>`, 'passive')}
@@ -1031,7 +1043,7 @@ function updateBoard() {
   const h = s.heroine;
   const moving = s.pending?.kind === 'move';
   const reach = moving ? neighbors(c, h.loc) : [];
-  const goal = s.phase === 'action' && !s.outcome ? currentGoal(c, s) : undefined;
+  const goal = shownGoal(c, s);
   // Who walks with her on her next step: lit green on the map, counted under her token.
   const hereN = s.outcome ? 0 : npcAt(s, h.loc);
   const lead = followPlan(c, s, h.loc, '');
@@ -1194,9 +1206,9 @@ function updateBottom() {
   const fell = lastHorrorShown !== null && h.horror < lastHorrorShown;
   lastHorrorShown = h.horror;
   const pile = `<div class="status ${rose ? 'up' : fell ? 'down' : ''}" title="Horror ${h.horror}: every Horror Roll uses ${horrorDice(s)} dice before bonuses">
-    <div class="st-h"><span class="st-l">${sym('horror', { big: true })}</span><span class="st-v ${h.horror >= 4 ? 'bad' : ''}">${h.horror}<small>/${MAX_HORROR}</small></span></div>
+    <div class="st-h"><span class="st-l">${sym('horror', { big: true })}<em>horror</em></span><span class="st-v ${h.horror >= 4 ? 'bad' : ''}">${h.horror}<small>/${MAX_HORROR}</small></span></div>
     <div class="st-m">${track.map((_, i) => `<i class="${i <= h.horror && i > 0 ? 'on' : ''} ${i === h.horror ? 'cur' : ''}"></i>`).join('')}</div>
-    <div class="st-row"><span title="Dice per roll">${sym('dice')}<b>${horrorDice(s)}</b></span><span class="${h.nerve < 0 ? 'bad' : ''}" title="Nerve to spend">${sym('nerve')}<b>${h.nerve}</b></span></div>
+    <div class="st-row"><span title="Dice per roll">${sym('dice')}<b>${horrorDice(s)}</b><em>dice</em></span><span class="${h.nerve < 0 ? 'bad' : ''}" title="Nerve to spend">${sym('nerve')}<b>${h.nerve}</b><em>nerve</em></span></div>
     <div class="st-row dim"><span>${h.hand.length}/${HAND_LIMIT} cards</span><span>${s.discard.length} used</span></div>
     ${buffChips(s)}
   </div>`;
@@ -1212,7 +1224,7 @@ function updateBottom() {
   else main = `<button class="endturn" disabled>{His} turn…</button>`;
   const bar = document.getElementById('bottombar')!;
   const keepX = bar.querySelector<HTMLElement>('.hand-row')?.scrollLeft ?? 0;
-  const goal = s.phase === 'action' && !s.outcome ? currentGoal(c, s) : undefined;
+  const goal = shownGoal(c, s);
   const mini = goal ? `<div class="goal-mini">${glyph('target')}<b>${esc(goal.title)}</b><span>${esc(goal.detail)}</span><button class="btn tiny gb-show" data-go="hint">Show me</button></div>` : '';
   bar.innerHTML = `
     <div>${pile}<div class="hand-wrap"><div class="actions hand-row">${cards}${answer}</div><button class="hand-more l" data-hscroll="-1" aria-label="Scroll hand left"></button><button class="hand-more r" data-hscroll="1" aria-label="Scroll hand right"></button></div></div>
@@ -1632,6 +1644,7 @@ function act(a: Action) {
   const samePhase = (prev.phase === 'action' || prev.phase === 'planning') && prev.phase === game.phase;
   if (!samePhase) history = [];
   else if (!prev.pending) history.push(prev);
+  if (a.type === 'step') inspectNode(null); // she moved: the card about where she was is stale
   if (a.type === 'step' && prev.heroine.loc !== game.heroine.loc) {
     const left = npcAt(game, prev.heroine.loc);
     const came = followPlan(content, prev, prev.heroine.loc, game.heroine.loc).count;

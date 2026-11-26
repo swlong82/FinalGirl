@@ -11,7 +11,7 @@ import { killerPortrait, victimIcon } from '../art/art';
 import { glyph } from './glyphs';
 import { sym } from './symbols';
 import { advise } from '../engine/coach';
-import { actionDef, check, isExit, npcAt } from '../engine/rules';
+import { abilityUnlocked, actionDef, check, isExit, npcAt } from '../engine/rules';
 import type { Content, GameState } from '../engine/types';
 
 /** Parts of the screen kept dim until a step introduces them. */
@@ -42,6 +42,8 @@ export interface TutStep {
   pitch?: boolean;
   /** Where the bubble would rather sit (default below the target). */
   prefer?: 'above' | 'below';
+  /** Keep the bubble off this too (the panel around the target: its header, its other buttons). */
+  avoid?: string;
 }
 
 /** The content of the game being taught (lessons name its cards and killer). */
@@ -80,6 +82,7 @@ const PITCH = `<div class="pitch-flow">
 <p class="pitch-sub">That’s the whole game. Learn the basics in a minute; the rest is explained when it comes up.</p>`;
 
 const GOAL_TARGET = ['#goal-strip.on', '.goal-mini'];
+const ROLL_TEXT = `${sym('dice')} A <b>5 or 6</b> hits. <b>2+</b> hits: the card’s big line. 1 hit: the small one. Click <b>Keep it</b>.`;
 
 /** The first-night core: pitch, search, rescue, goal. */
 export const STEPS: TutStep[] = [
@@ -95,9 +98,9 @@ export const STEPS: TutStep[] = [
   {
     chapter: 'Search',
     title: 'Roll!',
-    text: `${sym('dice')} A <b>5 or 6</b> is a hit. More hits, better result. Then click <b>Keep it</b>.`,
+    text: ROLL_TEXT,
     target: ['#overlay-root .dicetray.live .dice', '#overlay-root .dicetray.live'],
-    prefer: 'above',
+    avoid: '#overlay-root .dicetray.live',
     when: (s) => s.pending?.kind === 'roll',
     done: (s) => s.pending?.kind !== 'roll',
     teaches: ['roll'],
@@ -110,7 +113,7 @@ export const STEPS: TutStep[] = [
       const i = s.pending?.kind === 'search' ? s.pending.drawn.indexOf('tire-iron') : -1;
       return i >= 0 ? `#overlay-root [data-spick="${i}"]` : '#overlay-root .search-ov';
     },
-    prefer: 'above',
+    avoid: '#overlay-root .search-ov',
     when: (s) => s.pending?.kind === 'search',
     done: (s) => s.pending?.kind !== 'search',
     teaches: ['search'],
@@ -121,6 +124,7 @@ export const STEPS: TutStep[] = [
     title: 'Someone needs you',
     text: (s) => (s.pending?.kind === 'move' ? 'Click the glowing <b>Parking Rows A</b>.' : 'A survivor is hiding next door, in <b>Parking Rows A</b>. Play <b>Walk</b>.'),
     target: (s) => (s.pending?.kind === 'move' ? '[data-node=lotA]' : (cardSel('ac-walk')(s) ?? '[data-kind=move]')),
+    avoid: '[data-node=lotA]',
     done: (s) => s.heroine.loc !== 'concession' || s.saved > 0 || s.round > 1,
   },
   {
@@ -147,9 +151,9 @@ export const LESSONS: TutStep[] = [
   {
     id: 'roll',
     title: 'Dice',
-    text: `${sym('dice')} A <b>5 or 6</b> is a hit. More hits, better result. Click <b>Keep it</b>.`,
+    text: ROLL_TEXT,
     target: ['#overlay-root .dicetray.live .dice', '#overlay-root .dicetray.live'],
-    prefer: 'above',
+    avoid: '#overlay-root .dicetray.live',
     trigger: (s) => s.pending?.kind === 'roll',
     done: (s) => s.pending?.kind !== 'roll',
   },
@@ -157,8 +161,8 @@ export const LESSONS: TutStep[] = [
     id: 'search',
     title: 'Your finds',
     text: 'Pick what to keep, then <b>Keep</b>. Weapons make your hits hurt.',
-    target: '#overlay-root .search-ov',
-    prefer: 'above',
+    target: '#overlay-root .search-ov [data-spick]',
+    avoid: '#overlay-root .search-ov',
     trigger: (s) => s.pending?.kind === 'search',
     done: (s) => s.pending?.kind !== 'search',
   },
@@ -170,6 +174,7 @@ export const LESSONS: TutStep[] = [
       return r ? `Play <b>${cardName(r.id)}</b> to block, or take the hit. Defend cards work only now, during {his} turn.` : 'No defend card in hand: take the hit. The Shop sells them for next time.';
     },
     target: ['#overlay-root [data-react]', '#overlay-root .react-ov'],
+    avoid: '#overlay-root .react-ov',
     trigger: (s) => s.pending?.kind === 'reaction',
     done: (s) => s.pending?.kind !== 'reaction',
   },
@@ -178,23 +183,25 @@ export const LESSONS: TutStep[] = [
     title: '{His} turn, summed up',
     text: 'Every turn {he} moves and attacks, then a <b>Terror</b> card flips. Click <b>Next turn</b>.',
     target: ['#overlay-root .killerturn [data-act=endUpkeep]', '#overlay-root .killerturn'],
-    prefer: 'above',
+    avoid: '#overlay-root .killerturn',
     trigger: (s) => s.phase === 'upkeep' && !s.pending,
     done: (s) => s.phase !== 'upkeep',
   },
   {
     id: 'shop',
     title: 'The Shop',
-    text: (s) =>
-      s.staged
-        ? inHand(s, 'ac-fullswing')
-          ? 'Got it. Now click <b>Done</b>: it’s {his} turn.'
-          : `Played cards are gone until you buy them again. Get <b>Full Swing</b> (2${sym('nerve')}): your ${armed(s) ? 'Tire Iron' : 'weapon'} adds to it.`
-        : `Leftover ${sym('nerve')} nerve buys cards for next turn: played cards are gone. The top line says what you need.`,
-    target: (s) => (s.staged ? (inHand(s, 'ac-fullswing') ? '#overlay-root [data-act=endPlanning]' : '#overlay-root [data-buy="ac-fullswing"]') : ['#overlay-root .shop-goal', '#overlay-root .shop']),
+    // Follows the coach, buy by buy, so the lesson, Hint and the shop's header always agree.
+    text: (s) => {
+      const a = C ? advise(C, s) : undefined;
+      if (a?.action.type === 'buy') return `Played cards are gone: buy what you’ll need. ${a.why}`;
+      return 'Your hand covers next turn. Click <b>Done</b>: it’s {his} turn.';
+    },
+    target: (s) => {
+      const a = C ? advise(C, s).action : undefined;
+      return a?.type === 'buy' ? `#overlay-root [data-buy="${a.id}"]` : '#overlay-root [data-act=endPlanning]';
+    },
     trigger: (s) => s.phase === 'planning' && !s.pending,
-    // The staged night walks through the buy; elsewhere it's read-and-go, so it never sits on the shelves.
-    done: (s) => (s.staged ? s.phase !== 'planning' : false),
+    done: (s) => s.phase !== 'planning',
   },
   {
     id: 'fight',
@@ -253,14 +260,22 @@ export const LESSONS: TutStep[] = [
     title: 'The clock',
     text: 'One <b>Terror</b> card flips every turn. When all 10 are gone, the <b>Finale</b>: {he} hunts only you.',
     target: '.terror-clock',
-    trigger: (s) => calm(s) && s.terrorDiscard.length > 0,
+    // Mid-turn, not on top of the Terror card that just flipped.
+    trigger: (s) => calm(s) && s.terrorDiscard.length > 0 && s.discard.length > 0,
   },
   {
     id: 'horror',
     title: 'Horror',
-    text: (s) => `Horror ${s.heroine.horror}: the higher it climbs, the fewer dice you roll. <b>Calm</b> cards bring it down.`,
-    target: ['#bottombar .status', '#heroine-panel .vitals'],
-    trigger: (s) => calm(s) && s.heroine.horror >= 3,
+    text: `The ${sym('horror')} eye is <b>horror</b>. Misses add it; the higher it climbs, the fewer dice you roll. <b>Calm</b> cards lower it.`,
+    target: ['#bottombar .status'],
+    trigger: (s) => calm(s) && s.heroine.horror >= 2,
+  },
+  {
+    id: 'ability',
+    title: 'Ability unlocked',
+    text: () => `Your special ability, <b>${C?.heroine.ability.name ?? ''}</b>, is ready. Read it here; it works once a night.`,
+    target: ['#heroine-panel .ability.on', '#bottombar .items-btn'],
+    trigger: (s) => calm(s) && !!C && abilityUnlocked(C, s) && !s.heroine.abilityUsed,
   },
   {
     id: 'finale',
@@ -429,10 +444,15 @@ export class Tutorial {
       el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     }
     if (clearOfBar(el)) return; // scrolled: the scroll event places us again
-    const r = el.getBoundingClientRect();
-    if (r.bottom < 0 || r.top > vh) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const tr = el.getBoundingClientRect();
+    if (tr.bottom < 0 || tr.top > vh) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     const pad = 8;
-    spot.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + pad * 2}px;height:${r.height + pad * 2}px`;
+    spot.style.cssText = `left:${tr.left - pad}px;top:${tr.top - pad}px;width:${tr.width + pad * 2}px;height:${tr.height + pad * 2}px`;
+    // The bubble keeps off the target and anything it should leave readable around it.
+    const av = step.avoid ? document.querySelector<HTMLElement>(step.avoid)?.getBoundingClientRect() : undefined;
+    const r = av && av.width ? { left: Math.min(tr.left, av.left), top: Math.min(tr.top, av.top), right: Math.max(tr.right, av.right), bottom: Math.max(tr.bottom, av.bottom), width: 0, height: 0 } : { left: tr.left, top: tr.top, right: tr.right, bottom: tr.bottom, width: tr.width, height: tr.height };
+    r.width = r.right - r.left;
+    r.height = r.bottom - r.top;
     card.classList.remove('docked');
     card.style.cssText = `left:0;top:0;width:${cw}px;visibility:hidden`;
     let ch = card.offsetHeight || 200;
@@ -454,8 +474,11 @@ export class Tutorial {
       } else {
         card.classList.add('docked');
         ch = card.offsetHeight || 120;
-        // Top by default (panel headers matter least); bottom when the target is up there.
-        top = r.top + r.height / 2 > vh * 0.4 ? 8 : vh - ch - 8;
+        // Dock at whichever edge covers less of the target (top on a tie: panel headers matter least).
+        const over = (y: number) => Math.max(0, Math.min(y + ch, tr.bottom) - Math.max(y, tr.top));
+        const up = 8;
+        const down = vh - ch - 8;
+        top = over(down) < over(up) ? down : over(up) < over(down) ? up : r.top + r.height / 2 > vh * 0.4 ? up : down;
         left = clampX(vw / 2 - cw / 2);
       }
     }

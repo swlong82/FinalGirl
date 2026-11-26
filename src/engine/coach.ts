@@ -107,6 +107,12 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 /** The suggested next action, and why, in one short line. */
 export function advise(c: Content, s: GameState): { action: Action; why: string } {
+  // The tutorial night scripts its first buy: Full Swing, which its Tire Iron adds to.
+  const swing = 'ac-fullswing';
+  if (s.staged && s.phase === 'planning' && s.round === 1 && !s.heroine.hand.some((x) => x.id === swing) && check(c, s, { type: 'buy', id: swing }).ok) {
+    const action: Action = { type: 'buy', id: swing };
+    return { action, why: `Buy <b>${actionDef(c, swing).name}</b> (${cardCost(c, actionDef(c, swing))} nerve): your ${bestWeapon(c, s, 0) ? itemDef(c, bestWeapon(c, s, 0)!.id).name : 'weapon'} adds to it.` };
+  }
   const action = botAction(c, s);
   return { action, why: reason(c, s, action) };
 }
@@ -189,7 +195,12 @@ function reason(c: Content, s: GameState, a: Action): string {
                   : d.tags.includes('rally')
                     ? 'to call survivors over'
                     : 'it fills a gap in your hand';
-      return `Buy <b>${d.name}</b>${cardCost(c, d) ? ` (${cardCost(c, d)} nerve)` : ''}: ${why}.`;
+      // Name the gap this card fills, in the same words as the shop's header, so the two never disagree.
+      const { deficit } = buyDeficits(c, s);
+      const need = (d.kind === 'reaction' ? (['react', 'reaction'] as BuyNeed[]) : (d.tags as BuyNeed[])).find((t) => (deficit[t] ?? 0) > 0);
+      const n = need ? deficit[need]! : 0;
+      const still = need && n > 1 ? `you still need ${n} ${NEED[need][1]}` : need ? `you still need ${NEED[need][0]}` : why;
+      return `Buy <b>${d.name}</b>${cardCost(c, d) ? ` (${cardCost(c, d)} nerve)` : ''}: ${still}.`;
     }
     case 'endPlanning':
       return 'You’re set for next turn: click <b>Done</b>.';
