@@ -2,7 +2,7 @@
 // same plan the bot plays by (botGoal / botAction), so the goal banner, the
 // Show me pointer and the Hint never disagree with each other.
 import { botAction, botGoal, buyDeficits, finishing, type BuyNeed } from './bot';
-import { actionDef, bestWeapon, cardCost, check, isExit, isSearch, itemDef, minionsAt, nodeName, npcAt, totalHealth } from './rules';
+import { actionDef, bestWeapon, cardCost, check, escortCap, followPlan, isExit, isSearch, itemDef, minionsAt, nodeName, npcAt, totalHealth } from './rules';
 import type { Action, CardTag, Content, GameState, NodeId } from './types';
 
 export type GoalKind = 'escort' | 'rescue' | 'arm' | 'supplies' | 'hunt' | 'finish' | 'fight' | 'flee' | 'finale' | 'prep';
@@ -39,8 +39,12 @@ export function currentGoal(c: Content, s: GameState): Goal {
   const a = botAction(c, s);
   const card = a.type === 'playCard' ? actionDef(c, h.hand.find((x) => x.uid === a.uid)!.id) : undefined;
   const swinging = !!card?.tags.includes('attack') && (k.loc === h.loc || !minionsAt(s, h.loc).length);
-  if (withHer > 0 && !isExit(c, h.loc) && !swinging)
-    return { kind: 'escort', node: g.node, title: 'Get them out', detail: `${k.loc === h.loc ? '{He}’s here. Lead' : 'Walk'} the survivor${withHer > 1 ? 's' : ''} with you to the exit: ${at(g.node)}.`, why: k.loc === h.loc ? 'Survivors die first when {he} attacks.' : rescueWhy };
+  if (withHer > 0 && !isExit(c, h.loc) && !swinging) {
+    const lead = followPlan(c, s, h.loc, '').count;
+    const who = lead >= withHer ? `the survivor${withHer > 1 ? 's' : ''}` : lead ? `${lead} of the ${withHer} survivors` : 'no one (you set 0 to follow)';
+    const part = lead > 0 && lead < withHer;
+    return { kind: 'escort', node: g.node, title: 'Get them out', detail: `${k.loc === h.loc ? '{He}’s here. Lead' : 'Walk'} ${who}${part ? '' : ' with you'} to the exit: ${at(g.node)}.${part ? ' Come back for the rest.' : ''}`, why: part ? `You can lead ${escortCap(c)} at a time.` : k.loc === h.loc ? 'Survivors die first when {he} attacks.' : rescueWhy };
+  }
   if (swinging || (k.loc === h.loc && (g.brave || k.finale) && !card?.tags.includes('move'))) {
     if (low) return { kind: 'finish', title: 'Finish {him}!', detail: `{He}’s down to ${k.health}. Hit {him} with everything you’ve got.`, why: 'Killing {him} is the only way to win.' };
     return { kind: 'fight', title: 'Fight!', detail: k.loc === h.loc ? '{He}’s here. Play attack cards: {his} health to 0 wins.' : '{He}’s in reach. Play attack cards: {his} health to 0 wins.', why: 'Your weapon and lore add to every heavy hit.' };

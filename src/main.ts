@@ -28,6 +28,7 @@ import {
   escortCap,
   eventDef,
   followers,
+  followPlan,
   HAND_LIMIT,
   HAND_SLOTS,
   handsUsed,
@@ -685,7 +686,7 @@ function buildBoard() {
       </button>`,
       )
       .join('')}
-    <div class="token heroine" id="tok-h"><div class="pin">${heroineToken(c.heroine)}</div><span class="tag">${esc(c.heroine.name.split(' ')[0])}</span></div>
+    <div class="token heroine" id="tok-h"><div class="pin">${heroineToken(c.heroine)}</div><span class="tag">${esc(c.heroine.name.split(' ')[0])}</span><span class="tok-fol" id="tok-fol" hidden></span></div>
     <canvas class="particles" id="particles"></canvas>
     <div class="token killer" id="tok-k"><div class="pin">${killerPortrait({ art: c.killer.art })}</div><span class="tag">${esc(c.killer.name.replace(/^The /, ''))}</span><div class="tok-hp" id="tok-khp"><i class="hp"></i><i class="tmp"></i><span></span></div></div>
     <div class="board-hint" id="board-hint"></div>
@@ -972,6 +973,9 @@ function updateBoard() {
   const moving = s.pending?.kind === 'move';
   const reach = moving ? neighbors(c, h.loc) : [];
   const goal = s.phase === 'action' && !s.outcome ? currentGoal(c, s) : undefined;
+  // Who walks with her on her next step: lit green on the map, counted under her token.
+  const hereN = s.outcome ? 0 : npcAt(s, h.loc);
+  const lead = followPlan(c, s, h.loc, '');
   document.querySelectorAll<HTMLButtonElement>('.node').forEach((el) => {
     const id = el.dataset.node!;
     el.classList.toggle('reach', reach.includes(id));
@@ -981,6 +985,12 @@ function updateBoard() {
     const pile = s.piles[id];
     if (pile) badges.push(`<span class="badge search ${pile.cards.length ? '' : 'empty'}" title="Item pile: ${pile.cards.length} left${pile.up && pile.cards.length ? `. Top card: ${esc(itemDef(c, pile.cards[0]).name)}` : ''}">${glyph('search')}${pile.cards.length}</span>`);
     if (isExit(c, id)) badges.push(`<span class="badge exitb" title="Exit: survivors here with you are rescued">EXIT</span>`);
+    if (moving && hereN && reach.includes(id)) {
+      const f = followers(c, s, h.loc, id);
+      badges.push(id === s.killer.loc
+        ? `<span class="badge fol none" title="Survivors won’t follow you into {his} location">${glyph('person')}✕</span>`
+        : `<span class="badge fol" title="${f ? `${f} survivor${f > 1 ? 's' : ''} follow${f > 1 ? '' : 's'} you here` : 'No one follows you'}">${glyph('person')}+${f}</span>`);
+    }
     if ((s.barricades[id] ?? 0) > 0) badges.push(`<span class="badge barr" title="Barricade: costs {him} ${s.barricades[id]} movement">${glyph('barricade')}${s.barricades[id]}</span>`);
     const rk = c.location.rule.kind;
     if (rk === 'cold' && hasTag(c, id, 'outdoor')) badges.push(`<span class="badge env" title="Outdoors: ending a turn here adds cold">${glyph('snow')}</span>`);
@@ -990,10 +1000,12 @@ function updateBoard() {
     el.classList.toggle('flooded', isFlooded(c, s, id));
     el.classList.toggle('ringing', s.env.ringing === id);
     el.querySelector('.badges')!.innerHTML = badges.join('');
-    const named = specialsAt(s, id).map((x) => `<span class="named" title="${esc(specialDef(c, x.id).name)}: ${esc(specialDef(c, x.id).text)}">${victimIcon()}<i>${esc(specialDef(c, x.id).name.split(',')[0].trim().split(' ').pop()!)}</i></span>`);
+    const mine = id === h.loc && hereN > 0;
+    const tag = (on: boolean) => (mine ? (on ? ' fol' : ' stay') : '');
+    const named = specialsAt(s, id).map((x) => `<span class="named${tag(lead.specials.includes(x.id))}" title="${esc(specialDef(c, x.id).name)}: ${esc(specialDef(c, x.id).text)}">${victimIcon()}<i>${esc(specialDef(c, x.id).name.split(',')[0].trim().split(' ').pop()!)}</i></span>`);
     const mins = minionsAt(s, id).length;
     el.querySelector('.vics')!.innerHTML =
-      Array(s.victims[id] ?? 0).fill(victimIcon()).join('') + named.join('') + (mins ? `<span class="minion" title="${mins} ${esc(mins > 1 ? c.killer.minions!.plural : c.killer.minions!.name)}">${'☠'.repeat(mins)}</span>` : '');
+      Array.from({ length: s.victims[id] ?? 0 }, (_, i) => `<span class="vw${tag(i < lead.regular)}">${victimIcon()}</span>`).join('') + named.join('') + (mins ? `<span class="minion" title="${mins} ${esc(mins > 1 ? c.killer.minions!.plural : c.killer.minions!.name)}">${'☠'.repeat(mins)}</span>` : '');
     // On touch, every location stays tappable (a tap reads it); with a mouse, hover does that.
     el.disabled = !touchOnly.matches && !reach.includes(id) && id !== h.loc;
   });
@@ -1011,6 +1023,10 @@ function updateBoard() {
   th.style.left = `${X(hp.x) - (same ? 3.4 : 0)}%`;
   th.style.top = `${Y(hp.y) - 8.5}%`;
   th.classList.toggle('hidden', h.hidden);
+  const fol = document.getElementById('tok-fol')!;
+  fol.hidden = !hereN;
+  fol.classList.toggle('part', lead.count < hereN);
+  fol.innerHTML = `${glyph('person')}${lead.count < hereN ? `${lead.count} of ${hereN} follow` : `${lead.count} follow${lead.count > 1 ? '' : 's'}`}`;
   const rh = document.getElementById('ring-h')!;
   rh.style.left = `${X(hp.x)}%`;
   rh.style.top = `${Y(hp.y)}%`;
@@ -1049,7 +1065,7 @@ function updateBoard() {
     const named = specialsAt(s, h.loc)
       .map((x) => `<button class="btn tiny ${(h.leave ?? []).includes(x.id) ? '' : 'sel'}" data-follow="${x.id}" title="${(h.leave ?? []).includes(x.id) ? 'Staying put: click to bring' : 'Coming with you: click to leave behind'}">${esc(specialDef(c, x.id).name.split(',')[0].trim().split(' ').pop()!)} ${(h.leave ?? []).includes(x.id) ? 'stays' : 'comes'}</button>`)
       .join('');
-    const bring = here ? `<span class="hint-group">Survivors coming with you: <span class="bring">${Array.from({ length: Math.min(cap, here) + 1 }, (_, n) => `<button class="btn tiny ${Math.min(h.bring, here) === n ? 'sel' : ''}" data-bring="${n}">${n}</button>`).join('')}</span>${named ? ` ${named}` : ''}</span>` : '';
+    const bring = here ? `<span class="hint-group">Survivors coming with you: <span class="bring">${Array.from({ length: Math.min(cap, here) + 1 }, (_, n) => `<button class="btn tiny ${Math.min(h.bring, here) === n ? 'sel' : ''}" data-bring="${n}">${n}</button>`).join('')}</span>${here > cap ? ` <span class="dim">of ${here} (you can lead ${cap})</span>` : ''}${named ? ` ${named}` : ''}</span>` : '';
     hint.innerHTML = `<span class="hint-group"><b class="steps">${p.left}</b> step${p.left > 1 ? 's' : ''} left: click a glowing location, or stop here</span>${bring}`;
   } else hint.innerHTML = '';
   const strip = document.getElementById('goal-strip')!;
@@ -1557,6 +1573,11 @@ function act(a: Action) {
   const samePhase = (prev.phase === 'action' || prev.phase === 'planning') && prev.phase === game.phase;
   if (!samePhase) history = [];
   else if (!prev.pending) history.push(prev);
+  if (a.type === 'step' && prev.heroine.loc !== game.heroine.loc) {
+    const left = npcAt(game, prev.heroine.loc);
+    const came = followPlan(content, prev, prev.heroine.loc, game.heroine.loc).count;
+    if (left && came > 0) showTip('leftbehind', `${left} survivor${left > 1 ? 's' : ''} stayed at ${esc(nodeName(content, prev.heroine.loc))}: you can lead only ${escortCap(content)} at a time. Come back for them.`);
+  }
   persist();
   runFx(game);
   updateGame();
@@ -1637,7 +1658,7 @@ function showMapKey() {
   modal(`<h2>Map key</h2><table class="keytable">
     <tr><td><span class="kpin you"></span></td><td><b>You</b>: the white pin with your name.</td></tr>
     <tr><td><span class="kpin him"></span></td><td><b>The killer</b>: the red pin. A red dashed line means {he} is <b>one step away</b>.</td></tr>
-    <tr><td>${glyph('person')}</td><td><b>Survivors</b>: when you move, up to ${c ? escortCap(c) : 2} come with you (never into {his} location). Get them to an exit.</td></tr>
+    <tr><td>${glyph('person')}</td><td><b>Survivors</b>: when you move, up to ${c ? escortCap(c) : 2} come with you (never into {his} location): the green tag under you counts them. Get them to an exit.</td></tr>
     <tr><td><span class="badge exitb">EXIT</span></td><td><b>Exit</b> (green ring): survivors here with you are rescued, and each one fills a rescue slot.</td></tr>
     <tr><td><span class="badge search">${glyph('search')}4</span></td><td><b>Item pile</b>: search cards draw from it. Hover to see the top card when it is face up.</td></tr>
     <tr><td><span class="badge barr">${glyph('barricade')}2</span></td><td><b>Barricade</b>: each point costs {him} 1 movement.</td></tr>
@@ -1666,6 +1687,10 @@ function inspectNode(id: string | null) {
   if (n.exit) lines.push('<b class="good">Exit</b>: survivors here with you are rescued.');
   if (id === c.location.lair) lines.push('<b>{His} lair.</b>');
   if (v) lines.push(`${v} survivor${v > 1 ? 's' : ''}.`);
+  if (id === s.heroine.loc && npcAt(s, id)) {
+    const f = followPlan(c, s, id, '').count;
+    lines.push(`<b class="good">${f} of ${npcAt(s, id)} follow you</b> when you move (you can lead ${escortCap(c)}).`);
+  }
   for (const x of specialsAt(s, id)) lines.push(`<b>${esc(specialDef(c, x.id).name)}</b>: ${esc(specialDef(c, x.id).text)}`);
   const mins = minionsAt(s, id);
   if (mins.length) lines.push(`<b class="bad">${mins.length} ${esc(mins.length > 1 ? c.killer.minions!.plural : c.killer.minions!.name)}</b> (health ${mins.map((x) => x.health).join(', ')}).`);
@@ -1987,7 +2012,7 @@ function contextualTips() {
   else if (s.pending?.kind === 'reaction') showTip('react', 'Reaction cards are played only now, against one attack. They cost nerve from your next turn.');
   else if (s.phase === 'planning') showTip('plan', 'Buy cards with leftover nerve. Anything you played this turn is back next turn, so you cannot just repeat your best card.');
   else if (s.phase !== 'action') return;
-  else if ((s.victims[s.heroine.loc] ?? 0) > 0 && !isExit(c, s.heroine.loc)) showTip('escort', `Survivors here follow you when you move (up to ${escortCap(c)}), but never into {his} location. Walk them to an <b>exit</b>.`);
+  else if ((s.victims[s.heroine.loc] ?? 0) > 0 && !isExit(c, s.heroine.loc)) showTip('escort', `Survivors here follow you when you move (up to ${escortCap(c)}), but never into {his} location. The green tag under you counts them. Walk them to an <b>exit</b>.`);
   else if (s.killer.loc === s.heroine.loc) showTip('killer', `${esc(c.killer.name)} is here. Attack cards hit {him}; weapons and lore add damage. When {he} attacks <b>survivors die first</b>.`);
   else if (s.minions.some((x) => x.loc === s.heroine.loc)) showTip('minions', `${esc(c.killer.minions?.plural ?? 'Minions')} are here. Attack cards can hit them (damage is split between them). If {he} is here too, you choose: {him} or them.`);
   else if (s.specials.length) showTip('named', 'A <b>named survivor</b> is on the board. They follow the normal rules with one exception (hover them on the map), and pay an extra reward when rescued.');
