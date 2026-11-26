@@ -442,6 +442,8 @@ export interface GameState {
   foundLore: string[];
   log: LogEntry[];
   fx: Fx[];
+  /** The staged first-night tutorial game (lessons use its scripted moments). */
+  staged?: boolean;
 }
 
 export type Action =

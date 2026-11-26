@@ -12,7 +12,7 @@ import { advise, adviceTarget, currentGoal, planNeeds, type Goal } from './engin
 import { glyph } from './ui/glyphs';
 import { TUTORIAL, tutorialGame } from './engine/tutorial';
 import { isLegacySave, migrateSave } from './engine/migrate';
-import { clearOfBar, Tutorial } from './ui/tutorial';
+import { clearOfBar, LESSONS, teachContent, Tutorial, type TutStep } from './ui/tutorial';
 import { buildContent, FEATURES, HEROINES, KILLERS, LOCATIONS, type Feature } from './content/registry';
 import {
   abilityUnlocked,
@@ -73,10 +73,24 @@ const PREFS_KEY = 'lastlight.prefs.v1';
 const TIPS_KEY = 'lastlight.tips.v2';
 const STATS_KEY = 'lastlight.stats.v1';
 const TUT_KEY = 'lastlight.tutorial.v2';
-const tutorial = new Tutorial((finished) => {
-  store(TUT_KEY, true);
-  if (finished) toast('Tutorial done. The night is yours: follow your <b>goal</b>, and press <b>Show me</b> (H) whenever you’re stuck.', 7000);
-});
+const LESSONS_KEY = 'lastlight.lessons.v1';
+const tutorial = new Tutorial(() => store(TUT_KEY, true), { taught: (ids) => ids.forEach(markLesson) });
+// One-time lessons: each shows the first time its moment comes, then never again.
+let lessonGap = 0; // no new lesson before this time (one at a time, with a breath between)
+let lessonHeld: GameState | null = null; // ...nor until the game moves on from this state
+let lessonOn: TutStep | null = null;
+const lessons = new Tutorial(
+  (finished) => {
+    // After a "do" lesson the player has just acted: the next may follow. After "Got it"
+    // or Hide, the next waits for the player's next move, and a moment besides.
+    const read = !(finished && lessonOn?.done);
+    lessonOn = null;
+    lessonGap = performance.now() + (read ? 2500 : 0);
+    lessonHeld = read ? game : null;
+    setTimeout(() => game && screen === 'game' && syncTeach(game), read ? 2560 : 60);
+  },
+  { lesson: true },
+);
 
 interface GameRecord {
   at: number;
@@ -97,6 +111,8 @@ interface Prefs {
   grain: number;
   tips: boolean;
   tiebreak: TieBreak;
+  /** Simple: the side panels show only what matters now. Unset: simple for the first few nights. */
+  view?: 'simple' | 'full';
 }
 
 type Reveal = { kind: 'terror' | 'event'; id: string } | { kind: 'finale' } | { kind: 'power' };
@@ -140,6 +156,29 @@ let splitDraft: Record<number, number> = {};
 
 const prefs: Prefs = { sound: true, volume: 0.8, music: 0.7, grain: 0.6, tips: true, tiebreak: 'adverse', ...load(PREFS_KEY, {}) };
 const seenTips = new Set<string>(load(TIPS_KEY, [] as string[]));
+// Players with a few nights behind them already know what the lessons teach.
+const seenLessons = new Set<string>(load<string[] | null>(LESSONS_KEY, null) ?? (load<unknown[]>(STATS_KEY, []).length >= 3 ? LESSONS.map((l) => l.id!) : []));
+let logOpen = false; // Simple view folds the log away until asked for
+function simpleView() {
+  return (prefs.view ?? (load<unknown[]>(STATS_KEY, []).length < 5 ? 'simple' : 'full')) === 'simple';
+}
+function markLesson(id: string) {
+  seenLessons.add(id);
+  store(LESSONS_KEY, [...seenLessons]);
+}
+/** After every update: advance the tutorial, or the open lesson, or open the next lesson that's due. */
+function syncTeach(s: GameState) {
+  if (content) teachContent(content);
+  tutorial.sync(s);
+  if (tutorial.active) return;
+  if (lessons.active) return lessons.sync(s);
+  if (!prefs.tips || screen !== 'game' || s.outcome || performance.now() < lessonGap || s === lessonHeld) return;
+  const next = LESSONS.find((l) => !seenLessons.has(l.id!) && l.trigger!(s));
+  if (!next) return;
+  markLesson(next.id!);
+  lessonOn = next;
+  lessons.start([next], s);
+}
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -327,10 +366,13 @@ function cardHtml(c: Content, s: GameState | null, d: ActionCardDef, attrs: stri
   const bands = d.roll
     ? `<span class="band"><i class="g">2+</i>${fxHtml(describeEffects(d.great ?? []))}</span><span class="band"><i class="o">1</i>${fxHtml(describeEffects(d.good ?? []))}</span><span class="band"><i class="x">✗</i>${fxHtml(describeEffects(d.fail ?? []))}</span>`
     : `<span class="band"><i class="g">✓</i>${fxHtml(describeEffects(d.always ?? []))}</span>`;
+  // Simple view: the best result as one big line; the other rows shrink under it.
+  const best = describeEffects((d.roll ? d.great : d.always) ?? []);
+  const head = `<span class="fc-head">${d.roll ? '<i class="g" title="2 or more hits">2+</i>' : ''}${fxHtml(best.charAt(0).toUpperCase() + best.slice(1))}</span>`;
   return `<button class="act fcard ${d.kind} tag-${d.tags[0]}" data-kind="${d.tags[0]}" ${attrs}>
     <span class="n" title="${esc(d.name)}">${esc(d.name)}</span>${idx !== undefined && idx < 10 ? `<kbd class="key">${(idx + 1) % 10}</kbd>` : ''}
     <span class="cost"><b>${cardCost(c, d)}</b>${sym('nerve', { title: `costs ${cardCost(c, d)} nerve` })} · ${dice}${d.kind === 'reaction' ? ' · <em>reaction</em>' : ''}</span>
-    <span class="bands">${bands}</span>${extra}
+    ${head}<span class="bands">${bands}</span>${extra}
   </button>`;
 }
 
@@ -581,7 +623,6 @@ function startNewGame() {
   screen = 'game';
   persist();
   render();
-  showTip('start', 'Each turn: play cards with <b>nerve</b>, buy new ones in the <b>Shop</b>, then {he} moves and a <b>Terror</b> card flips. When the 10 Terror cards run out, the <b>Finale</b> begins.');
 }
 
 function startTutorial() {
@@ -594,8 +635,11 @@ function startTutorial() {
   screen = 'game';
   persist();
   render();
+  lessons.stop(false);
+  for (const l of LESSONS) seenLessons.delete(l.id!); // a replay teaches it all again
+  store(LESSONS_KEY, [...seenLessons]);
   tutorial.start();
-  tutorial.sync(game);
+  syncTeach(game);
 }
 
 function persist() {
@@ -648,7 +692,7 @@ function renderGame() {
       <header class="topbar"></header>
       <aside class="side left ${sideOpen.left ? '' : 'collapsed'}"><button class="side-toggle" data-go="toggleSide" data-side="left" id="sum-h"></button><div class="panel" id="heroine-panel"></div></aside>
       <main class="stage"><div class="phasebar" id="phasebar"></div><div class="board" id="board"></div><div class="goal-strip" id="goal-strip"></div></main>
-      <aside class="side right ${sideOpen.right ? '' : 'collapsed'}"><button class="side-toggle" data-go="toggleSide" data-side="right" id="sum-k"></button><div class="panel" id="killer-panel"></div><div class="panel log-panel"><h4>What happened</h4><div class="log" id="log"></div></div></aside>
+      <aside class="side right ${sideOpen.right ? '' : 'collapsed'}"><button class="side-toggle" data-go="toggleSide" data-side="right" id="sum-k"></button><div class="panel" id="killer-panel"></div><div class="panel log-panel"><h4 data-go="toggleLog">What happened</h4><div class="log" id="log"></div></div></aside>
       <footer class="bottombar" id="bottombar"></footer>
       <section class="items-sheet pane" id="items-sheet" hidden aria-label="Items and ability"></section>
     </div><div id="overlay-root"></div>`;
@@ -758,6 +802,12 @@ function updateGame() {
   const killerHere = k.loc === h.loc;
   const killerNear = killerHere || neighbors(c, h.loc).includes(k.loc);
   setMood(h.horror, k.finale, killerNear);
+  // Focus: what she can't use right now steps back.
+  const simple = simpleView();
+  document.body.classList.toggle('view-simple', simple);
+  document.body.classList.toggle('focus-act', s.phase === 'action' && !s.pending && !s.outcome);
+  document.body.classList.toggle('focus-move', s.pending?.kind === 'move');
+  document.querySelector('.log-panel')?.classList.toggle('folded', simple && !logOpen);
 
   if (k.finale !== lastFinale) {
     lastFinale = k.finale;
@@ -793,7 +843,7 @@ function updateGame() {
   updateBoard();
   updateBottom();
   updateOverlay();
-  tutorial.sync(s);
+  syncTeach(s);
 }
 
 // ── Side panels ─────────────────────────────────────────────────────────────
@@ -904,8 +954,16 @@ function renderHeroinePanel(c: Content, s: GameState) {
     ${sec('Rescues', `${h.rescued} saved${h.resolve ? ` · +${h.resolve} attack die` : ''}`, `<div class="rtrack" title="Fill every slot to unlock ${esc(c.heroine.ability.name)}">${rtrack}<i class="rt-link"></i><span class="rt ab ${unlocked ? 'done' : ''}" title="${esc(c.heroine.ability.name)}: ${esc(c.heroine.ability.text)}">★</span></div><p class="prose small">${nextTxt}</p>
       ${abilityBox}`, 'rescue')}
     ${invSecs}
-    ${sec('Passive', esc(c.heroine.passive.name), `<p class="prose small">${esc(c.heroine.passive.text)}</p>`)}
+    ${sec('Passive', esc(c.heroine.passive.name), `<p class="prose small">${esc(c.heroine.passive.text)}</p>`, 'passive')}
+    ${viewSwitch()}
   </div>`;
+}
+
+/** Bottom of each side panel: switch between the simple and the full screen. */
+function viewSwitch(): string {
+  return simpleView()
+    ? `<button class="view-sw" data-go="toggleView" title="Show every detail: horror table, bloodlust, events, the log">Show all details ▾</button>`
+    : `<button class="view-sw" data-go="toggleView" title="Show only what matters right now">Simple view ▴</button>`;
 }
 
 function renderKillerPanel(c: Content, s: GameState) {
@@ -947,14 +1005,15 @@ function renderKillerPanel(c: Content, s: GameState) {
       ${vital('Attack', String(killerAttack(c, s)), 'damage per attack', '')}
     </div>
     ${sec(k.finale ? `Finale: ${esc(c.killer.finale.name)}` : '{His} turn', `next: <b>${esc(target === h.loc ? 'you' : nodeName(c, target))}</b>`, `<p class="prose small">${esc(beh.text)}</p>`, `next ${k.finale ? 'fin' : ''}`)}
-    ${sec(`Bloodlust ${k.bloodlust}`, esc(cur.name ?? ''), `<p class="prose small bl-why">Every kill feeds it: {he} moves farther and hits harder.</p><div class="btrack"><span class="bt-k"><b>move</b><b>attack</b></span>${btrack}</div>`)}
+    ${sec(`Bloodlust ${k.bloodlust}`, esc(cur.name ?? ''), `<p class="prose small bl-why">Every kill feeds it: {he} moves farther and hits harder.</p><div class="btrack"><span class="bt-k"><b>move</b><b>attack</b></span>${btrack}</div>`, 'bloodlust')}
     ${sec(k.power === 'hidden' ? 'Power' : esc(c.killer.power.name), k.power === 'active' ? `${k.powerHealth} temp hp` : k.power === 'spent' ? 'spent' : 'hidden', power, `power ${k.power}`)}
     ${minions}
     ${named}
-    ${sec('Ongoing events', '', `<ul class="list">${s.events.map((id) => `<li><b>${esc(eventDef(c, id).name)}</b><br><span>${esc(eventSummary(c, id))}</span></li>`).join('') || '<li>None.</li>'}</ul>`)}
-    ${sec('Weakness', `lore ${loreBonus(c, s)}/${c.killer.items.length}`, `<p class="prose small">${esc(c.killer.weakness.text)}</p>`)}
+    ${sec('Ongoing events', '', `<ul class="list">${s.events.map((id) => `<li><b>${esc(eventDef(c, id).name)}</b><br><span>${esc(eventSummary(c, id))}</span></li>`).join('') || '<li>None.</li>'}</ul>`, s.events.length ? 'events' : 'events empty')}
+    ${sec('Weakness', `lore ${loreBonus(c, s)}/${c.killer.items.length}`, `<p class="prose small">${esc(c.killer.weakness.text)}</p>`, 'weakness')}
     ${lastQuote ? `<p class="quote">${esc(lastQuote)}</p>` : ''}
     <div class="tally"><span><b class="good">${s.saved}</b> saved</span><span><b class="bad">${s.slain}</b> slain</span><span><b>${s.victimPool}</b> out there</span></div>
+    ${viewSwitch()}
   </div>`;
 }
 
@@ -1918,7 +1977,7 @@ function showDice(s: GameState) {
     guardClicks();
     overlayLocked = false;
     updateOverlay();
-    if (game) tutorial.sync(game);
+    if (game) syncTeach(game);
   };
   catcher.addEventListener('click', done);
   setTimeout(done, 1500 + r.dice.length * 80);
@@ -1981,7 +2040,7 @@ function toast(html: string, ms = 5000) {
 }
 
 function showTip(id: string, html: string) {
-  if (tutorial.active) return;
+  if (tutorial.active || lessons.active) return;
   if (!prefs.tips || seenTips.has(id)) return;
   seenTips.add(id);
   store(TIPS_KEY, [...seenTips]);
@@ -2009,11 +2068,10 @@ function contextualTips() {
   const s = game!;
   const c = content!;
   if (s.pending?.kind === 'roll') showTip('partial', 'A <b>3 or 4</b> is <b>almost</b> a hit. When the better result matters, spend 2 cards to make one count (once per roll).');
-  else if (s.pending?.kind === 'reaction') showTip('react', 'Reaction cards are played only now, against one attack. They cost nerve from your next turn.');
-  else if (s.phase === 'planning') showTip('plan', 'Buy cards with leftover nerve. Anything you played this turn is back next turn, so you cannot just repeat your best card.');
   else if (s.phase !== 'action') return;
-  else if ((s.victims[s.heroine.loc] ?? 0) > 0 && !isExit(c, s.heroine.loc)) showTip('escort', `Survivors here follow you when you move (up to ${escortCap(c)}), but never into {his} location. The green tag under you counts them. Walk them to an <b>exit</b>.`);
-  else if (s.killer.loc === s.heroine.loc) showTip('killer', `${esc(c.killer.name)} is here. Attack cards hit {him}; weapons and lore add damage. When {he} attacks <b>survivors die first</b>.`);
+  // The bigger moments (his attack, the Shop, survivors, the fight) are lessons; tips cover the small print.
+  else if ((s.victims[s.heroine.loc] ?? 0) > escortCap(c) && !isExit(c, s.heroine.loc)) showTip('escortcap', `Only ${escortCap(c)} survivors can follow you at once, and never into {his} location. Come back for the rest.`);
+  else if (s.killer.loc === s.heroine.loc && s.victims[s.heroine.loc]) showTip('killer', 'When {he} attacks here, <b>survivors die first</b>. Get them away from {him}.');
   else if (s.minions.some((x) => x.loc === s.heroine.loc)) showTip('minions', `${esc(c.killer.minions?.plural ?? 'Minions')} are here. Attack cards can hit them (damage is split between them). If {he} is here too, you choose: {him} or them.`);
   else if (s.specials.length) showTip('named', 'A <b>named survivor</b> is on the board. They follow the normal rules with one exception (hover them on the map), and pay an extra reward when rescued.');
   else if (s.killer.bloodlust >= 2) showTip('bloodlust', 'Every death feeds {his} <b>bloodlust</b>, which sets how far {he} moves and how hard {he} hits.');
@@ -2084,6 +2142,7 @@ function showSettings() {
     <div class="row"><span>Music &amp; ambience</span><input type="range" id="s-music" min="0" max="1" step="0.05" value="${prefs.music}"></div>
     <div class="row"><span>Film grain</span><input type="range" id="s-grain" min="0" max="1" step="0.05" value="${prefs.grain}"></div>
     <div class="row"><span>Tie-break policy (new games)</span><button class="btn small" id="s-tie" title="${esc(TIEBREAK[prefs.tiebreak].text)}">${esc(TIEBREAK[prefs.tiebreak].label)}</button></div>
+    <div class="row"><span>Screen</span><button class="btn small" id="s-view" title="Simple: only what matters right now. Full: every detail.">${simpleView() ? 'Simple' : 'Full'}</button></div>
     <div class="row"><span>Tutorial tips</span><button class="btn small" id="s-tips">${prefs.tips ? 'On' : 'Off'}</button></div>
     <div class="row"><span>Reset tips</span><button class="btn small" id="s-reset">Reset</button></div>`);
   o.querySelector('#s-sound')!.addEventListener('click', (e) => {
@@ -2100,6 +2159,12 @@ function showSettings() {
     (e.target as HTMLElement).title = TIEBREAK[prefs.tiebreak].text;
     savePrefs();
   });
+  o.querySelector('#s-view')!.addEventListener('click', (e) => {
+    prefs.view = simpleView() ? 'full' : 'simple';
+    (e.target as HTMLElement).textContent = prefs.view === 'simple' ? 'Simple' : 'Full';
+    savePrefs();
+    if (game && screen === 'game') updateGame();
+  });
   o.querySelector('#s-tips')!.addEventListener('click', (e) => {
     prefs.tips = !prefs.tips;
     (e.target as HTMLElement).textContent = prefs.tips ? 'On' : 'Off';
@@ -2108,6 +2173,8 @@ function showSettings() {
   o.querySelector('#s-reset')!.addEventListener('click', () => {
     seenTips.clear();
     store(TIPS_KEY, []);
+    seenLessons.clear();
+    store(LESSONS_KEY, []);
   });
   o.querySelector<HTMLInputElement>('#s-vol')!.addEventListener('input', (e) => {
     prefs.volume = +(e.target as HTMLInputElement).value;
@@ -2295,6 +2362,15 @@ function navigate(go: string, el?: HTMLElement) {
       itemsOpen = false;
       if (game) updateGame();
       return;
+    case 'toggleView':
+      prefs.view = simpleView() ? 'full' : 'simple';
+      savePrefs();
+      if (game) updateGame();
+      return;
+    case 'toggleLog':
+      logOpen = !logOpen;
+      if (game) updateGame();
+      return;
     case 'toggleSide': {
       const side = el?.dataset.side === 'right' ? 'right' : 'left';
       sideOpen[side] = !sideOpen[side];
@@ -2352,7 +2428,7 @@ function navigate(go: string, el?: HTMLElement) {
       cardQueue.shift();
       audio.play('card');
       updateOverlay();
-      if (game) tutorial.sync(game);
+      if (game) syncTeach(game);
       return;
     case 'start':
     case 'again':
@@ -2362,6 +2438,7 @@ function navigate(go: string, el?: HTMLElement) {
       return startTutorial();
     case 'quit':
       tutorial.stop(false);
+      lessons.stop(false);
       screen = 'title';
       game = null;
       document.getElementById('overlay-root')?.remove();

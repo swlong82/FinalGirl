@@ -1558,3 +1558,64 @@ body:has(.shop-ov) .toast { top: 16px; bottom: auto; }
 .vics .named.fol i { box-shadow: 0 0 0 1px var(--good); }
 .badge.fol { color: #062; background: var(--good); border-color: #2f6b3a; font-weight: 700; }
 .badge.fol.none { color: #fff; background: #3a0d16; border-color: var(--blood); }
+
+/* ── Lessons: one-time bubbles, lighter than the tutorial's spotlight ── */
+#tut.lesson .tut-spot { box-shadow: 0 0 0 9999px rgba(4, 3, 8, .38), 0 0 0 2px var(--gold), 0 0 28px rgba(249, 199, 79, .55); }
+#tut.lesson .tut-card { max-width: 320px; }
+#tut.lesson .tut-card h4 { font-size: 22px; }
+.tut-new { font: 600 10px/1 var(--ui); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); opacity: .85; }
+
+/* ── Simple view: the side panels keep only what matters right now ── */
+.view-sw { display: block; width: 100%; margin-top: 10px; padding: 6px 8px; border: 1px dashed rgba(249, 199, 79, .35); border-radius: 6px; background: none; color: var(--gold); font: 600 11px/1.2 var(--ui); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; opacity: .8; }
+.view-sw:hover { opacity: 1; border-style: solid; }
+.view-simple #heroine-panel .htrack,
+.view-simple #heroine-panel .sec.passive,
+.view-simple #heroine-panel .rescue .prose.small,
+.view-simple #heroine-panel .ability:not(.on),
+.view-simple #heroine-panel .vitals .vital:not(.hp),
+.view-simple #heroine-panel .sec.inv:has(.bag-empty),
+.view-simple #killer-panel .sec.bloodlust,
+.view-simple #killer-panel .sec.power:not(.active),
+.view-simple #killer-panel .sec.weakness,
+.view-simple #killer-panel .sec.events.empty,
+.view-simple #killer-panel .quote,
+.view-simple #killer-panel .tally { display: none; }
+.view-simple #heroine-panel .vitals { grid-template-columns: 1fr; }
+.view-simple .log-panel.folded { flex: 0 0 auto !important; min-height: 0 !important; }
+.view-simple .log-panel.folded .log { display: none; }
+.log-panel h4[data-go] { cursor: default; }
+.view-simple .log-panel h4[data-go] { cursor: pointer; }
+.view-simple .log-panel h4[data-go]::before { content: '▸ '; color: var(--gold); }
+.view-simple .log-panel:not(.folded) h4[data-go]::before { content: '▾ '; }
+.view-simple .log-panel.folded h4 { margin: 0; }
+
+/* Simple cards: the best result as one big line; the other outcomes small beneath. */
+.act.fcard .fc-head { display: none; }
+.view-simple .act.fcard .fc-head { display: flex; align-items: center; gap: 5px; font: 600 15px/1.15 var(--ui); letter-spacing: .01em; color: #1b120c; margin: 2px 0 1px; }
+.view-simple .act.fcard .fc-head i { font-style: normal; font: 600 9.5px/14px var(--ui); padding: 0 4px; border-radius: 2px; color: #fff; background: #2f6b3a; }
+.view-simple .act.fcard .fc-head .sym { width: 15px; height: 15px; }
+.view-simple .act.fcard .bands { flex-direction: row; flex-wrap: wrap; gap: 0 8px; font-size: 10px; line-height: 1.35; opacity: .72; }
+.view-simple .act.fcard .bands .band:first-child { display: none; }
+.view-simple .act.fcard .bands .band:only-child { display: none; }
+.view-simple .act.fcard .band i { min-width: 14px; font-size: 8.5px; line-height: 12px; margin-right: 2px; }
+.view-simple .draft .act.fcard .fc-head { font-size: 14px; }
+
+/* Quieter map: names only where you can go, your goal, where you are (and on hover). */
+.view-simple .node .label { transition: opacity .25s; }
+.view-simple .node:not(.here):not(.reach):not(.goal):not(:hover):not(:focus-visible) .label { opacity: 0; }
+.view-simple .node .badge { transform: scale(.88); }
+.view-simple .node:not(.here):not(.reach):not(.goal):not(:hover) .badge.search { opacity: .75; }
+
+/* Focus: what you can't use right now steps back (hover brings it back). */
+body:not(.tut-on) #killer-panel, body:not(.tut-on) .log-panel, body:not(.tut-on) #phasebar, body:not(.tut-on) .topbar .clock, body:not(.tut-on) .topbar .rulechip { transition: opacity .3s, filter .3s; }
+body.focus-act:not(.tut-on) #killer-panel:not(:hover),
+body.focus-act:not(.tut-on) .log-panel:not(:hover),
+body.focus-act:not(.tut-on) #phasebar:not(:hover) { opacity: .6; filter: saturate(.6); }
+body.focus-move:not(.tut-on) .side:not(:hover),
+body.focus-move:not(.tut-on) #phasebar,
+body.focus-move:not(.tut-on) .bottombar .hand-wrap { opacity: .4; filter: saturate(.5); }
+body.focus-move .node:not(.reach):not(.here) { opacity: .45; }
+body.focus-move .node:not(.reach):not(.here):hover { opacity: .85; }
+body.focus-move svg.edges .edge:not(.hot) { opacity: .45; }
+#heroine-panel .view-sw { color: #7a5200; border-color: rgba(122, 82, 0, .4); }
+.view-simple #heroine-panel .vital.hp { display: flex; align-items: baseline; justify-content: center; gap: 10px; padding: 6px 10px; min-height: 0; }

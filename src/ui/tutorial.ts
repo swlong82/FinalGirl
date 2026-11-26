@@ -1,29 +1,40 @@
-// The first night, taught by playing. One 10-second pitch, then short bubbles
-// (20 words or fewer) that each appear the moment their idea matters: a
-// spotlight on the one thing to click, and the game's other panels dimmed until
-// they're introduced. "Do" steps advance when the game state shows the player
-// did the thing; "when" steps wait, hidden, until their moment comes.
-// The scenario it rides on is staged in engine/tutorial.ts.
+// Teaching, spread out. The first night opens with a short core (a 10-second
+// pitch, then search, rescue, and the goal: about a minute); everything else is
+// a one-time *lesson* that appears the first time its moment comes up, in the
+// tutorial night or any other: the Shop on the first Shop, defending on his
+// first attack, the clock when the first Terror card flips. One bubble at a
+// time, each 20 words or fewer, with a spotlight on the thing it's about.
+// "Do" bubbles close when the game shows the player did the thing; the others
+// have "Got it", and the next lesson waits a moment after one so they never
+// stack up. The tutorial scenario is staged in engine/tutorial.ts.
 import { killerPortrait, victimIcon } from '../art/art';
 import { glyph } from './glyphs';
 import { sym } from './symbols';
-import type { GameState } from '../engine/types';
+import { advise } from '../engine/coach';
+import { actionDef, check, isExit, npcAt } from '../engine/rules';
+import type { Content, GameState } from '../engine/types';
 
 /** Parts of the screen kept dim until a step introduces them. */
 type Area = 'killer' | 'log' | 'clock' | 'phases' | 'rule';
 const AREAS: Area[] = ['killer', 'log', 'clock', 'phases', 'rule'];
 
-const CHAPTERS = ['Search', 'Rescue', 'Shop', 'His turn', 'Fight'] as const;
+const CHAPTERS = ['Search', 'Rescue', 'Goal'] as const;
 type Chapter = (typeof CHAPTERS)[number];
 
 export interface TutStep {
+  /** Lessons: the id remembered once it has been shown. */
+  id?: string;
+  /** Lessons: show this lesson the first time this is true. */
+  trigger?: (s: GameState) => boolean;
+  /** Core steps: lessons this step already covers (they won't repeat later). */
+  teaches?: string[];
   chapter?: Chapter;
   title: string;
   text: string | ((s: GameState) => string);
   /** What to spotlight: a selector, or several (the first one on screen wins). */
-  target?: string | string[] | ((s: GameState) => string | undefined);
-  /** Present = a "do" step: it advances once this is true. */
-  done?: (s: GameState) => boolean;
+  target?: string | string[] | ((s: GameState) => string | string[] | undefined);
+  /** Present = a "do" step: it closes once this is true (`start` = the state when it opened). */
+  done?: (s: GameState, start: GameState) => boolean;
   /** Present = wait, hidden, until this is true. */
   when?: (s: GameState) => boolean;
   /** Areas this step brings out of the dark. */
@@ -33,18 +44,31 @@ export interface TutStep {
   prefer?: 'above' | 'below';
 }
 
-// The tutorial runs on fixed content (the drive-in, the Projectionist, Rosa).
-const ATTACKS = ['ac-fullswing', 'ac-desperate', 'ac-swing', 'ac-shove'];
+/** The content of the game being taught (lessons name its cards and killer). */
+let C: Content | undefined;
+export function teachContent(c: Content) {
+  C = c;
+}
+
 const inHand = (s: GameState, id: string) => s.heroine.hand.find((x) => x.id === id);
 const cardSel = (id: string) => (s: GameState) => {
   const x = inHand(s, id);
   return x ? `[data-card="${x.uid}"]` : undefined;
 };
-const attackCard = (s: GameState) => ATTACKS.map((id) => inHand(s, id)).find(Boolean);
-const attackName = (id: string) => ({ 'ac-fullswing': 'Full Swing', 'ac-desperate': 'Desperate Strike', 'ac-swing': 'Swing', 'ac-shove': 'Shove' })[id] ?? 'an attack';
 const searched = (s: GameState) => s.heroine.items.length + s.heroine.pack.length > 0 || s.log.some((l) => /^(Look Around|Search|Ransack):/.test(l.text));
-const struck = (s: GameState) => s.discard.some((id) => ATTACKS.includes(id));
 const armed = (s: GameState) => s.heroine.items.some((x) => x.id === 'tire-iron');
+const calm = (s: GameState) => s.phase === 'action' && !s.pending && !s.outcome;
+/** A card in hand with this tag she could play right now. */
+const playable = (s: GameState, tag: string) =>
+  C ? s.heroine.hand.find((x) => actionDef(C!, x.id).tags.includes(tag as never) && check(C!, s, { type: 'playCard', uid: x.uid }).ok) : undefined;
+const cardName = (id: string) => (C ? actionDef(C, id).name : id);
+/** The attack to point at: the one the coach would play, else the first she can. */
+const bestAttack = (s: GameState) => {
+  if (!C) return undefined;
+  const a = advise(C, s).action;
+  const pick = a.type === 'playCard' ? s.heroine.hand.find((x) => x.uid === a.uid) : undefined;
+  return pick && actionDef(C, pick.id).tags.includes('attack') ? pick : playable(s, 'attack');
+};
 
 const star = `<svg viewBox="0 0 24 24" class="pf-star" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" fill="#f9c74f" stroke="#7a5200" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
 
@@ -53,8 +77,11 @@ const PITCH = `<div class="pitch-flow">
   <div class="pf"><div class="pf-i">${star}</div><b>Power up</b><span>every rescue helps</span></div><i class="pf-arrow">→</i>
   <div class="pf"><div class="pf-i pf-k">${killerPortrait({ art: 'projectionist' })}</div><b>Kill {him}</b><span>the only way to win</span></div>
 </div>
-<p class="pitch-sub">That’s the whole game. Learn it by playing one turn: about two minutes.</p>`;
+<p class="pitch-sub">That’s the whole game. Learn the basics in a minute; the rest is explained when it comes up.</p>`;
 
+const GOAL_TARGET = ['#goal-strip.on', '.goal-mini'];
+
+/** The first-night core: pitch, search, rescue, goal. */
 export const STEPS: TutStep[] = [
   { pitch: true, title: 'Last Light in 10 seconds', text: PITCH },
   // ── Search ──
@@ -73,6 +100,7 @@ export const STEPS: TutStep[] = [
     prefer: 'above',
     when: (s) => s.pending?.kind === 'roll',
     done: (s) => s.pending?.kind !== 'roll',
+    teaches: ['roll'],
   },
   {
     chapter: 'Search',
@@ -85,119 +113,161 @@ export const STEPS: TutStep[] = [
     prefer: 'above',
     when: (s) => s.pending?.kind === 'search',
     done: (s) => s.pending?.kind !== 'search',
+    teaches: ['search'],
   },
   // ── Rescue ──
   {
     chapter: 'Rescue',
-    title: 'Your goal',
-    text: `This ${glyph('target')} <b>goal</b> always says what to do next. Stuck? <b>Show me</b> points at the move.`,
-    target: ['#goal-strip.on', '.goal-mini'],
-  },
-  {
-    chapter: 'Rescue',
     title: 'Someone needs you',
-    text: 'A survivor is hiding in <b>Parking Rows A</b>, next door. Play <b>Walk</b>.',
-    target: (s) => cardSel('ac-walk')(s) ?? '[data-kind=move]',
-    done: (s) => s.pending?.kind === 'move' || s.heroine.loc !== 'concession' || s.saved > 0 || s.round > 1,
-  },
-  {
-    chapter: 'Rescue',
-    title: 'Step by step',
-    text: 'Click the glowing <b>Parking Rows A</b>.',
-    target: '[data-node=lotA]',
-    done: (s) => s.heroine.loc !== 'concession' || s.pending?.kind !== 'move' || s.round > 1,
+    text: (s) => (s.pending?.kind === 'move' ? 'Click the glowing <b>Parking Rows A</b>.' : 'A survivor is hiding next door, in <b>Parking Rows A</b>. Play <b>Walk</b>.'),
+    target: (s) => (s.pending?.kind === 'move' ? '[data-node=lotA]' : (cardSel('ac-walk')(s) ?? '[data-kind=move]')),
+    done: (s) => s.heroine.loc !== 'concession' || s.saved > 0 || s.round > 1,
   },
   {
     chapter: 'Rescue',
     title: 'Get them out',
-    text: 'The survivor follows you: see the green tag under you. Step onto the <b>EXIT</b>, the <b>Ticket Booth</b>. Hurry!',
+    text: 'The survivor follows you: see the green tag under you. Step onto the <b>EXIT</b>, the <b>Ticket Booth</b>.',
     target: '[data-node=gate]',
     done: (s) => s.saved > 0 || s.round > 1,
+    teaches: ['escort'],
+  },
+  // ── Goal ──
+  {
+    chapter: 'Goal',
+    title: 'Saved! Now you know',
+    text: `Every rescue powers you up. From here, follow your ${glyph('target')} <b>goal</b>; <b>Show me</b> points at the move.`,
+    target: GOAL_TARGET,
+    reveal: AREAS,
+    teaches: ['goal', 'rescued'],
+  },
+];
+
+/** One-time lessons, in priority order: the first whose moment has come is shown. */
+export const LESSONS: TutStep[] = [
+  {
+    id: 'roll',
+    title: 'Dice',
+    text: `${sym('dice')} A <b>5 or 6</b> is a hit. More hits, better result. Click <b>Keep it</b>.`,
+    target: ['#overlay-root .dicetray.live .dice', '#overlay-root .dicetray.live'],
+    prefer: 'above',
+    trigger: (s) => s.pending?.kind === 'roll',
+    done: (s) => s.pending?.kind !== 'roll',
   },
   {
-    chapter: 'Rescue',
-    title: 'Saved!',
-    text: 'Every rescue powers you up. This one: <b>+1 die</b> on attacks. Four unlock Rosa’s special ability.',
-    target: '#heroine-panel .rescue',
+    id: 'search',
+    title: 'Your finds',
+    text: 'Pick what to keep, then <b>Keep</b>. Weapons make your hits hurt.',
+    target: '#overlay-root .search-ov',
+    prefer: 'above',
+    trigger: (s) => s.pending?.kind === 'search',
+    done: (s) => s.pending?.kind !== 'search',
   },
   {
-    chapter: 'Rescue',
-    title: 'Turn over',
-    text: `Click <b>End Action</b>. Leftover ${sym('nerve')} <b>nerve</b> goes shopping.`,
-    target: '[data-act=endAction]',
-    done: (s) => s.phase !== 'action' || s.round > 1,
-    reveal: ['phases'],
-  },
-  // ── Shop ──
-  {
-    chapter: 'Shop',
-    title: 'Shop for the fight',
-    text: (s) => (inHand(s, 'ac-fullswing') ? 'Got it. Now click <b>Done</b>: it’s {his} turn.' : `Cards you play are gone: buy what you’ll need. Get <b>Full Swing</b> (2${sym('nerve')}): your ${armed(s) ? 'Tire Iron' : 'weapon'} adds to it.`),
-    target: (s) => (inHand(s, 'ac-fullswing') ? '#overlay-root [data-act=endPlanning]' : '#overlay-root [data-buy="ac-fullswing"]'),
-    when: (s) => s.phase === 'planning',
-    done: (s) => (s.phase !== 'planning' && s.phase !== 'action') || s.round > 1,
-  },
-  // ── His turn ──
-  {
-    chapter: 'His turn',
+    id: 'react',
     title: '{He} attacks!',
-    text: 'Play <b>Duck</b> to dodge. Defend cards work only now, during {his} turn.',
+    text: (s) => {
+      const r = s.heroine.hand.find((x) => C && actionDef(C, x.id).kind === 'reaction');
+      return r ? `Play <b>${cardName(r.id)}</b> to block, or take the hit. Defend cards work only now, during {his} turn.` : 'No defend card in hand: take the hit. The Shop sells them for next time.';
+    },
     target: ['#overlay-root [data-react]', '#overlay-root .react-ov'],
-    when: (s) => s.pending?.kind === 'reaction',
-    done: (s) => s.phase === 'upkeep' || s.round > 1,
-    reveal: ['killer'],
+    trigger: (s) => s.pending?.kind === 'reaction',
+    done: (s) => s.pending?.kind !== 'reaction',
   },
   {
-    chapter: 'His turn',
+    id: 'histurn',
     title: '{His} turn, summed up',
     text: 'Every turn {he} moves and attacks, then a <b>Terror</b> card flips. Click <b>Next turn</b>.',
     target: ['#overlay-root .killerturn [data-act=endUpkeep]', '#overlay-root .killerturn'],
     prefer: 'above',
-    when: (s) => s.phase === 'upkeep',
-    done: (s) => s.round > 1,
-    reveal: ['killer'],
+    trigger: (s) => s.phase === 'upkeep' && !s.pending,
+    done: (s) => s.phase !== 'upkeep',
   },
-  // ── Fight ──
   {
-    chapter: 'Fight',
+    id: 'shop',
+    title: 'The Shop',
+    text: (s) =>
+      s.staged
+        ? inHand(s, 'ac-fullswing')
+          ? 'Got it. Now click <b>Done</b>: it’s {his} turn.'
+          : `Played cards are gone until you buy them again. Get <b>Full Swing</b> (2${sym('nerve')}): your ${armed(s) ? 'Tire Iron' : 'weapon'} adds to it.`
+        : `Leftover ${sym('nerve')} nerve buys cards for next turn: played cards are gone. The top line says what you need.`,
+    target: (s) => (s.staged ? (inHand(s, 'ac-fullswing') ? '#overlay-root [data-act=endPlanning]' : '#overlay-root [data-buy="ac-fullswing"]') : ['#overlay-root .shop-goal', '#overlay-root .shop']),
+    trigger: (s) => s.phase === 'planning' && !s.pending,
+    // The staged night walks through the buy; elsewhere it's read-and-go, so it never sits on the shelves.
+    done: (s) => (s.staged ? s.phase !== 'planning' : false),
+  },
+  {
+    id: 'fight',
     title: 'Fight back',
     text: (s) => {
-      const x = attackCard(s);
-      return x ? `{He}’s right here. Play <b>${attackName(x.id)}</b>${armed(s) && x.id !== 'ac-shove' && x.id !== 'ac-swing' ? ': your Tire Iron adds +1' : ''}.` : '{He}’s right here. Play an attack card.';
+      const x = bestAttack(s);
+      const iron = s.staged && armed(s) && x && x.id === 'ac-fullswing' ? ': your Tire Iron adds +1' : '';
+      return `{He}’s right here. Play <b>${x ? cardName(x.id) : 'an attack card'}</b>${iron}. {His} health to zero wins.`;
     },
     target: (s) => {
-      const x = attackCard(s);
+      const x = bestAttack(s);
       return x ? `[data-card="${x.uid}"]` : undefined;
     },
-    when: (s) => s.phase === 'action' && !s.pending && s.killer.loc === s.heroine.loc,
-    done: (s) => struck(s) || s.round > 2 || (s.round > 1 && s.phase === 'action' && !s.pending && s.killer.loc !== s.heroine.loc),
+    trigger: (s) => calm(s) && s.killer.loc === s.heroine.loc && !!playable(s, 'attack'),
+    done: (s, start) => s.discard.length > start.discard.length || s.killer.loc !== s.heroine.loc || s.phase !== 'action',
   },
   {
-    chapter: 'Fight',
+    id: 'goal',
+    title: 'Your goal',
+    text: `This ${glyph('target')} <b>goal</b> always says what to do next. Stuck? <b>Show me</b> points at the move.`,
+    target: GOAL_TARGET,
+    trigger: calm,
+  },
+  {
+    id: 'escort',
+    title: 'Survivors follow you',
+    text: 'Survivors here walk with you when you move: the green tag counts them. Take them to an <b>EXIT</b>.',
+    target: '#tok-fol',
+    trigger: (s) => calm(s) && !!C && npcAt(s, s.heroine.loc) > 0 && !isExit(C, s.heroine.loc),
+  },
+  {
+    id: 'rescued',
+    title: 'Saved!',
+    text: 'Every rescue powers you up: see your rescue track. Fill it to unlock your special ability.',
+    target: ['#heroine-panel .rescue', '#sum-h'],
+    trigger: (s) => calm(s) && s.heroine.rescued > 0,
+  },
+  {
+    id: 'endturn',
+    title: 'Done for now?',
+    text: `When there’s nothing worth doing, click <b>End Action</b>. Leftover ${sym('nerve')} nerve goes to the Shop.`,
+    target: '#bottombar [data-act=endAction]',
+    prefer: 'above',
+    trigger: (s) => calm(s) && !!C && advise(C, s).action.type === 'endAction',
+    done: (s) => s.phase !== 'action',
+  },
+  {
+    id: 'hp',
     title: 'Watch {his} health',
-    text: (s) =>
-      !struck(s)
-        ? '{His} <b>health</b> is up here. Bring it to zero to win.'
-        : s.killer.health < s.killer.maxHealth
-          ? `Hit! {He}’s down to <b>${s.killer.health}</b>. Bring {his} health to zero to win.`
-          : 'A miss: it happens. {His} <b>health</b> is up here. Zero wins.',
+    text: (s) => `Hit! {He}’s down to <b>${s.killer.health}</b>. Bring {his} health to zero to win.`,
     target: ['#killer-panel .boss-hp', '#sum-k'],
-    when: (s) => !s.pending,
-    reveal: ['killer'],
+    trigger: (s) => calm(s) && s.killer.health < s.killer.maxHealth,
   },
   {
-    chapter: 'Fight',
+    id: 'clock',
     title: 'The clock',
     text: 'One <b>Terror</b> card flips every turn. When all 10 are gone, the <b>Finale</b>: {he} hunts only you.',
     target: '.terror-clock',
-    reveal: ['clock'],
+    trigger: (s) => calm(s) && s.terrorDiscard.length > 0,
   },
   {
-    chapter: 'Fight',
-    title: 'You’ve got this',
-    text: `Rescue to power up, then finish {him}. Follow your ${glyph('target')} <b>goal</b>, and press <b>Show me</b> whenever you’re unsure.`,
-    target: ['#goal-strip.on', '.goal-mini'],
-    reveal: AREAS,
+    id: 'horror',
+    title: 'Horror',
+    text: (s) => `Horror ${s.heroine.horror}: the higher it climbs, the fewer dice you roll. <b>Calm</b> cards bring it down.`,
+    target: ['#bottombar .status', '#heroine-panel .vitals'],
+    trigger: (s) => calm(s) && s.heroine.horror >= 3,
+  },
+  {
+    id: 'finale',
+    title: 'The Finale',
+    text: 'The Terror cards are gone. {He} hunts only you now. Kill {him}: there’s no other way out.',
+    target: '.terror-clock',
+    trigger: (s) => calm(s) && s.killer.finale,
   },
 ];
 
@@ -217,10 +287,19 @@ export function clearOfBar(el: HTMLElement): boolean {
 
 export class Tutorial {
   private i = -1;
+  private steps: TutStep[] = STEPS;
   private root?: HTMLDivElement;
   private lastState?: GameState;
+  private startState?: GameState; // the state when the current step opened
   private shown = -1; // the step whose target was last scrolled into view
-  constructor(private onEnd: (finished: boolean) => void) {
+  /**
+   * `lesson`: a one-off bubble (no dimming, no chapters, no Skip).
+   * `taught`: told which lessons a core step has just covered.
+   */
+  constructor(
+    private onEnd: (finished: boolean) => void,
+    private opts: { lesson?: boolean; taught?: (ids: string[]) => void } = {},
+  ) {
     window.addEventListener('resize', () => this.place());
     // Capture catches scrolling inside panels too (the hand row, the shop), not just the page.
     document.addEventListener('scroll', () => this.place(), { passive: true, capture: true });
@@ -228,10 +307,13 @@ export class Tutorial {
   get active() {
     return this.i >= 0;
   }
-  start() {
+  start(steps: TutStep[] = STEPS, s?: GameState) {
+    this.steps = steps;
     this.i = 0;
     this.shown = -1;
-    document.body.classList.add('tut-on', ...AREAS.map((a) => `tut-dim-${a}`));
+    if (s) this.lastState = s;
+    this.startState = this.lastState;
+    if (!this.opts.lesson) document.body.classList.add('tut-on', ...AREAS.map((a) => `tut-dim-${a}`));
     this.render();
   }
   stop(finished = false) {
@@ -239,24 +321,26 @@ export class Tutorial {
     this.i = -1;
     this.root?.remove();
     this.root = undefined;
-    document.body.classList.remove('tut-on', ...AREAS.map((a) => `tut-dim-${a}`));
+    if (!this.opts.lesson) document.body.classList.remove('tut-on', ...AREAS.map((a) => `tut-dim-${a}`));
     this.onEnd(finished);
   }
   /** Call after every game update. */
   sync(s: GameState) {
     this.lastState = s;
     if (this.i < 0) return;
-    let step = STEPS[this.i];
-    while (step?.done && step.done(s)) {
+    let step = this.steps[this.i];
+    while (step?.done && step.done(s, this.startState ?? s)) {
       this.i++;
-      step = STEPS[this.i];
+      this.startState = s;
+      step = this.steps[this.i];
     }
     if (!step) return this.stop(true);
     this.render();
   }
   private next() {
     this.i++;
-    if (this.i >= STEPS.length) return this.stop(true);
+    this.startState = this.lastState;
+    if (this.i >= this.steps.length) return this.stop(true);
     if (this.lastState) this.sync(this.lastState);
     else this.render();
   }
@@ -270,7 +354,7 @@ export class Tutorial {
     return null;
   }
   private render() {
-    const step = STEPS[this.i];
+    const step = this.steps[this.i];
     if (!step) return;
     if (!this.root) {
       this.root = document.createElement('div');
@@ -285,23 +369,31 @@ export class Tutorial {
       this.root.innerHTML = '';
       return;
     }
+    if (step.teaches) this.opts.taught?.(step.teaches);
     const isDo = !!step.done;
     const text = typeof step.text === 'function' ? (s ? step.text(s) : '') : step.text;
     const ch = step.chapter ? CHAPTERS.indexOf(step.chapter) : -1;
     const chapters = ch < 0 ? '' : `<div class="tut-chap">${CHAPTERS.map((c, n) => `<i class="${n < ch ? 'done' : n === ch ? 'on' : ''}" title="${c}"></i>`).join('')}<span>${step.chapter}</span></div>`;
-    const last = this.i === STEPS.length - 1;
-    const nextLabel = step.pitch ? 'Let’s go' : last ? 'Play!' : 'Got it';
+    const last = this.i === this.steps.length - 1;
+    const lesson = !!this.opts.lesson;
+    const nextLabel = step.pitch ? 'Let’s go' : last && !lesson ? 'Play!' : 'Got it';
+    const skip = lesson
+      ? isDo
+        ? '<button class="btn small tut-skip" data-tut="skip" title="Hide this tip">Hide</button>'
+        : '<span class="tut-new">New</span>'
+      : `<button class="btn small tut-skip" data-tut="skip">${step.pitch ? 'Skip tutorial' : 'Skip'}</button>`;
+    this.root.classList.toggle('lesson', lesson);
     this.root.innerHTML = `<div class="tut-spot"></div>
       <div class="tut-card ${step.pitch ? 'pitch' : ''}" role="dialog" aria-live="polite">
         ${chapters}
         <h4>${step.title}</h4>
         <div class="tut-text">${text}</div>
         <div class="tut-row">
-          <button class="btn small tut-skip" data-tut="skip">${step.pitch ? 'Skip tutorial' : 'Skip'}</button>
+          ${skip}
           ${isDo ? '<span class="tut-do">do it to continue</span>' : `<button class="btn ${step.pitch ? '' : 'small'} primary" data-tut="next">${nextLabel}</button>`}
         </div>
       </div>`;
-    this.root.querySelector('[data-tut=skip]')!.addEventListener('click', () => this.stop(false));
+    this.root.querySelector('[data-tut=skip]')?.addEventListener('click', () => this.stop(false));
     this.root.querySelector('[data-tut=next]')?.addEventListener('click', () => this.next());
     // Keep re-placing for a moment: smooth scrolls and re-renders move the target after this frame.
     const until = performance.now() + 900;
@@ -314,7 +406,7 @@ export class Tutorial {
   /** Position the spotlight on the target and the card next to it. */
   place() {
     if (!this.root || this.i < 0 || this.root.classList.contains('waiting')) return;
-    const step = STEPS[this.i];
+    const step = this.steps[this.i];
     const spot = this.root.querySelector<HTMLDivElement>('.tut-spot');
     const card = this.root.querySelector<HTMLDivElement>('.tut-card');
     if (!spot || !card) return;

@@ -798,3 +798,34 @@ describe('tutorial and coach', () => {
     expect(buyUpMatters(c, s)).toBe(true); // block 2 would save a point
   });
 });
+
+describe('lessons', async () => {
+  const { LESSONS, STEPS, teachContent } = await import('../src/ui/tutorial');
+  const words = (html: string) => html.replace(/<[^>]+>/g, ' ').trim().split(/\s+/).length;
+  it('every lesson trigger and text works on real game states, in 22 words or fewer', () => {
+    const seen = new Set<string>();
+    for (const l of LOCATIONS.slice(0, 3))
+      for (const k of KILLERS.slice(0, 3)) {
+        const c = buildContent(l.id, k.id, HEROINES[0].id);
+        teachContent(c);
+        let s = newGame(c, 5 + l.id.length, 'standard');
+        for (let i = 0; i < 600 && !s.outcome; i++) {
+          for (const x of LESSONS) {
+            if (!x.trigger!(s)) continue;
+            seen.add(x.id!);
+            const text = typeof x.text === 'function' ? x.text(s) : x.text;
+            expect(words(text), `${x.id}: ${text}`).toBeLessThanOrEqual(22);
+            if (typeof x.target === 'function') x.target(s);
+          }
+          s = dispatch(c, s, botAction(c, s));
+        }
+      }
+    // The everyday moments all come up in ordinary play.
+    for (const id of ['roll', 'search', 'react', 'histurn', 'shop', 'goal', 'escort', 'rescued', 'clock']) expect(seen, id).toContain(id);
+  });
+  it('the core tutorial is short and covers what it promises', () => {
+    expect(STEPS.length).toBeLessThanOrEqual(7);
+    const taught = STEPS.flatMap((x) => x.teaches ?? []);
+    for (const id of taught) expect(LESSONS.map((x) => x.id)).toContain(id);
+  });
+});

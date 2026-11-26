@@ -17,6 +17,7 @@ export const TUTORIAL = {
 
 export function tutorialGame(c: Content): GameState {
   const s = newGame(c, TUTORIAL.seed, 'story');
+  s.staged = true;
   s.heroine.loc = 'concession';
   s.killer.loc = 'shed';
   s.killer.stunned = 0;
