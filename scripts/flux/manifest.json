@@ -79,35 +79,39 @@
    "renderedAt": "2026-11-25T02:01:48.653Z"
   },
   "portrait/heroine-dee": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/portrait/heroine-dee.webp",
+   "bytes": 27480,
+   "renderedAt": "2026-11-26T02:35:55.842Z"
   },
   "portrait/killer-projectionist": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 3,
+   "file": "src/art/gen/portrait/killer-projectionist.webp",
+   "bytes": 25792,
+   "renderedAt": "2026-11-26T02:41:51.844Z"
   },
   "portrait/killer-tidewife": {
    "status": "done",
-   "attempts": 1,
+   "attempts": 2,
    "file": "src/art/gen/portrait/killer-tidewife.webp",
-   "bytes": 23146,
-   "renderedAt": "2026-11-25T02:02:16.676Z"
+   "bytes": 18174,
+   "renderedAt": "2026-11-26T02:42:03.555Z"
   },
   "portrait/killer-anesthetist": {
    "status": "done",
-   "attempts": 1,
+   "attempts": 2,
    "file": "src/art/gen/portrait/killer-anesthetist.webp",
-   "bytes": 22298,
-   "renderedAt": "2026-11-25T02:02:25.583Z"
+   "bytes": 25508,
+   "renderedAt": "2026-11-26T02:42:15.875Z"
   },
   "portrait/killer-snowblind": {
    "status": "done",
-   "attempts": 1,
+   "attempts": 2,
    "file": "src/art/gen/portrait/killer-snowblind.webp",
-   "bytes": 46606,
-   "renderedAt": "2026-11-25T02:02:32.662Z"
+   "bytes": 49736,
+   "renderedAt": "2026-11-26T02:42:24.808Z"
   },
   "portrait/killer-caller": {
    "status": "done",
@@ -908,9 +912,11 @@
    "renderedAt": "2026-11-25T02:17:29.693Z"
   },
   "still/da-coffee": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/still/da-coffee.webp",
+   "bytes": 21628,
+   "renderedAt": "2026-11-26T02:36:20.324Z"
   },
   "still/da-feedback": {
    "status": "done",
@@ -941,341 +947,782 @@
    "renderedAt": "2026-11-25T02:18:03.237Z"
   },
   "icon/bear": {
-   "status": "pending",
-   "attempts": 1
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/bear.webp",
+   "bytes": 3452,
+   "renderedAt": "2026-11-26T02:36:27.497Z"
   },
   "icon/boat": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/boat.webp",
+   "bytes": 3302,
+   "renderedAt": "2026-11-26T02:36:33.438Z"
   },
   "icon/bolt": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/bolt.webp",
+   "bytes": 3012,
+   "renderedAt": "2026-11-26T02:36:38.968Z"
   },
   "icon/cabin": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/cabin.webp",
+   "bytes": 2452,
+   "renderedAt": "2026-11-26T02:36:45.356Z"
   },
   "icon/candle": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 3,
+   "file": "src/art/gen/icon/candle.webp",
+   "bytes": 3874,
+   "renderedAt": "2026-11-26T02:43:40.363Z"
   },
   "icon/car": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/car.webp",
+   "bytes": 2564,
+   "renderedAt": "2026-11-26T02:37:00.692Z"
   },
   "icon/chair": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/chair.webp",
+   "bytes": 2502,
+   "renderedAt": "2026-11-26T02:37:06.847Z"
   },
   "icon/cross": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/cross.webp",
+   "bytes": 2052,
+   "renderedAt": "2026-11-26T02:37:13.057Z"
   },
   "icon/desk": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/desk.webp",
+   "bytes": 3288,
+   "renderedAt": "2026-11-26T02:43:47.011Z"
   },
   "icon/dial": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/dial.webp",
+   "bytes": 3034,
+   "renderedAt": "2026-11-26T02:37:26.720Z"
   },
   "icon/dock": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/dock.webp",
+   "bytes": 3366,
+   "renderedAt": "2026-11-26T02:43:53.379Z"
   },
   "icon/door": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/door.webp",
+   "bytes": 2598,
+   "renderedAt": "2026-11-26T02:43:16.912Z"
   },
   "icon/drawer": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/drawer.webp",
+   "bytes": 2502,
+   "renderedAt": "2026-11-26T02:43:59.494Z"
   },
   "icon/elevator": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/elevator.webp",
+   "bytes": 2590,
+   "renderedAt": "2026-11-26T02:44:04.365Z"
   },
   "icon/files": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/files.webp",
+   "bytes": 2584,
+   "renderedAt": "2026-11-26T02:38:03.616Z"
   },
   "icon/gate": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/gate.webp",
+   "bytes": 2608,
+   "renderedAt": "2026-11-26T02:38:09.261Z"
   },
   "icon/glass": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/glass.webp",
+   "bytes": 3126,
+   "renderedAt": "2026-11-26T02:38:19.385Z"
   },
   "icon/grass": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/grass.webp",
+   "bytes": 4294,
+   "renderedAt": "2026-11-26T02:44:10.606Z"
   },
   "icon/hearth": {
-   "status": "pending"
+   "status": "flagged",
+   "attempts": 2,
+   "file": "src/art/gen/icon/hearth.webp",
+   "bytes": 2964,
+   "renderedAt": "2026-11-26T02:38:31.841Z",
+   "error": "3030: output flagged"
   },
   "icon/hook": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/hook.webp",
+   "bytes": 2674,
+   "renderedAt": "2026-11-26T02:38:36.311Z"
   },
   "icon/ice": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/ice.webp",
+   "bytes": 2706,
+   "renderedAt": "2026-11-26T02:44:23.771Z"
   },
   "icon/lamp": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/lamp.webp",
+   "bytes": 2938,
+   "renderedAt": "2026-11-26T02:44:28.643Z"
   },
   "icon/lighthouse": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/lighthouse.webp",
+   "bytes": 2666,
+   "renderedAt": "2026-11-26T02:38:55.288Z"
   },
   "icon/mic": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/mic.webp",
+   "bytes": 3282,
+   "renderedAt": "2026-11-26T02:39:01.939Z"
   },
   "icon/mug": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/mug.webp",
+   "bytes": 2740,
+   "renderedAt": "2026-11-26T02:39:08.088Z"
   },
   "icon/payphone": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/payphone.webp",
+   "bytes": 2506,
+   "renderedAt": "2026-11-26T02:39:14.913Z"
   },
   "icon/peak": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/peak.webp",
+   "bytes": 3126,
+   "renderedAt": "2026-11-26T02:39:20.781Z"
   },
   "icon/pill": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/pill.webp",
+   "bytes": 3206,
+   "renderedAt": "2026-11-26T02:44:37.727Z"
   },
   "icon/pine": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/pine.webp",
+   "bytes": 3140,
+   "renderedAt": "2026-11-26T02:39:35.937Z"
   },
   "icon/pipe": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/pipe.webp",
+   "bytes": 2866,
+   "renderedAt": "2026-11-26T02:39:41.632Z"
   },
   "icon/popcorn": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/popcorn.webp",
+   "bytes": 3668,
+   "renderedAt": "2026-11-26T02:39:48.442Z"
   },
   "icon/pot": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/pot.webp",
+   "bytes": 3802,
+   "renderedAt": "2026-11-26T02:39:53.042Z"
   },
   "icon/projector": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/projector.webp",
+   "bytes": 3104,
+   "renderedAt": "2026-11-26T02:39:57.486Z"
   },
   "icon/record": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/record.webp",
+   "bytes": 2736,
+   "renderedAt": "2026-11-26T02:40:01.964Z"
   },
   "icon/screen": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/screen.webp",
+   "bytes": 3582,
+   "renderedAt": "2026-11-26T02:42:32.074Z"
   },
   "icon/shed": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/shed.webp",
+   "bytes": 3910,
+   "renderedAt": "2026-11-26T02:44:42.268Z"
   },
   "icon/ski": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/ski.webp",
+   "bytes": 4802,
+   "renderedAt": "2026-11-26T02:44:47.510Z"
   },
   "icon/snowcat": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/snowcat.webp",
+   "bytes": 3586,
+   "renderedAt": "2026-11-26T02:40:29.407Z"
   },
   "icon/steam": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/steam.webp",
+   "bytes": 3184,
+   "renderedAt": "2026-11-26T02:40:38.339Z"
   },
   "icon/swing": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/swing.webp",
+   "bytes": 3322,
+   "renderedAt": "2026-11-26T02:40:43.325Z"
   },
   "icon/ticket": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/ticket.webp",
+   "bytes": 3652,
+   "renderedAt": "2026-11-26T02:44:53.224Z"
   },
   "icon/tower": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/tower.webp",
+   "bytes": 3030,
+   "renderedAt": "2026-11-26T02:40:58.218Z"
   },
   "icon/wave": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/wave.webp",
+   "bytes": 2402,
+   "renderedAt": "2026-11-26T02:41:02.188Z"
   },
   "icon/wreck": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/wreck.webp",
+   "bytes": 4160,
+   "renderedAt": "2026-11-26T02:41:07.354Z"
   },
   "item/orrin-s-logbook": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/item/orrin-s-logbook.webp",
+   "bytes": 1684,
+   "renderedAt": "2026-11-26T02:43:23.540Z"
   },
   "item/the-unfinished-reel": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/the-unfinished-reel.webp",
+   "bytes": 2654,
+   "renderedAt": "2026-11-26T02:44:59.905Z"
   },
   "item/the-keeper-s-last-letter": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/the-keeper-s-last-letter.webp",
+   "bytes": 2182,
+   "renderedAt": "2026-11-26T02:45:06.235Z"
   },
   "item/wedding-ring-in-the-weed": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/wedding-ring-in-the-weed.webp",
+   "bytes": 1978,
+   "renderedAt": "2026-11-26T02:45:10.791Z"
   },
   "item/ward-c-patient-log": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/ward-c-patient-log.webp",
+   "bytes": 1462,
+   "renderedAt": "2026-11-26T02:45:16.673Z"
   },
   "item/dr-lull-s-dictaphone": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/dr-lull-s-dictaphone.webp",
+   "bytes": 1600,
+   "renderedAt": "2026-11-26T02:45:23.309Z"
   },
   "item/patrol-report-jan-74": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/patrol-report-jan-74.webp",
+   "bytes": 2008,
+   "renderedAt": "2026-11-26T02:45:29.811Z"
   },
   "item/corder-s-avalanche-beacon": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/corder-s-avalanche-beacon.webp",
+   "bytes": 1356,
+   "renderedAt": "2026-11-26T02:45:34.595Z"
   },
   "item/overnight-call-log": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/overnight-call-log.webp",
+   "bytes": 1690,
+   "renderedAt": "2026-11-26T02:45:42.486Z"
   },
   "item/unaired-reel-to-reel": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/unaired-reel-to-reel.webp",
+   "bytes": 1664,
+   "renderedAt": "2026-11-26T02:45:47.279Z"
   },
   "item/tire-iron": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/tire-iron.webp",
+   "bytes": 818,
+   "renderedAt": "2026-11-26T02:45:52.329Z"
   },
   "item/hedge-shears": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/hedge-shears.webp",
+   "bytes": 1404,
+   "renderedAt": "2026-11-26T02:45:57.977Z"
   },
   "item/groundskeeper-s-shotgun": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/groundskeeper-s-shotgun.webp",
+   "bytes": 1214,
+   "renderedAt": "2026-11-26T02:46:05.236Z"
   },
   "item/road-flare": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/road-flare.webp",
+   "bytes": 1670,
+   "renderedAt": "2026-11-26T02:46:10.457Z"
   },
   "item/fire-extinguisher": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/fire-extinguisher.webp",
+   "bytes": 1176,
+   "renderedAt": "2026-11-26T02:46:16.360Z"
   },
   "item/usher-flashlight": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/usher-flashlight.webp",
+   "bytes": 1356,
+   "renderedAt": "2026-11-26T02:46:24.276Z"
   },
   "item/first-aid-tin": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/first-aid-tin.webp",
+   "bytes": 1188,
+   "renderedAt": "2026-11-26T02:46:31.537Z"
   },
   "item/aspirin-cola": {
-   "status": "pending"
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
   },
   "item/box-of-sugar-candy": {
-   "status": "pending"
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
   },
   "item/padlock-chain": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/padlock-chain.webp",
+   "bytes": 2166,
+   "renderedAt": "2026-11-26T02:46:49.121Z"
   },
   "item/walkie-talkie": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/walkie-talkie.webp",
+   "bytes": 1322,
+   "renderedAt": "2026-11-26T02:46:55.187Z"
   },
   "item/station-wagon-keys": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/station-wagon-keys.webp",
+   "bytes": 1996,
+   "renderedAt": "2026-11-26T02:47:00.826Z"
   },
   "item/thermos-of-black-coffee": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/thermos-of-black-coffee.webp",
+   "bytes": 1396,
+   "renderedAt": "2026-11-26T02:47:07.476Z"
   },
   "item/pulled-speaker-box": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pulled-speaker-box.webp",
+   "bytes": 2160,
+   "renderedAt": "2026-11-26T02:47:15.636Z"
   },
   "item/firecrackers": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/firecrackers.webp",
+   "bytes": 2238,
+   "renderedAt": "2026-11-26T02:47:24.021Z"
   },
   "item/boat-hook": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/boat-hook.webp",
+   "bytes": 1084,
+   "renderedAt": "2026-11-26T02:47:29.964Z"
   },
   "item/fillet-knife": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/fillet-knife.webp",
+   "bytes": 1012,
+   "renderedAt": "2026-11-26T02:47:38.833Z"
   },
   "item/spear-gun": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/spear-gun.webp",
+   "bytes": 1328,
+   "renderedAt": "2026-11-26T02:47:43.516Z"
   },
   "item/marine-flare-gun": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/marine-flare-gun.webp",
+   "bytes": 1854,
+   "renderedAt": "2026-11-26T02:47:49.243Z"
   },
   "item/rock-salt": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/rock-salt.webp",
+   "bytes": 2156,
+   "renderedAt": "2026-11-26T02:47:58.401Z"
   },
   "item/storm-lantern": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/storm-lantern.webp",
+   "bytes": 1644,
+   "renderedAt": "2026-11-26T02:48:04.198Z"
   },
   "item/marine-first-aid-kit": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/marine-first-aid-kit.webp",
+   "bytes": 1812,
+   "renderedAt": "2026-11-26T02:48:09.851Z"
   },
   "item/flask-of-brandy": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/flask-of-brandy.webp",
+   "bytes": 1094,
+   "renderedAt": "2026-11-26T02:48:14.830Z"
   },
   "item/saltwater-taffy": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/saltwater-taffy.webp",
+   "bytes": 2274,
+   "renderedAt": "2026-11-26T02:48:19.313Z"
   },
   "item/mooring-rope": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/mooring-rope.webp",
+   "bytes": 2466,
+   "renderedAt": "2026-11-26T02:48:23.391Z"
   },
   "item/outboard-key": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/outboard-key.webp",
+   "bytes": 1068,
+   "renderedAt": "2026-11-26T02:48:30.169Z"
   },
   "item/jeep-keys": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/jeep-keys.webp",
+   "bytes": 1568,
+   "renderedAt": "2026-11-26T02:48:35.729Z"
   },
   "item/transistor-radio": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/transistor-radio.webp",
+   "bytes": 2008,
+   "renderedAt": "2026-11-26T02:48:44.156Z"
   },
   "item/buoy-bell": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/buoy-bell.webp",
+   "bytes": 1690,
+   "renderedAt": "2026-11-26T02:48:51.358Z"
   },
   "item/scalpel": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/scalpel.webp",
+   "bytes": 1814,
+   "renderedAt": "2026-11-26T02:48:58.027Z"
   },
   "item/fire-axe": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/fire-axe.webp",
+   "bytes": 1344,
+   "renderedAt": "2026-11-26T02:49:04.469Z"
   },
   "item/bone-saw": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/bone-saw.webp",
+   "bytes": 1158,
+   "renderedAt": "2026-11-26T02:49:11.906Z"
   },
   "item/defibrillator-paddles": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/defibrillator-paddles.webp",
+   "bytes": 2144,
+   "renderedAt": "2026-11-26T02:49:17.694Z"
   },
   "item/co2-extinguisher": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/co2-extinguisher.webp",
+   "bytes": 968,
+   "renderedAt": "2026-11-26T02:49:24.191Z"
   },
   "item/penlight": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/penlight.webp",
+   "bytes": 1008,
+   "renderedAt": "2026-11-26T02:49:29.282Z"
   },
   "item/gauze-tape": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/gauze-tape.webp",
+   "bytes": 1378,
+   "renderedAt": "2026-11-26T02:49:33.694Z"
   },
   "item/mild-sedative": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/mild-sedative.webp",
+   "bytes": 1256,
+   "renderedAt": "2026-11-26T02:49:41.348Z"
   },
   "item/smelling-salts": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/smelling-salts.webp",
+   "bytes": 1336,
+   "renderedAt": "2026-11-26T02:49:47.967Z"
   },
   "item/heavy-gurney": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/heavy-gurney.webp",
+   "bytes": 2522,
+   "renderedAt": "2026-11-26T02:49:55.795Z"
   },
   "item/doctor-s-pager": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/doctor-s-pager.webp",
+   "bytes": 1746,
+   "renderedAt": "2026-11-26T02:50:01.282Z"
   },
   "item/intercom-handset": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/intercom-handset.webp",
+   "bytes": 886,
+   "renderedAt": "2026-11-26T02:50:09.306Z"
   },
   "item/service-elevator-key": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/service-elevator-key.webp",
+   "bytes": 1370,
+   "renderedAt": "2026-11-26T02:50:15.046Z"
   },
   "item/epinephrine-pen": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/epinephrine-pen.webp",
+   "bytes": 698,
+   "renderedAt": "2026-11-26T02:50:19.837Z"
   },
   "item/broken-ski-pole": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/broken-ski-pole.webp",
+   "bytes": 1182,
+   "renderedAt": "2026-11-26T02:50:26.881Z"
   },
   "item/climbing-ice-axe": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/climbing-ice-axe.webp",
+   "bytes": 1200,
+   "renderedAt": "2026-11-26T02:50:33.337Z"
   },
   "item/lodge-hunting-rifle": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/lodge-hunting-rifle.webp",
+   "bytes": 1042,
+   "renderedAt": "2026-11-26T02:50:39.849Z"
   },
   "item/avalanche-flare-pistol": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/avalanche-flare-pistol.webp",
+   "bytes": 1662,
+   "renderedAt": "2026-11-26T02:50:47.615Z"
   },
   "item/headlamp": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/headlamp.webp",
+   "bytes": 1222,
+   "renderedAt": "2026-11-26T02:50:53.986Z"
   },
   "item/wool-blanket": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/wool-blanket.webp",
+   "bytes": 1898,
+   "renderedAt": "2026-11-26T02:51:00.267Z"
   },
   "item/hand-warmers": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/hand-warmers.webp",
+   "bytes": 1952,
+   "renderedAt": "2026-11-26T02:51:06.532Z"
   },
   "item/peppermint-schnapps": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/peppermint-schnapps.webp",
+   "bytes": 1268,
+   "renderedAt": "2026-11-26T02:51:13.504Z"
   },
   "item/energy-bar": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/energy-bar.webp",
+   "bytes": 1916,
+   "renderedAt": "2026-11-26T02:51:21.299Z"
   },
   "item/ski-rack": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/ski-rack.webp",
+   "bytes": 1518,
+   "renderedAt": "2026-11-26T02:51:27.253Z"
   },
   "item/spare-transceiver": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/spare-transceiver.webp",
+   "bytes": 1506,
+   "renderedAt": "2026-11-26T02:51:31.528Z"
   },
   "item/air-horn": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/air-horn.webp",
+   "bytes": 1074,
+   "renderedAt": "2026-11-26T02:51:38.452Z"
   },
   "item/snowmobile-keys": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/snowmobile-keys.webp",
+   "bytes": 1714,
+   "renderedAt": "2026-11-26T02:51:43.450Z"
   },
   "item/mic-stand": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/mic-stand.webp",
+   "bytes": 1340,
+   "renderedAt": "2026-11-26T02:51:48.417Z"
   },
   "item/tower-wrench": {
-   "status": "pending"
+   "status": "pending",
+   "attempts": 1
   },
   "item/pneumatic-nail-gun": {
    "status": "pending"
@@ -1311,21 +1758,37 @@
    "status": "pending"
   },
   "symbol/horror": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/symbol/horror.webp",
+   "bytes": 1280,
+   "renderedAt": "2026-11-26T02:41:14.572Z"
   },
   "symbol/dice": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/symbol/dice.webp",
+   "bytes": 1248,
+   "renderedAt": "2026-11-26T02:41:22.542Z"
   },
   "symbol/nerve": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/symbol/nerve.webp",
+   "bytes": 1168,
+   "renderedAt": "2026-11-26T02:41:29.464Z"
   },
   "symbol/health": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/symbol/health.webp",
+   "bytes": 974,
+   "renderedAt": "2026-11-26T02:41:34.042Z"
   }
  },
  "lastRun": {
-  "at": "2026-11-25 02:18 UTC",
-  "rendered": 126,
-  "stop": "daily neuron limit (4006: AiError: AiError: you have used up your daily free allocation of 10,000 neurons, please upgrade to Cloudflare's Workers Paid plan if you would like to continue usage. (51ff687b-464a-4b9d-abe9-6d2179b9d813))"
+  "at": "2026-11-26 02:52 UTC",
+  "rendered": 64,
+  "stop": "daily neuron limit (4006: AiError: AiError: you have used up your daily free allocation of 10,000 neurons, please upgrade to Cloudflare's Workers Paid plan if you would like to continue usage. (5550a650-8ee2-43dd-8397-d34df955c0e2))"
  }
 }
