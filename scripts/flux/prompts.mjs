@@ -62,9 +62,9 @@ for (const [id, p] of Object.entries(HEROINES))
   add(`portrait/heroine-${id}`, 'portrait', `${PORTRAIT}, ${p}, brave and wary expression, ${STYLE}`, 768, 768, [512, 512]);
 const KILLERS = {
   projectionist:
-    'a gaunt old cinema projectionist wearing a dented steel film-canister mask with five round holes punched in it and two pale glowing eyes, a soot-stained brown leather work apron over a dark shirt, holding a pair of long film-splicing scissors, standing in a hazy projection booth with a projector beam behind him, cold blue and amber light',
+    'an old cinema projectionist whose face is hidden behind a round dented steel film-canister mask with five punched holes, wearing a soot-stained leather work apron over a dark shirt, holding a large film reel against his chest, standing in a hazy projection booth with a bright projector beam behind him, cold blue and amber light',
   tidewife:
-    'a tall silent woman in a long dripping black oilskin fisherman coat, her whole face hidden behind a heavy opaque grey lace wedding veil, only darkness and two faint pale points of light beneath it, a brass storm lantern in one hand and a long wooden boat hook in the other, water streaming from her hem, lighthouse beam in the fog behind her, sea-green moonlight',
+    'a faceless widow figure in a long dripping black oilskin fisherman coat, her head and face completely shrouded under a thick opaque grey lace veil that hangs like a shroud, no facial features visible at all, only two faint pale points of light where the eyes would be, a brass storm lantern in one hand and a long wooden boat hook in the other, water streaming from her hem, lighthouse beam in the fog behind her, sea-green moonlight',
   anesthetist:
     'a tall, tidy doctor in a 1950s dark rubber surgical apron, his face fully covered: round opaque black smoked goggles and a white surgical mask over nose and mouth with a thin smile painted on it in orange-brown iodine, holding a small brown glass bottle and a folded white cloth, empty green-tiled hospital corridor behind him, cold flickering fluorescent light, unsettling calm',
   snowblind:
@@ -210,14 +210,14 @@ for (const [loc, cards] of Object.entries(STILLS))
     add(`still/${id}`, 'still', `cinematic film still, 1980s, ${p}, ${PALETTE[loc]}, ${STYLE}`, 768, 480, [640, 400]);
 
 // ── 5. Map node icons (512² → 160²) ────────────────────────────────────────
-const ICON = 'painted game icon, a single object centered on a plain dark circular vignette background, bold readable silhouette, strong rim light';
+const ICON = 'painted game icon of one fully rendered, detailed object with real colour, texture and highlights (not a silhouette or cut-out), centered and filling most of a plain dark circular vignette background, lit from the front with a strong rim light';
 const NODE_ICONS = {
   ambulance: 'a vintage 1980s ambulance with a red rotating light',
   bear: 'a worn old teddy bear',
   boat: 'a small wooden rowboat resting on sawhorses',
   bolt: 'a rumbling diesel generator with a crackle of electricity',
   cabin: 'a small white clapboard cabin with one lit window',
-  candle: 'a cluster of lit votive candles',
+  candle: 'a church rack of small lit votive candles in red glass cups',
   car: 'a 1970s sedan in side view with its headlights on',
   chair: 'an empty ski chairlift chair hanging from a cable',
   cross: 'a red medical cross on a white hospital curtain',
@@ -231,7 +231,7 @@ const NODE_ICONS = {
   gate: 'an old wooden road gate arm stuck half raised',
   glass: 'a glass of whiskey on a bar, antlers behind it',
   grass: 'tall dune grass bending in the wind',
-  hearth: 'a roaring stone fireplace',
+  hearth: 'a big stone fireplace with logs crackling in the grate, warm orange glow',
   hook: 'a large fishing hook with a tackle box',
   ice: 'a frozen pond with skate marks circling a dark patch',
   lamp: 'a round surgical operating lamp glowing',
@@ -247,7 +247,7 @@ const NODE_ICONS = {
   pot: 'a simmering steel stock pot on a stove',
   projector: 'a vintage film projector with two reels',
   record: 'a vinyl record sliding out of its sleeve',
-  screen: 'a drive-in movie screen glowing in the dark',
+  screen: 'a large blank outdoor cinema screen on wooden posts, lit pale blue under the night sky',
   shed: 'a small wooden tool shed with a padlock',
   ski: 'a rack of wooden skis and poles',
   snowcat: 'a red tracked snowcat vehicle',
@@ -261,7 +261,7 @@ const NODE_ICONS = {
 for (const [k, p] of Object.entries(NODE_ICONS)) add(`icon/${k}`, 'icon', `${ICON}, ${p}, night, ${STYLE}`, 512, 512, [160, 160]);
 
 // ── 6. Item icons (512² → 128²), keyed by item name ────────────────────────
-const ITEM = 'painted inventory item icon, a single object centered on a plain dark background, bold readable silhouette, strong rim light';
+const ITEM = 'painted inventory item icon of one fully rendered, detailed object with real colour, texture and highlights (not a silhouette or cut-out), centered and filling most of a plain dark background, lit from the front with a strong rim light';
 const ITEMS = {
   // lore (killer packs)
   "Orrin's Logbook": 'a worn leather projectionist logbook full of tally marks',
@@ -282,8 +282,8 @@ const ITEMS = {
   'Fire Extinguisher': 'a red fire extinguisher',
   'Usher Flashlight': 'a chrome usher flashlight casting a beam',
   'First-Aid Tin': 'a vintage metal first-aid tin with a red cross',
-  'Aspirin & Cola': 'an aspirin bottle beside a glass cola bottle',
-  'Box of Sugar Candy': 'a colorful box of movie-theater candy',
+  'Aspirin & Cola': 'a small white medicine tin beside a glass soda bottle',
+  'Box of Sugar Candy': 'a bright cardboard box of fruit gum drops',
   'Padlock & Chain': 'a heavy padlock and steel chain',
   'Walkie-Talkie': 'a 1980s walkie-talkie with antenna',
   'Station Wagon Keys': 'a set of car keys on a wood-grain keychain',
