@@ -564,12 +564,12 @@ function hurtHeroine(c: Content, s: GameState, n: number) {
   const t = h.token;
   h.token = null;
   if (t <= 0) {
-    log(s, 'Her backup token is blank.', 'bad');
+    log(s, 'Her second-chance token is blank.', 'bad');
     s.down = { ...s.down, heroine: true };
     return;
   }
   h.health = Math.min(h.maxHealth, t);
-  log(s, `She should be dead. She gets up anyway: her backup token was ${t}, so she's back on ${t} health. The current phase ends.`, 'good');
+  log(s, `She should be dead. She gets up anyway: her second-chance token was ${t}, so she's back on ${t} health. The current phase ends.`, 'good');
   s.fx.push({ t: 'revive', who: 'heroine', n: t });
   endCurrentPhase(c, s);
 }
@@ -600,7 +600,7 @@ function hurtKiller(c: Content, s: GameState, n: number) {
     return;
   }
   if (over <= 0) {
-    log(s, `${c.killer.name} drops to 0 and staggers. The next hit reveals the backup token.`, 'good');
+    log(s, `${c.killer.name} drops to 0 and staggers. The next hit reveals the second-chance token.`, 'good');
     return;
   }
   const t = k.token;

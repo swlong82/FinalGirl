@@ -478,7 +478,7 @@ h2.section { font-family: var(--display); font-size: clamp(36px, 7vw, 60px); mar
   background: repeating-linear-gradient(transparent 0 21px, rgba(70, 100, 150, .18) 21px 22px), linear-gradient(#efe8da, #e2d8c4); box-shadow: 0 14px 30px rgba(0, 0, 0, .6); backdrop-filter: none; }
 .log-panel::before { content: ''; position: absolute; left: 22px; top: 0; bottom: 0; width: 1px; background: rgba(200, 60, 60, .45); }
 .log-panel h4 { color: #6b5a48 !important; }
-.log-panel h4::after { content: ' — final draft'; text-transform: none; letter-spacing: 0; font-family: var(--type); }
+.log-panel h4::after { content: ' — the script'; text-transform: none; letter-spacing: 0; font-family: var(--type); }
 .log div { opacity: 1; line-height: 22px; font-size: 12.5px; }
 .log .bad { color: #a0122c; }
 .log .good { color: #2f6b3a; }
@@ -1512,3 +1512,37 @@ img.sym.gen { border-radius: 50%; object-fit: cover; }
 
 .tut-card .tut-do { font-family: var(--ui); font-size: 11px; letter-spacing: .08em; text-transform: none; font-style: italic; color: var(--muted); animation: none; border: none; background: none; box-shadow: none; }
 .killerturn .kt-head { font-family: var(--ui); font-size: 17px; letter-spacing: .02em; color: #fff3e0; margin: 0 0 8px; }
+
+/* ── Roll result line (v1.0.16): how the roll went and what it did ── */
+.roll-result { position: fixed; z-index: 47; top: 74px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: min(560px, calc(100vw - 24px)); padding: 7px 14px; border-radius: 8px; background: rgba(16, 11, 18, .95); border: 1px solid var(--line); border-left-width: 4px; box-shadow: 0 10px 30px rgba(0, 0, 0, .7); font-family: var(--ui); font-size: 14px; letter-spacing: .02em; color: var(--ink); pointer-events: none; animation: rollRes 3.6s ease forwards; }
+.roll-result i { font-style: normal; font-size: 16px; font-weight: 600; }
+.roll-result b { color: #fff3e0; white-space: nowrap; }
+.roll-result span { min-width: 0; }
+.roll-result .sym { width: 14px; height: 14px; vertical-align: -2px; }
+.roll-result.b-great { border-left-color: #4fbf6a; } .roll-result.b-great i { color: #6fdc8a; }
+.roll-result.b-good { border-left-color: var(--gold); } .roll-result.b-good i { color: var(--gold); }
+.roll-result.b-fail { border-left-color: var(--blood); } .roll-result.b-fail i { color: #ff6b81; }
+@keyframes rollRes { 0% { opacity: 0; transform: translate(-50%, -8px); } 8%, 82% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+@media (max-width: 700px) { .roll-result { top: 8px; font-size: 13px; } }
+
+/* ── Tips that don't block (v1.0.16) ── */
+.tip-note { position: fixed; z-index: 46; top: 74px; right: 16px; width: min(330px, calc(100vw - 32px)); display: flex; gap: 8px; align-items: flex-start; padding: 9px 30px 9px 12px; border-radius: 8px; background: rgba(36, 29, 44, .94); border: 1px solid rgba(249, 199, 79, .55); box-shadow: 0 10px 30px rgba(0, 0, 0, .6); font-size: 13px; line-height: 1.45; color: var(--ink); pointer-events: none; animation: fade .3s; transition: opacity .6s; }
+.tip-note.fading { opacity: 0; }
+.tip-note .glyph.tip { width: 17px; height: 17px; flex: none; color: var(--gold); margin-top: 1px; }
+.tip-note .tn-x { pointer-events: auto; position: absolute; top: 3px; right: 4px; width: 24px; height: 24px; border: none; background: none; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; }
+.tip-note .tn-x:hover { color: #fff; }
+.tip-note .sym { width: 14px; height: 14px; vertical-align: -2px; }
+/* Toasts let clicks through everywhere but their own button, and keep off the shop's buttons. */
+.toast { pointer-events: none; }
+.toast .btn { pointer-events: auto; }
+body:has(.shop-ov) .toast { top: 16px; bottom: auto; }
+@media (max-width: 700px) {
+  .tip-note { top: 8px; right: 50%; transform: translateX(50%); }
+  .roll-result { top: 64px; }
+  body:has(.tip-note) .roll-result { top: 96px; }
+}
+@media (min-width: 701px) { body:has(.shop-ov) .tip-note { top: auto; bottom: 84px; left: 24px; right: auto; } }
+.vital.hp .v-s { letter-spacing: 0; }
+.dicetray .res-what { margin-top: 6px; font-family: var(--ui); font-size: 14px; color: #fff3e0; }
+.dicetray .res-what.b-fail { color: #ff8a9a; }
+.dicetray .res-what .sym { width: 14px; height: 14px; vertical-align: -2px; }
