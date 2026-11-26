@@ -16,6 +16,7 @@ Runs in any modern browser on desktop or mobile, with no install. Headphones rec
 - **Feature Four: Whiteout**. Killer: *The Snowblind*. Location: *Kettle Peak Lodge*.
 - **Feature Five: Dead Air**. Killer: *The Caller*. Location: *KXRL Hilltop Studio*.
 - **Season 1 is complete**: 5 features, 7 heroines, and a signature rule for every location (tide, blackouts, cold, ringing phones, intermission).
+- **v1.0.17: who follows you.** A tag under the heroine counts the survivors walking with her (*2 of 3 follow* when her limit leaves someone behind); followers glow green on the map, the rest dim; while moving, each reachable location previews *+2* (or ✕ where he stands); a tip names who stayed behind.
 - **v1.0.16: plain words.** Less jargon (*almost*, *second chance*, *Shop*, *Turn end*), a line after every roll saying what it did, and tips that never block a click.
 - **v1.0.15: learn by playing.** A 10-second pitch, then a tutorial you play (short bubbles, a staged first fight), and a goal bar that always says what to do next; **Show me** points at the exact card or place and says why.
 - **v1.0.14: symbols, not words.** Horror, dice, nerve and health show as symbols beside their numbers everywhere (cards, status, vitals, shop); painted versions are queued in the art pipeline.

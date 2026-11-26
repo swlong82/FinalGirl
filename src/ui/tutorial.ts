@@ -110,7 +110,7 @@ export const STEPS: TutStep[] = [
   {
     chapter: 'Rescue',
     title: 'Get them out',
-    text: 'The survivor follows you. Step onto the <b>EXIT</b>, the <b>Ticket Booth</b>. {He}’s close: hurry!',
+    text: 'The survivor follows you: see the green tag under you. Step onto the <b>EXIT</b>, the <b>Ticket Booth</b>. Hurry!',
     target: '[data-node=gate]',
     done: (s) => s.saved > 0 || s.round > 1,
   },

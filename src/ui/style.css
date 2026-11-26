@@ -1546,3 +1546,15 @@ body:has(.shop-ov) .toast { top: 16px; bottom: auto; }
 .dicetray .res-what { margin-top: 6px; font-family: var(--ui); font-size: 14px; color: #fff3e0; }
 .dicetray .res-what.b-fail { color: #ff8a9a; }
 .dicetray .res-what .sym { width: 14px; height: 14px; vertical-align: -2px; }
+
+/* ── Followers: who walks with her on her next step ── */
+.token .tok-fol { display: inline-flex; align-items: center; gap: 2px; font: 700 clamp(10px, 1.15cqw, 13px)/1 var(--ui); letter-spacing: .03em; background: var(--good); color: #062; border-radius: 9px; padding: 2px 6px 2px 3px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0, 0, 0, .7); }
+.token .tok-fol[hidden] { display: none; }
+.token .tok-fol.part { background: var(--gold); color: #2a1408; }
+.token .tok-fol .glyph { width: 12px; height: 12px; }
+.vics .vw { display: inline-flex; }
+.vics .vw.fol .victim { fill: #9ff0b4; filter: drop-shadow(0 0 4px rgba(120, 230, 150, .95)); }
+.vics .stay { opacity: .4; }
+.vics .named.fol i { box-shadow: 0 0 0 1px var(--good); }
+.badge.fol { color: #062; background: var(--good); border-color: #2f6b3a; font-weight: 700; }
+.badge.fol.none { color: #fff; background: #3a0d16; border-color: var(--blood); }
