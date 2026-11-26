@@ -36,8 +36,10 @@ const RETRY_FLAGGED = flag('--retry-flagged');
 const DRY = flag('--dry');
 const FORCE = flag('--force'); // with --only: re-render keys even if already done
 
-// klein-4b bills per 512×512 output tile (≈26.05 neurons each). Free tier: 10,000/day.
-const tiles = (a) => Math.ceil(a.w / 512) * Math.ceil(a.h / 512);
+// klein-4b lists ≈26.05 neurons per 512×512 output tile, but account analytics for the
+// first run (139 calls, 13,859 neurons) show every image billed as at least 4 tiles
+// (~104 neurons), whatever its size. Free tier: 10,000/day, so ~95 images a day.
+const tiles = (a) => Math.max(4, Math.ceil(a.w / 512) * Math.ceil(a.h / 512));
 const neurons = (a) => Math.round(tiles(a) * 26.05);
 
 const LABEL = { backdrop: 'Location backdrops', portrait: 'Portraits', still: 'Card stills', icon: 'Map node icons', item: 'Item icons', symbol: 'Stat symbols' };
