@@ -64,7 +64,7 @@ const KILLERS = {
   projectionist:
     'an old cinema projectionist whose face is hidden behind a round dented steel film-canister mask with five punched holes, wearing a soot-stained leather work apron over a dark shirt, holding a large film reel against his chest, standing in a hazy projection booth with a bright projector beam behind him, cold blue and amber light',
   tidewife:
-    'a tall silent woman in a long dripping black oilskin fisherman coat, her whole face hidden behind a heavy opaque grey lace wedding veil, only darkness and two faint pale points of light beneath it, a brass storm lantern in one hand and a long wooden boat hook in the other, water streaming from her hem, lighthouse beam in the fog behind her, sea-green moonlight',
+    'a faceless widow figure in a long dripping black oilskin fisherman coat, her head and face completely shrouded under a thick opaque grey lace veil that hangs like a shroud, no facial features visible at all, only two faint pale points of light where the eyes would be, a brass storm lantern in one hand and a long wooden boat hook in the other, water streaming from her hem, lighthouse beam in the fog behind her, sea-green moonlight',
   anesthetist:
     'a tall, tidy doctor in a 1950s dark rubber surgical apron, his face fully covered: round opaque black smoked goggles and a white surgical mask over nose and mouth with a thin smile painted on it in orange-brown iodine, holding a small brown glass bottle and a folded white cloth, empty green-tiled hospital corridor behind him, cold flickering fluorescent light, unsettling calm',
   snowblind:
