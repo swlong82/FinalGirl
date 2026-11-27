@@ -63,6 +63,8 @@ for (const [id, p] of Object.entries(HEROINES))
 const KILLERS = {
   projectionist:
     'an old cinema projectionist whose face is hidden behind a round dented steel film-canister mask with five punched holes, wearing a soot-stained leather work apron over a dark shirt, holding a large film reel against his chest, standing in a hazy projection booth with a bright projector beam behind him, cold blue and amber light',
+  // The stored Tidewife image is this prompt's full-length render, cropped by hand to chest-up
+  // (asking for chest-up framing made the model add a second, unveiled woman).
   tidewife:
     'a faceless widow figure in a long dripping black oilskin fisherman coat, her head and face completely shrouded under a thick opaque grey lace veil that hangs like a shroud, no facial features visible at all, only two faint pale points of light where the eyes would be, a brass storm lantern in one hand and a long wooden boat hook in the other, water streaming from her hem, lighthouse beam in the fog behind her, sea-green moonlight',
   anesthetist:

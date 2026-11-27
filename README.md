@@ -67,7 +67,7 @@ The build uses a relative base path, so `dist/` also works on any static host.
 
 ## Painted art (Flux)
 
-Prompts live in `scripts/flux/prompts.mjs`; the renderer calls `@cf/black-forest-labs/flux-2-klein-4b` one asset at a time, writes WebP files to `src/art/gen/`, and updates `scripts/flux/manifest.json` and `docs/ASSETS.md` after every asset. It stops cleanly at the Workers AI free daily limit (10,000 neurons, reset 00:00 UTC); run it again the next day to continue.
+Prompts live in `scripts/flux/prompts.mjs`; the renderer calls `@cf/black-forest-labs/flux-2-klein-4b` one asset at a time, writes WebP files to `src/art/gen/`, and updates `scripts/flux/manifest.json` and `docs/ASSETS.md` after every asset. It stops cleanly at the Workers AI free limit (about 10,000 neurons, about 100 per image). The limit counts a rolling 24 hours, so run it again a day after the last run to continue.
 
 ```bash
 CLOUDFLARE_API_TOKEN=<token with Workers AI Read+Edit> NODE_USE_ENV_PROXY=1 node scripts/flux/render.mjs

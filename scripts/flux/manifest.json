@@ -94,10 +94,10 @@
   },
   "portrait/killer-tidewife": {
    "status": "done",
-   "attempts": 2,
+   "attempts": 4,
    "file": "src/art/gen/portrait/killer-tidewife.webp",
-   "bytes": 18174,
-   "renderedAt": "2026-11-26T02:42:03.555Z"
+   "bytes": 33424,
+   "renderedAt": "2026-11-27T03:22:23.537Z"
   },
   "portrait/killer-anesthetist": {
    "status": "done",
@@ -1073,12 +1073,11 @@
    "renderedAt": "2026-11-26T02:44:10.606Z"
   },
   "icon/hearth": {
-   "status": "flagged",
-   "attempts": 2,
+   "status": "done",
+   "attempts": 3,
    "file": "src/art/gen/icon/hearth.webp",
-   "bytes": 2964,
-   "renderedAt": "2026-11-26T02:38:31.841Z",
-   "error": "3030: output flagged"
+   "bytes": 3998,
+   "renderedAt": "2026-11-27T03:20:36.176Z"
   },
   "icon/hook": {
    "status": "done",
@@ -1375,14 +1374,18 @@
    "renderedAt": "2026-11-26T02:46:31.537Z"
   },
   "item/aspirin-cola": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/item/aspirin-cola.webp",
+   "bytes": 1294,
+   "renderedAt": "2026-11-27T03:20:41.041Z"
   },
   "item/box-of-sugar-candy": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/item/box-of-sugar-candy.webp",
+   "bytes": 2516,
+   "renderedAt": "2026-11-27T03:20:44.675Z"
   },
   "item/padlock-chain": {
    "status": "done",
@@ -1721,41 +1724,88 @@
    "renderedAt": "2026-11-26T02:51:48.417Z"
   },
   "item/tower-wrench": {
-   "status": "pending",
-   "attempts": 1
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/item/tower-wrench.webp",
+   "bytes": 1108,
+   "renderedAt": "2026-11-27T03:20:51.038Z"
   },
   "item/pneumatic-nail-gun": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pneumatic-nail-gun.webp",
+   "bytes": 1630,
+   "renderedAt": "2026-11-27T03:20:55.900Z"
   },
   "item/halon-extinguisher": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/halon-extinguisher.webp",
+   "bytes": 1124,
+   "renderedAt": "2026-11-27T03:21:02.735Z"
   },
   "item/heavy-flashlight": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/heavy-flashlight.webp",
+   "bytes": 1186,
+   "renderedAt": "2026-11-27T03:21:08.296Z"
   },
   "item/station-first-aid-box": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/station-first-aid-box.webp",
+   "bytes": 830,
+   "renderedAt": "2026-11-27T03:21:13.526Z"
   },
   "item/headache-pills": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/headache-pills.webp",
+   "bytes": 1976,
+   "renderedAt": "2026-11-27T03:21:18.478Z"
   },
   "item/birthday-cake": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/birthday-cake.webp",
+   "bytes": 1554,
+   "renderedAt": "2026-11-27T03:21:22.805Z"
   },
   "item/filing-cabinet": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/filing-cabinet.webp",
+   "bytes": 1082,
+   "renderedAt": "2026-11-27T03:21:27.204Z"
   },
   "item/test-tone-generator": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/test-tone-generator.webp",
+   "bytes": 2002,
+   "renderedAt": "2026-11-27T03:21:32.225Z"
   },
   "item/loaded-cart-tape": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/loaded-cart-tape.webp",
+   "bytes": 1320,
+   "renderedAt": "2026-11-27T03:21:37.433Z"
   },
   "item/station-van-keys": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/station-van-keys.webp",
+   "bytes": 1976,
+   "renderedAt": "2026-11-27T03:21:41.377Z"
   },
   "item/two-way-radio": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/two-way-radio.webp",
+   "bytes": 1816,
+   "renderedAt": "2026-11-27T03:21:46.221Z"
   },
   "symbol/horror": {
    "status": "done",
@@ -1787,8 +1837,8 @@
   }
  },
  "lastRun": {
-  "at": "2026-11-26 02:52 UTC",
-  "rendered": 64,
-  "stop": "daily neuron limit (4006: AiError: AiError: you have used up your daily free allocation of 10,000 neurons, please upgrade to Cloudflare's Workers Paid plan if you would like to continue usage. (5550a650-8ee2-43dd-8397-d34df955c0e2))"
+  "at": "2026-11-27 03:22 UTC",
+  "rendered": 1,
+  "stop": "queue finished"
  }
 }
