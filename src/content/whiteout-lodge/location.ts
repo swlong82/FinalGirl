@@ -80,7 +80,7 @@ export const whiteoutLodge: LocationPack = {
     { id: 'sp-marty', name: 'Marty, the Bartender', flavor: 'Pours a heavy hand and talks even louder. Keeps a first-aid kit under the bar.', trait: 'loud', text: 'Every Upkeep he isn’t with you, he bangs on something, and the killer’s next target is the noise.', rescue: [{ op: 'heal', n: 2 }], death: [{ op: 'horror', n: 1 }] },
   ],
   items: [
-    { id: 'skipole', name: 'Broken Ski Pole', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 2 },
+    { id: 'skipole', name: 'Broken Ski Pole', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 3 },
     { id: 'iceaxe', name: 'Climbing Ice Axe', kind: 'weapon', text: 'Weapon (two hands): +2 damage.', hands: 2, damage: 2 },
     { id: 'rifle', name: 'Lodge Hunting Rifle', kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches {him} 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
     { id: 'flarepistol', name: 'Avalanche Flare Pistol', kind: 'consumable', hands: 1, text: 'Killer here or 1 away: 2 damage and stun {him}.', uses: 1, use: { when: 'killerNear', label: 'Fire', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },

@@ -11,7 +11,7 @@ export const campTamarack: LocationPack = {
   rule: {
     kind: 'campfire',
     name: 'The Campfire',
-    text: 'While the Fire Circle (🔥) burns, it is a haven: no killer or minion can step into it. It starts at 3 fuel and burns down 1 every Upkeep. Stand there to stoke it back to 3 (1 nerve, once a turn). When the Finale begins, the rain puts it out for good.',
+    text: 'While the Fire Circle (🔥) burns, it is a haven: no killer or minion can step into it. It starts at 3 fuel and burns down 1 every Upkeep. Stand there to stoke it: +2 fuel, 3 at most (1 nerve, once a turn). When the Finale begins, the rain puts it out for good.',
   },
   lore: [
     'Camp Tamarack opened in 1959 on forty acres of pine at the north end of Tamarack Lake: twelve cabins, a mess hall, a boathouse, and a fire circle where every camper for twenty-three summers learned the same ghost story.',

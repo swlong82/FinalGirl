@@ -6,7 +6,7 @@ export const trapper: KillerPack = {
   name: 'The Trapper',
   epithet: 'Silas Kroll, who never gave up his trapline',
   art: 'trapper',
-  health: 10,
+  health: 9,
   horror: 2,
   gimmick: {
     kind: 'traps',

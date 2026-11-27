@@ -6,7 +6,7 @@ export const mirrorball: KillerPack = {
   name: 'The Mirrorball',
   epithet: 'Lonnie Vale, the King of the Rink',
   art: 'mirrorball',
-  health: 10,
+  health: 9,
   horror: 2,
   gimmick: {
     kind: 'fear',

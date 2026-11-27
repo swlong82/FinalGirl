@@ -11,7 +11,7 @@ export const rollerdrome: LocationPack = {
   rule: {
     kind: 'dj',
     name: 'The DJ’s Set',
-    text: 'Every turn the DJ spins the next of three songs. FAST SONG: every move card moves you 1 more, and {he} moves 1 more. COUPLES SKATE (lights down): hide rolls +1 die, search rolls −1 die, and {he} moves 1 less. STROBE: attack rolls +1 die, and {he} hits 1 harder. At the DJ Booth (♫), skip to the next song (1 nerve, once a turn).',
+    text: 'Every turn the DJ spins the next of three songs. FAST SONG: your first move card each turn moves you 1 more, and {he} moves 1 more. COUPLES SKATE (lights down): hide rolls +1 die, search rolls −1 die. STROBE: you’re dazzled: reaction rolls −1 die, and {he} hits 1 harder. At the DJ Booth (♫), skip to the next song (1 nerve, once a turn).',
   },
   lore: [
     'Rollerdrome Skateland opened on Galveston’s Seawall Boulevard in 1958 and has been rebuilt twice after hurricanes. In 1977 it went disco: a mirror ball the size of a tractor tire, a light rig over the rink, and a DJ booth where the organ used to be.',

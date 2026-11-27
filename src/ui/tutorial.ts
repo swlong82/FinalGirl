@@ -303,7 +303,7 @@ function MECHANICS(): TutStep[] {
   const m = (x: TutStep): TutStep => ({ ...x, mechanic: true, target: x.target ?? '.rulechip' });
   return [
     // ── Location rules
-    m({ id: 'rule-intermission', title: 'Intermission', text: 'Every 4th turn the projector stops: +1 nerve and horror −1. The chip up top counts down.', trigger: (s) => calm(s) && rule('intermission') && s.round >= 2 }),
+    m({ id: 'rule-intermission', title: 'Intermission', text: 'Every 5th turn the projector stops for intermission: horror −1. The chip up top counts down.', trigger: (s) => calm(s) && rule('intermission') && s.round >= 2 }),
     m({ id: 'rule-tide', title: 'The tide', text: 'The tide turns every 4 turns. At <b>high tide</b>, stepping onto the shore costs 1 extra nerve.', trigger: (s) => calm(s) && rule('tide') && (s.round >= 3 || s.env.tideHigh) }),
     m({ id: 'rule-power', title: 'Blackouts', text: 'The power fails on and off. In the dark: searching is harder, hiding easier, and {he} moves 1 farther.', trigger: (s) => calm(s) && rule('power') && (s.env.dark || s.round >= 2) }),
     m({ id: 'rule-cold', title: 'The cold', text: 'End a turn outdoors and you get colder; at 3 cold you lose 1 health. End by a fire to thaw.', trigger: (s) => calm(s) && rule('cold') && s.round >= 1 && !C?.heroine.traits.coldImmune }),

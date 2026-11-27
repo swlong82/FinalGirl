@@ -248,9 +248,9 @@ function updateSeen(c: Content, s: GameState) {
 
 /** The DJ's Set. */
 export const SONGS = [
-  { name: 'Fast Song', text: 'Move cards move you +1; {he} moves +1.' },
-  { name: 'Couples Skate', text: 'Lights down: hide +1 die, search −1 die; {he} moves −1.' },
-  { name: 'Strobe', text: 'Attack rolls +1 die; {he} hits +1.' },
+  { name: 'Fast Song', text: 'Your first move card each turn moves +1; {he} moves +1.' },
+  { name: 'Couples Skate', text: 'Lights down: hide +1 die, search −1 die.' },
+  { name: 'Strobe', text: 'Dazzled: your reactions roll −1 die, and {he} hits +1.' },
 ];
 export function song(c: Content, s: GameState): number | undefined {
   return c.location.rule.kind === 'dj' ? (s.env.song ?? 0) : undefined;
@@ -260,7 +260,7 @@ export function song(c: Content, s: GameState): number | undefined {
 export function ruleAction(c: Content): { tag: NodeTag; cost: number; label: string; text: string; effects: Effect[] } | undefined {
   switch (c.location.rule.kind) {
     case 'campfire':
-      return { tag: 'fire', cost: 1, label: 'Stoke', text: 'Stoke the fire back up to 3', effects: [{ op: 'fuel', n: 3 }] };
+      return { tag: 'fire', cost: 1, label: 'Stoke', text: 'Stoke the fire: +2 fuel (3 at most)', effects: [{ op: 'fuel', n: 2 }] };
     case 'shutters':
       return { tag: 'switch', cost: 1, label: 'Override', text: 'Swap the shutters: the closed set rolls up, the open set comes down', effects: [{ op: 'gates' }] };
     case 'dj':
@@ -535,7 +535,6 @@ export function rollBreakdown(c: Content, s: GameState, d: ActionCardDef): { tot
     add(c.heroine.passive.name, t.attackDice ?? 0);
     add('Resolve', h.resolve);
     addMod('attackDice');
-    add('Strobe', song(c, s) === 2 ? 1 : 0);
   }
   if (d.tags.includes('hide')) {
     add(c.heroine.passive.name, t.hideDice ?? 0);
@@ -544,7 +543,10 @@ export function rollBreakdown(c: Content, s: GameState, d: ActionCardDef): { tot
     add('Couples Skate', song(c, s) === 1 ? 1 : 0);
     add('in the corn', c.location.rule.kind === 'corn' && hasTag(c, h.loc, 'corn') ? 1 : 0);
   }
-  if (d.kind === 'reaction') add(c.heroine.passive.name, t.reactDice ?? 0);
+  if (d.kind === 'reaction') {
+    add(c.heroine.passive.name, t.reactDice ?? 0);
+    add('Strobe', song(c, s) === 2 ? -1 : 0);
+  }
   if (d.tags.includes('move')) add(c.heroine.passive.name, t.moveDice ?? 0);
   return { total: Math.max(1, parts.reduce((n, [, v]) => n + v, 0)), parts };
 }
@@ -833,7 +835,7 @@ export function killerMoveValue(c: Content, s: GameState) {
       (k.power === 'active' ? c.killer.power.move ?? 0 : 0) +
       mod(c, s, 'killerMove') +
       (s.env.dark ? 1 : 0) +
-      (sg === 0 ? 1 : sg === 1 ? -1 : 0) +
+      (sg === 0 ? 1 : 0) +
       (gimmick(c, 'fear') && s.heroine.horror >= 5 ? 1 : 0),
   );
 }
@@ -1482,7 +1484,7 @@ function exec(c: Content, s: GameState, e: Effect) {
       break;
     // ── heroine
     case 'move': {
-      const bonus = (h.movesThisTurn === 0 ? c.heroine.traits.moveBonus ?? 0 : 0) + (song(c, s) === 0 ? 1 : 0);
+      const bonus = h.movesThisTurn === 0 ? (c.heroine.traits.moveBonus ?? 0) + (song(c, s) === 0 ? 1 : 0) : 0;
       h.movesThisTurn++;
       const n = e.n + bonus;
       if (n > 0) s.pending = { kind: 'move', left: n };
@@ -1969,9 +1971,8 @@ function ruleUpkeep(c: Content, s: GameState) {
   switch (r.kind) {
     case 'intermission':
       if (s.round % period === 0) {
-        log(s, `${r.name}: the projector stops. Horror −1, +1 nerve.`, 'good');
+        log(s, `${r.name}: the projector stops and the lot breathes out. Horror −1.`, 'good');
         s.fx.push({ t: 'env', text: r.name });
-        h.nerve += 1;
         addHorror(c, s, -1);
       }
       break;
@@ -2064,7 +2065,7 @@ function endActionPhase(c: Content, s: GameState) {
     env.ringing = undefined;
     log(s, `Nobody answered at ${nodeName(c, at)}. Someone else picks up, and ${c.killer.name} is on the line.`, 'killer');
     if (at !== s.killer.loc) placeVictims(c, s, at, 1);
-    s.queue.push({ op: 'killerMove', toward: at, steps: 1 });
+    s.queue.push({ op: 'killerMove', toward: at, steps: 2 });
     drain(c, s);
   }
   if (c.location.rule.kind === 'bus' && env.bus && !s.outcome) {

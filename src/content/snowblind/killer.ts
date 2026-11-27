@@ -6,7 +6,7 @@ export const snowblind: KillerPack = {
   name: 'The Snowblind',
   epithet: 'Wes Corder, who came down off the mountain',
   art: 'snowblind',
-  health: 10,
+  health: 11,
   horror: 2,
   bloodlust: {
     revealAt: 4,
@@ -23,7 +23,7 @@ export const snowblind: KillerPack = {
     max: { text: 'He can hear everything now: he heals 1.', effects: [{ op: 'killerHeal', n: 1 }] },
   },
   behavior: { text: 'He listens for her heartbeat: he hunts her (survivors in his way still die first) and attacks.', effects: [{ op: 'target', who: 'heroine' }, { op: 'hunt' }, { op: 'attack' }] },
-  power: { name: 'Frost Rime', text: 'Ice builds up over his parka like armor plate. 4 temporary health.', health: 4 },
+  power: { name: 'Frost Rime', text: 'Ice builds up over his parka like armor plate. 5 temporary health.', health: 5 },
   lore: [
     'Wes Corder spent three days under the Kettle Bowl slide with his eyes open to the snow. When they reached him the cold had taken his sight, and something in him had frozen too.',
     "He still wears his patrol parka and the frosted goggles he had on that morning, the lenses rimed white. He carries his avalanche probe and an ice axe. He can't see you. He listens for you: breathing, footsteps, a heartbeat.",

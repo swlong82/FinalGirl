@@ -6,7 +6,7 @@ export const anesthetist: KillerPack = {
   name: 'The Anesthetist',
   epithet: 'Dr. Ambrose Lull, who only wants you to rest',
   art: 'anesthetist',
-  health: 10,
+  health: 9,
   horror: 2,
   bloodlust: {
     revealAt: 4,

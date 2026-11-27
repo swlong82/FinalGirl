@@ -120,21 +120,21 @@ describe('The Last Bus (Paloma Motor Court)', () => {
 
 describe('The DJ’s Set (Rollerdrome)', () => {
   const c = C('june', 'rollerdrome-skateland', 'the-projectionist');
-  it('fast song: +1 move for both; couples skate: hide +1, search −1, he −1; strobe: attack +1 die, he hits +1', () => {
+  it('fast song: +1 to her first move and to his; couples skate: hide +1, search −1; strobe: her reactions −1 die, he hits +1', () => {
     const s = setup(c, 'rink', 'catwalk');
     const base = { ...s, env: { ...s.env, song: undefined } };
     const hide = c.actions.find((a) => a.id === 'ac-hide')!;
     const search = c.actions.find((a) => a.id === 'ac-search')!;
-    const swing = c.actions.find((a) => a.id === 'ac-fullswing')!;
+    const brace = c.actions.find((a) => a.id === 'ac-brace')!;
     const ref = buildContent('holloway-drive-in', 'the-projectionist', 'june');
     s.env.song = 0;
     expect(killerMoveValue(c, s)).toBe(killerMoveValue(ref, base) + 1);
     s.env.song = 1;
-    expect(killerMoveValue(c, s)).toBe(killerMoveValue(ref, base) - 1);
+    expect(killerMoveValue(c, s)).toBe(killerMoveValue(ref, base));
     expect(rollPool(c, s, hide)).toBe(rollPool(ref, base, hide) + 1);
     expect(rollPool(c, s, search)).toBe(rollPool(ref, base, search) - 1);
     s.env.song = 2;
-    expect(rollPool(c, s, swing)).toBe(rollPool(ref, base, swing) + 1);
+    expect(rollPool(c, s, brace)).toBe(rollPool(ref, base, brace) - 1);
     expect(killerAttack(c, s)).toBe(killerAttack(ref, base) + 1);
   });
   it('the song changes every Upkeep and can be skipped at the booth', () => {

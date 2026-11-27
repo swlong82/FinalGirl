@@ -78,7 +78,7 @@ export const saintAgatha: LocationPack = {
     { id: 'sp-ruiz', name: 'Father Ruiz', flavor: 'Hospital chaplain. Has sat with more dying people than anyone in the building.', trait: 'still', text: 'He never panics.', rescue: [{ op: 'horror', n: -2 }], death: [{ op: 'horror', n: 2 }] },
   ],
   items: [
-    { id: 'scalpel', name: 'Scalpel', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 2 },
+    { id: 'scalpel', name: 'Scalpel', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 3 },
     { id: 'axe', name: 'Fire Axe', kind: 'weapon', text: 'Weapon (two hands): +2 damage.', hands: 2, damage: 2 },
     { id: 'bonesaw', name: 'Bone Saw', kind: 'weapon', text: 'Weapon (two hands): +3 damage. Dull after 2 hits.', hands: 2, damage: 3, uses: 2 },
     { id: 'defib', name: 'Defibrillator Paddles', kind: 'consumable', hands: 1, text: 'Killer here: 2 damage and stun {him}.', uses: 1, use: { when: 'killerHere', label: 'Clear!', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },

@@ -11,7 +11,7 @@ export const deadAir: LocationPack = {
   rule: {
     kind: 'calls',
     name: 'Request Line',
-    text: 'Each turn a phone (☎) rings somewhere. Answer it there (1 nerve, horror +1). If nobody answers by the end of your Action phase, someone else picks up: a survivor appears there and the killer takes 1 step toward it.',
+    text: 'Each turn a phone (☎) rings somewhere. Answer it there (1 nerve, horror +1). If nobody answers by the end of your Action phase, someone else picks up: a survivor appears there and the killer takes 2 steps toward it.',
   },
   lore: [
     'KXRL has broadcast from the top of Holcomb Hill since 1952: a cinder-block studio, a red-lit transmitter tower, and the only signal for sixty miles of wheat.',

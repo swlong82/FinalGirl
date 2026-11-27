@@ -8,7 +8,7 @@ export const holloway: LocationPack = {
   era: 'Route 9, autumn 1984',
   palette: { sky: '#0b0f1e', glow: '#8fb7ff', accent: '#ff4d6d' },
   art: 'drivein',
-  rule: { kind: 'intermission', period: 4, name: 'Intermission', text: 'Every 4th turn, in Upkeep, the projector stops for intermission: +1 nerve and horror −1.' },
+  rule: { kind: 'intermission', period: 5, name: 'Intermission', text: 'Every 5th turn, in Upkeep, the projector stops for intermission: horror −1.' },
   lore: [
     'The Holloway opened in 1958 at the edge of the Marrow pine forest — a gravel lot, a giant white screen, and a projection booth perched on a cinder-block concession stand. For twenty years it was the only thing to do on Route 9 after dark.',
     'On Halloween night, 1979, during a sold-out midnight premiere, the projection booth caught fire. The projectionist, Orrin Vale, was trapped inside with the burning reels. The crowd in the lot thought the flames on the screen were part of the show. They honked their horns and cheered.',
@@ -73,7 +73,7 @@ export const holloway: LocationPack = {
     { id: 'sp-usher', name: 'Mr. Pruitt, the Night Usher', flavor: 'Forty years of telling teenagers to turn their headlights off.', trait: 'toExit', text: 'Every Upkeep he isn’t with you, he walks 1 toward the nearest exit, flashlight bobbing.', rescue: [{ op: 'nerve', n: 2 }, { op: 'horror', n: -1 }], death: [{ op: 'horror', n: 2 }] },
   ],
   items: [
-    { id: 'tire-iron', name: 'Tire Iron', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 2 },
+    { id: 'tire-iron', name: 'Tire Iron', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1 },
     { id: 'shears', name: 'Hedge Shears', kind: 'weapon', text: 'Weapon (two hands): +2 damage.', hands: 2, damage: 2 },
     { id: 'shotgun', name: "Groundskeeper's Shotgun", kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches {him} 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
     { id: 'flare', name: 'Road Flare', kind: 'consumable', hands: 1, text: 'Killer here: 2 damage and stun {him}.', uses: 1, use: { when: 'killerHere', label: 'Light it', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },

@@ -80,7 +80,7 @@ export const palomaMotorCourt: LocationPack = {
     { id: 'sp-earl', name: 'Earl Tibbs, the Trucker', flavor: 'Twenty-two years on the road, a CB handle of Big Daddy Biscuit, and a schedule to keep.', trait: 'toExit', text: 'Every Upkeep he isn’t with you, he walks 1 toward the nearest exit. He’ll catch the bus if he gets there first.', rescue: [{ op: 'nerve', n: 1 }, { op: 'drawItem', n: 1 }], death: [{ op: 'horror', n: 2 }] },
   ],
   items: [
-    { id: 'pm-thumper', name: 'Tire Thumper', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 2 },
+    { id: 'pm-thumper', name: 'Tire Thumper', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 3 },
     { id: 'pm-hook', name: 'Pool Rescue Hook', kind: 'weapon', text: 'Weapon (two hands): +2 damage.', hands: 2, damage: 2 },
     { id: 'pm-rifle', name: 'Snake Rifle', kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches {him} 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
     { id: 'pm-rocket', name: 'Bottle Rocket', kind: 'consumable', hands: 1, text: 'Killer here or 1 away: 2 damage and stun {him}.', uses: 1, use: { when: 'killerNear', label: 'Light', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },

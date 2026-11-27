@@ -12,7 +12,7 @@ export const TUTORIAL = {
   location: 'holloway-drive-in',
   killer: 'the-projectionist',
   heroine: 'rosa',
-  seed: 24, // on the scripted path: the search finds two, Duck blocks, Full Swing lands for 4
+  seed: 7, // on the scripted path (found by search after v1.1.1 changed the Holloway item pool): the search finds the Tire Iron, Duck blocks, Full Swing lands for 4
 };
 
 export function tutorialGame(c: Content): GameState {

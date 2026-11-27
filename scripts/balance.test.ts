@@ -6,6 +6,12 @@ import { setBotStyle, simulate, type BotStyle } from '../src/engine/bot';
 import type { Difficulty } from '../src/engine/types';
 
 const N = Number(process.env.N ?? 30);
+/** FNV-1a, so every (location, killer, heroine, run) gets an independent seed. (Seeds built from id lengths were shared across heroines and killers, which made per-killer numbers swing by ±10.) */
+const hash = (str: string) => {
+  let x = 2166136261;
+  for (let i = 0; i < str.length; i++) x = Math.imul(x ^ str.charCodeAt(i), 16777619);
+  return x >>> 0;
+};
 const D = (process.env.D ?? 'standard') as Difficulty;
 setBotStyle((process.env.STYLE ?? 'balanced') as BotStyle); // STYLE=rush: ignore survivors, go for him
 
@@ -29,7 +35,7 @@ it('balance report', () => {
       for (const h of HEROINES)
         for (let i = 1; i <= N; i++) {
           const c = buildContent(l.id, k.id, h.id);
-          const s = simulate(c, newGame(c, i * 7919 + l.id.length * 31 + k.id.length, D), dispatch);
+          const s = simulate(c, newGame(c, hash(`${l.id}|${k.id}|${h.id}|${i}`), D), dispatch);
           add(`L ${l.id}`, s);
           add(`K ${k.id}`, s);
           add(`H ${h.id}`, s);

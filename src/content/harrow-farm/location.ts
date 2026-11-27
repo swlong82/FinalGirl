@@ -81,7 +81,7 @@ export const harrowFarm: LocationPack = {
     { id: 'sp-jessup', name: 'Old Jessup, the Hired Man', flavor: 'Has worked the Harrow place since 1946. Knows the maze better than the Harrows do, and won’t say a word about Abel.', trait: 'wander', text: 'Every Upkeep he isn’t with you, he wanders off down another row, looking for those goats.', rescue: [{ op: 'drawItem', n: 1 }, { op: 'horror', n: -1 }], death: [{ op: 'horror', n: 1 }, { op: 'bloodlust', n: 1 }] },
   ],
   items: [
-    { id: 'hf-cornknife', name: 'Corn Knife', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 2 },
+    { id: 'hf-cornknife', name: 'Corn Knife', kind: 'weapon', text: 'Weapon: +1 damage.', hands: 1, damage: 1, copies: 3 },
     { id: 'hf-pitchfork', name: 'Pitchfork', kind: 'weapon', text: 'Weapon (two hands): +2 damage.', hands: 2, damage: 2 },
     { id: 'hf-rifle', name: 'Varmint Rifle', kind: 'weapon', text: 'Ranged (two hands): +2 damage, reaches {him} 1 away. 2 shots.', hands: 2, damage: 2, range: [0, 1], uses: 2 },
     { id: 'hf-kerosene', name: 'Kerosene Lantern', kind: 'consumable', hands: 1, text: 'Killer here: smash it on {him}. 2 damage and stun {him}.', uses: 1, use: { when: 'killerHere', label: 'Smash', effects: [{ op: 'killerDamage', n: 2 }, { op: 'killerStun', n: 1 }] } },
