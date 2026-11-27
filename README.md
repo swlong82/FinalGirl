@@ -15,6 +15,12 @@ Runs in any modern browser on desktop or mobile, with no install. Headphones rec
 - **Feature Three: Saint Agatha After Hours**. Killer: *The Anesthetist*. Location: *Saint Agatha's West Wing*.
 - **Feature Four: Whiteout**. Killer: *The Snowblind*. Location: *Kettle Peak Lodge*.
 - **Feature Five: Dead Air**. Killer: *The Caller*. Location: *KXRL Hilltop Studio*.
+- **Feature Six: Lights Out at Camp Tamarack**. Killer: *The Trapper*. Location: *Camp Tamarack*.
+- **Feature Seven: Closing Time**. Killer: *The Window Dresser*. Location: *Starlite Galleria*.
+- **Feature Eight: No Vacancy**. Killer: *The Night Manager*. Location: *The Paloma Motor Court*.
+- **Feature Nine: Skate Night**. Killer: *The Mirrorball*. Location: *Rollerdrome Skateland*.
+- **Feature Ten: Harvest Moon**. Killer: *The Harvestman*. Location: *Harrow Farm Corn Maze*.
+- **v1.1: Season 2.** Five new features, five new heroines (12 in all) and 100 killer × location pairings. Every Season 2 location brings a new rule (**The Campfire**: a haven no enemy can enter while it burns; **Security Shutters**: two sets of gates that swap every turn; **The Last Bus**: an exit that only exists every third turn and leaves with or without you; **The DJ's Set**: three songs that change the odds for both of you; **The Corn**: he vanishes from the map in the maze), and every Season 2 killer a signature mechanic that works anywhere (**Trapline**: steel traps where he's been; **The Display**: a mannequin marks where he strikes next; **Room 13**: victims taken alive to her lair, on a clock; **Reflections**: your fear powers him; **Only When You Move**: he moves exactly as far as you walked). Two new named-survivor exceptions (a medic and a fighter), and new heroine traits (trap sense, master keys, three hand slots, hip checks, sight in the corn).
 - **Season 1 is complete**: 5 features, 7 heroines, and a signature rule for every location (tide, blackouts, cold, ringing phones, intermission).
 - **v1.0.18: one thing at a time.** The tutorial is a one-minute core (search, rescue, your goal); everything else is a one-time lesson the first time it happens (the Shop, his first attack, his turn, the fight, the clock, horror, the Finale), never two in a row. A **Simple view** (default for new players) trims the side panels to what matters and folds the log away; what you can't use right now dims; cards lead with their best result in one big line; the map names only the places you can reach, your goal and where you stand.
 - **v1.0.17: who follows you.** A tag under the heroine counts the survivors walking with her (*2 of 3 follow* when her limit leaves someone behind); followers glow green on the map, the rest dim; while moving, each reachable location previews *+2* (or ✕ where he stands); a tip names who stayed behind.
@@ -30,9 +36,9 @@ Runs in any modern browser on desktop or mobile, with no install. Headphones rec
 - **v1.0.5: harder fights, fuller nights.** She has less health and he has more, a survivor wanders in every Upkeep, and the feature and heroine pickers fit on one screen however many seasons arrive.
 - **v1.0.4: fewer freebies, more people.** No limit on buys, but only Walk, Look Around and Duck are free. Six survivors are on the board from the start, so your rescue track (and ability) fills early.
 - **v1.0: the five‑phase night.** Each turn is Action → Planning → Killer → Panic → Upkeep. You spend **nerve** on action cards, buy new ones from an open tableau, and make **Horror Rolls** where 3–4 is a partial you can buy up with cards. A **10‑card Terror deck** counts down to the **Finale**. His **bloodlust** sets how far he moves and how hard he hits, and both of you carry a hidden **final‑health token**. The only way to win is to kill him.
-- **Double Bill builder**: put any killer in any location (25 pairings), with live VHS‑poster previews and a random pick. Three difficulty modes and a stats screen.
+- **Double Bill builder**: put any killer in any location (100 pairings), with live VHS‑poster previews and a random pick. Three difficulty modes and a stats screen.
 - Named survivors with their own quirks in every location, minions for every killer, and four tie‑break policies (player‑adverse, most plausible, comedic, unpredictable). Nights saved under v0.9 are converted when you Continue.
-- 7 playable heroines, each with a passive, a rescue‑reward track, and an ability that unlocks when every rescue slot is full.
+- 12 playable heroines, each with a passive, a rescue‑reward track, and an ability that unlocks when every rescue slot is full.
 - Painted art (portraits, backdrops, card stills, icons) rendered with Flux on Cloudflare Workers AI, with the original procedural SVG art as a fallback for anything not yet painted. Procedural soundtrack (WebAudio). Conversion status: [`docs/ASSETS.md`](docs/ASSETS.md).
 - Autosave, undo, keyboard shortcuts, mobile layout, a guided first night, and in‑context tips.
 
@@ -56,7 +62,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs rule tests for the core loop and fuzzes every killer × location × heroine combination with a rule‑aware bot. For the full balance report, run `SCRIPTS=1 N=10 npx vitest run balance`.
+`npm test` runs rule tests for the core loop and every Season 2 mechanic, checks that every piece of content has a painted‑art prompt, and fuzzes all 100 killer × location pairings (three heroines each) with a rule‑aware bot. For the full balance report, run `SCRIPTS=1 N=10 npx vitest run balance`.
 
 ## Deploy (GitHub Pages)
 
@@ -81,4 +87,4 @@ See [`docs/DESIGN.md`](docs/DESIGN.md) for genre research, the full rules, how v
 
 ## Controls
 
-`1`–`0` play cards · click glowing locations to step · `S` stop moving · `A` answer · `H` hint · `Z` undo · `E` end phase · `Space` continue · `R` rules
+`1`–`0` play cards · click glowing locations to step · `S` stop moving · `A` answer the phone, or the location's action (stoke, override, skip the song, look out) · `H` hint · `Z` undo · `E` end phase · `Space` continue · `R` rules

@@ -30,8 +30,18 @@ import {
   followers,
   followPlan,
   HAND_LIMIT,
-  HAND_SLOTS,
+  handSlots,
   handsUsed,
+  exitOpen,
+  gateDown,
+  GATE_NAMES,
+  haven,
+  killerSeen,
+  killerShownAt,
+  ruleAction,
+  SONGS,
+  song,
+  walkNeighbors,
   hasTag,
   horrorDice,
   isExit,
@@ -245,7 +255,23 @@ function describeEffect(e: Effect): string {
     case 'hide':
       return 'hide';
     case 'barricade':
-      return `barricade ${e.strength}`;
+      return e.at === 'around' ? `barricade ${e.strength} all around` : `barricade ${e.strength}`;
+    case 'fuel':
+      return 'stoke the campfire';
+    case 'gates':
+      return 'swap the shutters';
+    case 'bus':
+      return 'the bus stops now';
+    case 'song':
+      return 'skip the song';
+    case 'reveal':
+      return 'see {him} this turn';
+    case 'trap':
+      return 'a trap is set near you';
+    case 'pose':
+      return e.who === 'heroine' ? 'poses a mannequin where you stand' : 'poses a mannequin';
+    case 'strikePose':
+      return 'appears at {his} mannequin and attacks';
     case 'teleportHeroine':
       return 'escape route';
     case 'drawItem':
@@ -603,6 +629,10 @@ function renderIntro() {
       <p class="date" style="animation-delay:.1s">${esc(loc.era)} — ${esc(loc.name)}</p>
       ${paras.map((p, i) => `<p style="animation-delay:${0.6 + i * 1.4}s">${esc(p)}</p>`).join('')}
     </div>
+    <div class="intro-rules" style="animation-delay:${0.6 + paras.length * 1.4}s">
+      <p>${glyph(RULE_GLYPH[loc.rule.kind] ?? 'reel')} <b>${esc(loc.rule.name)}</b>: ${esc(loc.rule.text)}</p>
+      ${k.gimmick ? `<p>${glyph(GIMMICK_GLYPH[k.gimmick.kind])} <b>${esc(k.gimmick.name)}</b>: ${esc(k.gimmick.text)}</p>` : ''}
+    </div>
     <div class="menu" style="margin-top:20px">
       <button class="btn primary" data-go="start">Begin the Night</button>
     </div>
@@ -743,6 +773,15 @@ function buildBoard() {
     <div class="token heroine" id="tok-h"><div class="pin">${heroineToken(c.heroine)}</div><span class="tag">${esc(c.heroine.name.split(' ')[0])}</span><span class="tok-fol" id="tok-fol" hidden></span></div>
     <canvas class="particles" id="particles"></canvas>
     <div class="token killer" id="tok-k"><div class="pin">${killerPortrait({ art: c.killer.art })}</div><span class="tag">${esc(c.killer.name.replace(/^The /, ''))}</span><div class="tok-hp" id="tok-khp"><i class="hp"></i><i class="tmp"></i><span></span></div></div>
+    ${(loc.rule.gates ?? [])
+      .flatMap((set, gi) =>
+        set.map(([a, b]) => {
+          const A = loc.nodes.find((n) => n.id === a)!;
+          const B = loc.nodes.find((n) => n.id === b)!;
+          return `<div class="gate-pin g${gi}" data-gate-edge="${a}|${b}" style="left:${(A.x + B.x) / 20}%;top:${(A.y + B.y) / 12.8}%" title="${esc(GATE_NAMES[gi])} shutter">${glyph('lock')}</div>`;
+        }),
+      )
+      .join('')}
     <div class="board-hint" id="board-hint"></div>
     <button class="mapkey-btn" data-go="mapkey">${glyph('key')} Map key</button>
     <div class="inspect" id="inspect" hidden></div>`;
@@ -787,12 +826,27 @@ function ruleChip(): string {
   else if (r.kind === 'power') state = s.env.dark ? 'BLACKOUT' : 'power on';
   else if (r.kind === 'cold') state = c.heroine.traits.coldImmune ? 'immune' : `cold ${s.env.cold}/3`;
   else if (r.kind === 'calls') state = s.env.ringing ? `ringing: ${nodeName(c, s.env.ringing)}` : 'quiet';
+  else if (r.kind === 'campfire') state = s.killer.finale ? 'out for good' : (s.env.fuel ?? 0) > 0 ? `fire ${s.env.fuel}/3` : 'OUT';
+  else if (r.kind === 'shutters') state = `${GATE_NAMES[s.env.gate ?? 0]} down`;
+  else if (r.kind === 'bus') {
+    const p = r.period ?? 3;
+    const wait = s.env.bus ? 0 : (p - (s.round % p)) % p || p;
+    state = s.env.bus ? 'BUS HERE' : `bus in ${wait} turn${wait > 1 ? 's' : ''}`;
+  } else if (r.kind === 'dj') state = SONGS[song(c, s) ?? 0].name;
+  else if (r.kind === 'corn') state = killerSeen(c, s) ? '{he}’s in sight' : 'HIDDEN';
   else if (r.kind === 'intermission') {
     const p = r.period ?? 4;
     const wait = Math.ceil(s.round / p) * p - s.round;
     state = wait === 0 ? 'THIS TURN' : `in ${wait} turn${wait > 1 ? 's' : ''}`;
   }
-  const hot = s.env.tideHigh || s.env.dark || !!s.env.ringing || s.env.cold >= 2;
+  const hot =
+    s.env.tideHigh ||
+    s.env.dark ||
+    !!s.env.ringing ||
+    s.env.cold >= 2 ||
+    (r.kind === 'campfire' && (s.env.fuel ?? 0) <= 1) ||
+    (r.kind === 'bus' && !!s.env.bus) ||
+    (r.kind === 'corn' && !killerSeen(c, s));
   return `<button class="rulechip ${hot ? 'hot' : ''}" data-go="rules" title="${esc(r.text)}"><b>${esc(r.name)}</b> · ${esc(state)}</button>`;
 }
 
@@ -938,10 +992,10 @@ function renderHeroinePanel(c: Content, s: GameState) {
   const nextTxt = h.rescued < slots.length ? `<b>Next rescue:</b> ${esc(slots[h.rescued].text)}` : `<b>Each rescue:</b> ${esc(c.heroine.rescue.repeat.text)}`;
   const rearrangeOk = (s.rearrange || s.phase === 'upkeep') && !s.pending;
   const used = handsUsed(c, h.items);
-  const handTiles = h.items.map((it) => itemTile(c, s, it, 'hand', itemDef(c, it.id).hands === 2)).join('') + Array(Math.max(0, HAND_SLOTS - used)).fill('<div class="tile empty">Empty hand</div>').join('');
+  const handTiles = h.items.map((it) => itemTile(c, s, it, 'hand', itemDef(c, it.id).hands === 2)).join('') + Array(Math.max(0, handSlots(c) - used)).fill('<div class="tile empty">Empty hand</div>').join('');
   const bag = h.pack.map((it) => itemTile(c, s, it, 'pack')).join('') || '<div class="bag-empty">Nothing stored yet.</div>';
   const abilityBox = `<div class="ability ${unlocked ? 'on' : ''}" title="${esc(c.heroine.ability.text)}"><div class="ab-h"><span class="ab-n">★ ${esc(c.heroine.ability.name)}</span>${unlocked ? `<button class="btn small ${abilityChk.ok ? 'primary' : ''}" data-act="useAbility" ${abilityChk.ok ? '' : `disabled title="${esc(abilityChk.why ?? '')}"`}>Use</button>` : `<span class="ab-l">unlocks at ${slots.length} rescues</span>`}</div>${unlocked ? `<p class="prose small">${esc(c.heroine.ability.text)}</p>` : ''}</div>`;
-  const invSecs = `${sec('Hands', `${used}/${HAND_SLOTS}${rearrangeOk ? ' · <b class="ok">rearrange now</b>' : ''}`, `<div class="hands">${handTiles}</div>`, 'inv')}
+  const invSecs = `${sec('Hands', `${used}/${handSlots(c)}${rearrangeOk ? ' · <b class="ok">rearrange now</b>' : ''}`, `<div class="hands">${handTiles}</div>`, 'inv')}
     ${sec(`${glyph('pack')} Backpack`, `${h.pack.length} item${h.pack.length === 1 ? '' : 's'}`, `<div class="bag">${bag}</div>${itemDetail(c, s, rearrangeOk)}`, 'inv')}`;
   // Phone: the same ability and inventory in a sheet, so they're one tap from the hand.
   const sheet = document.getElementById('items-sheet');
@@ -987,7 +1041,17 @@ function renderKillerPanel(c: Content, s: GameState) {
     .map((l, i) => `<i class="${i < k.bloodlust ? 'past' : ''} ${i === k.bloodlust ? 'cur' : ''} ${i === c.killer.bloodlust.revealAt ? 'mark' : ''}" title="Bloodlust ${i}${l.name ? `: ${esc(l.name)}` : ''}. Move ${l.move}, attack ${l.attack}.${l.text ? ' ' + esc(l.text) : ''}"><b>${l.move}</b><b>${l.attack}</b></i>`)
     .join('');
   const beh = k.finale ? c.killer.finale.behavior : c.killer.behavior;
+  const kSeen = killerSeen(c, s);
   const target = predictTarget(c, s);
+  const nextTxt = !kSeen && !k.posed ? '?' : target === h.loc ? 'you' : nodeName(c, target);
+  const g = c.killer.gimmick;
+  let gState = '';
+  if (g?.kind === 'traps') gState = `${s.traps?.length ?? 0}/${g.max} set`;
+  else if (g?.kind === 'pose') gState = k.posed ? `next: ${esc(nodeName(c, k.posed))}` : 'nothing posed';
+  else if (g?.kind === 'captives') gState = s.captives?.length ? `${s.captives.length} held · ${Math.min(...s.captives.map((x) => x.timer))} turn${Math.min(...s.captives.map((x) => x.timer)) > 1 ? 's' : ''} left` : 'none held';
+  else if (g?.kind === 'fear') gState = h.horror >= 6 ? 'feeding: move +1, hits +1, heals' : h.horror >= 5 ? 'feeding: move +1' : 'quiet';
+  else if (g?.kind === 'stalk') gState = `you walked ${h.stepsThisTurn ?? 0}`;
+  const gimmickSec = g ? sec(esc(g.name), gState, `<p class="prose small">${esc(g.text)}</p>`, `gimmick ${g.kind}`) : '';
   const power =
     k.power === 'hidden'
       ? `<p class="prose small">Hidden until bloodlust ${c.killer.bloodlust.revealAt}, or the Finale.</p>`
@@ -1003,7 +1067,7 @@ function renderKillerPanel(c: Content, s: GameState) {
     : '';
   const sumK = document.getElementById('sum-k');
   if (sumK)
-    sumK.innerHTML = `<b>${esc(c.killer.name.replace(/^The /, ''))}</b><span>${sym('health')}${k.health}/${k.maxHealth}${k.token !== null ? '+?' : ''}</span><span>move ${killerMoveValue(c, s)} · atk ${killerAttack(c, s)}</span><span>next: ${esc(target === h.loc ? 'you' : nodeName(c, target))}</span><i>${sideOpen.right ? 'hide' : 'details'}</i>`;
+    sumK.innerHTML = `<b>${esc(c.killer.name.replace(/^The /, ''))}</b><span>${sym('health')}${k.health}/${k.maxHealth}${k.token !== null ? '+?' : ''}</span><span>move ${killerMoveValue(c, s)} · atk ${killerAttack(c, s)}</span><span>next: ${esc(nextTxt)}</span><i>${sideOpen.right ? 'hide' : 'details'}</i>`;
   document.getElementById('killer-panel')!.innerHTML = `<div class="pane dark">
     <header class="p-id">${killerPortrait({ finale: k.finale, art: c.killer.art })}
       <div><div class="p-name">${esc(c.killer.name)}</div><div class="p-role">${esc(c.killer.epithet)}</div></div></header>
@@ -1013,10 +1077,11 @@ function renderKillerPanel(c: Content, s: GameState) {
       ${k.health === 0 && k.token !== null ? '<div class="bh-note">Down at 0: the next hit reveals {his} second-chance token. Blank = dead; a number = {he} gets up.</div>' : ''}
     </div>
     <div class="vitals two">
-      ${vital('Move', String(killerMoveValue(c, s)), k.stunned ? 'stunned' : 'per turn', k.stunned ? 'good' : '')}
+      ${vital('Move', String(killerMoveValue(c, s)), k.stunned ? 'stunned' : g?.kind === 'stalk' ? 'as far as you walk' : 'per turn', k.stunned ? 'good' : '')}
       ${vital('Attack', String(killerAttack(c, s)), 'damage per attack', '')}
     </div>
-    ${sec(k.finale ? `Finale: ${esc(c.killer.finale.name)}` : '{His} turn', `next: <b>${esc(target === h.loc ? 'you' : nodeName(c, target))}</b>`, `<p class="prose small">${esc(beh.text)}</p>`, `next ${k.finale ? 'fin' : ''}`)}
+    ${sec(k.finale ? `Finale: ${esc(c.killer.finale.name)}` : '{His} turn', `next: <b>${esc(nextTxt)}</b>`, `<p class="prose small">${esc(beh.text)}</p>`, `next ${k.finale ? 'fin' : ''}`)}
+    ${gimmickSec}
     ${sec(`Bloodlust ${k.bloodlust}`, esc(cur.name ?? ''), `<p class="prose small bl-why">Every kill feeds it: {he} moves farther and hits harder.</p><div class="btrack"><span class="bt-k"><b>move</b><b>attack</b></span>${btrack}</div>`, 'bloodlust')}
     ${sec(k.power === 'hidden' ? 'Power' : esc(c.killer.power.name), k.power === 'active' ? `${k.powerHealth} temp hp` : k.power === 'spent' ? 'spent' : 'hidden', power, `power ${k.power}`)}
     ${minions}
@@ -1042,8 +1107,10 @@ function updateBoard() {
   const c = content!;
   const h = s.heroine;
   const moving = s.pending?.kind === 'move';
-  const reach = moving ? neighbors(c, h.loc) : [];
+  const reach = moving ? walkNeighbors(c, s, h.loc) : [];
   const goal = shownGoal(c, s);
+  const kSeen = killerSeen(c, s);
+  const kAt = killerShownAt(c, s);
   // Who walks with her on her next step: lit green on the map, counted under her token.
   const hereN = s.outcome ? 0 : npcAt(s, h.loc);
   const lead = followPlan(c, s, h.loc, '');
@@ -1055,7 +1122,7 @@ function updateBoard() {
     const badges: string[] = [];
     const pile = s.piles[id];
     if (pile) badges.push(`<span class="badge search ${pile.cards.length ? '' : 'empty'}" title="Item pile: ${pile.cards.length} left${pile.up && pile.cards.length ? `. Top card: ${esc(itemDef(c, pile.cards[0]).name)}` : ''}">${glyph('search')}${pile.cards.length}</span>`);
-    if (isExit(c, id)) badges.push(`<span class="badge exitb" title="Exit: survivors here with you are rescued">EXIT</span>`);
+    if (isExit(c, id)) badges.push(exitOpen(c, s, id) ? `<span class="badge exitb" title="Exit: survivors here with you are rescued">EXIT</span>` : `<span class="badge exitb shut" title="Bus stop: an exit only while the bus waits">BUS</span>`);
     if (moving && hereN && reach.includes(id)) {
       const f = followers(c, s, h.loc, id);
       badges.push(id === s.killer.loc
@@ -1068,8 +1135,20 @@ function updateBoard() {
     if (rk === 'cold' && hasTag(c, id, 'warm')) badges.push(`<span class="badge env warm" title="Warm: ending a turn here thaws you">${glyph('fire')}</span>`);
     if (rk === 'tide' && hasTag(c, id, 'shore')) badges.push(`<span class="badge env" title="Shore: floods at high tide">${glyph(isFlooded(c, s, id) ? 'wave' : 'ripple')}</span>`);
     if (rk === 'calls' && hasTag(c, id, 'phone')) badges.push(`<span class="badge env ${s.env.ringing === id ? 'ringing' : ''}" title="${s.env.ringing === id ? 'Ringing! Answer it here.' : 'Phone'}">${glyph('phone')}</span>`);
+    if (rk === 'campfire' && hasTag(c, id, 'fire')) badges.push(haven(c, s, id) ? `<span class="badge env warm" title="Campfire: a haven while it burns. Fuel ${s.env.fuel}/3. Stoke it here.">${glyph('fire')}${s.env.fuel}</span>` : `<span class="badge env out" title="The fire is out: no shelter here">${glyph('fire')}✕</span>`);
+    if (rk === 'shutters' && hasTag(c, id, 'switch')) badges.push(`<span class="badge env" title="Security Office: override the shutters here">${glyph('lock')}</span>`);
+    if (rk === 'bus' && hasTag(c, id, 'bus')) badges.push(`<span class="badge env ${s.env.bus ? 'ringing' : ''}" title="${s.env.bus ? 'The bus is here: everyone waiting leaves on it at the end of your Action phase' : 'The bus stops here every 3rd turn'}">${glyph('bus')}</span>`);
+    if (rk === 'dj' && hasTag(c, id, 'booth')) badges.push(`<span class="badge env" title="DJ Booth: skip the song here">${glyph('music')}</span>`);
+    if (rk === 'corn' && hasTag(c, id, 'corn')) badges.push(`<span class="badge env corn" title="Corn: {he} can’t be seen here from more than 1 step away">${glyph('corn')}</span>`);
+    if (rk === 'corn' && hasTag(c, id, 'lookout')) badges.push(`<span class="badge env" title="Look out over the maze from here (free, once a turn)">${glyph('eye')}</span>`);
+    if (s.traps?.includes(id)) badges.push(`<span class="badge trap" title="A steel trap: step in and lose 1 health, and your move ends">${glyph('trap')}</span>`);
+    if (s.killer.posed === id) badges.push(`<span class="badge posed" title="{His} mannequin: {he} strikes here next turn. A barricade keeps {him} out.">${glyph('mannequin')}next</span>`);
+    if (id === c.location.lair && s.captives?.length) badges.push(`<span class="badge captive" title="${s.captives.length} held here. The next dies ${Math.min(...s.captives.map((x) => x.timer)) <= 1 ? 'at the end of this turn' : `in ${Math.min(...s.captives.map((x) => x.timer))} turns`}. Reach this place to free them.">${glyph('lock')}${s.captives.length}·${Math.min(...s.captives.map((x) => x.timer))}</span>`);
     el.classList.toggle('flooded', isFlooded(c, s, id));
-    el.classList.toggle('ringing', s.env.ringing === id);
+    el.classList.toggle('ringing', s.env.ringing === id || (rk === 'bus' && !!s.env.bus && hasTag(c, id, 'bus')));
+    el.classList.toggle('haven', haven(c, s, id));
+    el.classList.toggle('trapped', !!s.traps?.includes(id));
+    el.classList.toggle('posed', s.killer.posed === id);
     el.querySelector('.badges')!.innerHTML = badges.join('');
     const mine = id === h.loc && hereN > 0;
     const tag = (on: boolean) => (mine ? (on ? ' fol' : ' stay') : '');
@@ -1086,8 +1165,8 @@ function updateBoard() {
   });
   const pos = (id: string) => c.location.nodes.find((n) => n.id === id)!;
   const hp = pos(h.loc);
-  const kp = pos(s.killer.loc);
-  const same = h.loc === s.killer.loc;
+  const kp = pos(kAt);
+  const same = h.loc === kAt;
   const X = (x: number) => x / 10;
   const Y = (y: number) => y / 6.4;
   const th = document.getElementById('tok-h')!;
@@ -1105,6 +1184,18 @@ function updateBoard() {
   tk.style.left = `${X(kp.x) + (same ? 3.4 : 0)}%`;
   tk.style.top = `${Y(kp.y) - 9}%`;
   tk.classList.toggle('stunned', s.killer.stunned > 0);
+  tk.classList.toggle('ghost', !kSeen);
+  tk.querySelector('.tag')!.textContent = kSeen ? c.killer.name.replace(/^The /, '') : 'last seen';
+  document.querySelectorAll<HTMLElement>('.gate-pin').forEach((g) => {
+    const [a, b] = g.dataset.gateEdge!.split('|');
+    const down = gateDown(c, s, a, b);
+    g.classList.toggle('down', down);
+    g.title = `${down ? 'Shutter DOWN' : 'Shutter up'}: ${GATE_NAMES[g.classList.contains('g1') ? 1 : 0]} set`;
+  });
+  document.querySelectorAll<SVGGElement>('svg.edges [data-edge]').forEach((ln) => {
+    const [a, b] = ln.dataset.edge!.split('|');
+    ln.classList.toggle('shut', gateDown(c, s, a, b));
+  });
   const khp = document.getElementById('tok-khp');
   if (khp) {
     const k = s.killer;
@@ -1121,13 +1212,15 @@ function updateBoard() {
   rk.style.top = `${Y(kp.y)}%`;
   rk.classList.toggle('same', same);
   const thr = document.getElementById('threat') as unknown as SVGLineElement;
-  const adjacent = !same && neighbors(c, h.loc).includes(s.killer.loc);
+  const adjacent = !same && kSeen && neighbors(c, h.loc).includes(kAt);
   thr.setAttribute('x1', String(hp.x));
   thr.setAttribute('y1', String(hp.y));
   thr.setAttribute('x2', String(kp.x));
   thr.setAttribute('y2', String(kp.y));
   thr.classList.toggle('on', adjacent);
-  document.getElementById('board')!.classList.toggle('dark', s.env.dark);
+  const board = document.getElementById('board')!;
+  board.classList.toggle('dark', s.env.dark || (c.location.rule.kind === 'dj' && song(c, s) === 1));
+  board.classList.toggle('strobe', c.location.rule.kind === 'dj' && song(c, s) === 2);
   const hint = document.getElementById('board-hint')!;
   if (moving) {
     const p = s.pending as { kind: 'move'; left: number };
@@ -1201,6 +1294,14 @@ function updateBottom() {
           return `<button class="act answer" data-act="answer" data-kind="answer" ${chk.ok ? '' : 'disabled'} title="${esc(chk.why ?? 'Answer the ringing phone')}"><span class="n">Answer <kbd>A</kbd></span><span class="c"><b>${chk.cost}◉</b> ${esc(s.env.ringing ? `ringing at ${nodeName(c, s.env.ringing)}` : 'no phone ringing')}</span></button>`;
         })()
       : '';
+  const ra = ruleAction(c);
+  const ruleBtn =
+    ra && s.phase === 'action'
+      ? (() => {
+          const chk = check(c, s, { type: 'ruleAct' });
+          return `<button class="act answer" data-act="ruleAct" data-kind="answer" ${chk.ok ? '' : 'disabled'} title="${esc(chk.why ?? ra.text)}"><span class="n">${esc(ra.label)} <kbd>A</kbd></span><span class="c"><b>${chk.cost}◉</b> ${esc(chk.ok ? ra.text : chk.why ?? '')}</span></button>`;
+        })()
+      : '';
   const track = DIFFICULTY[s.difficulty].track;
   const rose = lastHorrorShown !== null && h.horror > lastHorrorShown;
   const fell = lastHorrorShown !== null && h.horror < lastHorrorShown;
@@ -1227,7 +1328,7 @@ function updateBottom() {
   const goal = shownGoal(c, s);
   const mini = goal ? `<div class="goal-mini">${glyph('target')}<b>${esc(goal.title)}</b><span>${esc(goal.detail)}</span><button class="btn tiny gb-show" data-go="hint">Show me</button></div>` : '';
   bar.innerHTML = `
-    <div>${pile}<div class="hand-wrap"><div class="actions hand-row">${cards}${answer}</div><button class="hand-more l" data-hscroll="-1" aria-label="Scroll hand left"></button><button class="hand-more r" data-hscroll="1" aria-label="Scroll hand right"></button></div></div>
+    <div>${pile}<div class="hand-wrap"><div class="actions hand-row">${cards}${answer}${ruleBtn}</div><button class="hand-more l" data-hscroll="-1" aria-label="Scroll hand left"></button><button class="hand-more r" data-hscroll="1" aria-label="Scroll hand right"></button></div></div>
     <div class="endcol"><div class="endtools">${itemsButton(c, s)}<button class="btn small" data-go="undo" ${canUndo() ? '' : 'disabled'} title="Undo (Z): not after dice rolls or draws">${glyph('undo')} Undo</button><button class="btn small" data-go="hint" ${s.phase === 'action' || s.phase === 'planning' ? '' : 'disabled'} title="What would a survivor do? (H)">${glyph('bulb')} Hint</button></div>
     ${main}</div>${mini}`;
   const row = bar.querySelector<HTMLElement>('.hand-row')!;
@@ -1717,16 +1818,22 @@ function readyItem(uid: number) {
   const it = h.pack.find((x) => x.uid === uid);
   if (!it) return;
   const need = itemDef(c, it.id).hands;
-  const free = HAND_SLOTS - handsUsed(c, h.items);
+  const free = handSlots(c) - handsUsed(c, h.items);
   if (free >= need) return act({ type: 'ready', uid });
   if (need === 2 || h.items.length === 1) return act({ type: 'ready', uid, swapOut: h.items.map((x) => x.uid) });
   swapFor = uid;
   updateOverlay();
 }
 
+/** The symbol for each location rule and killer mechanic (map key, intro). */
+const RULE_GLYPH: Record<string, string> = { cold: 'snow', tide: 'wave', calls: 'phone', intermission: 'reel', power: 'bulb', campfire: 'fire', shutters: 'lock', bus: 'bus', dj: 'music', corn: 'corn' };
+const GIMMICK_GLYPH: Record<string, string> = { traps: 'trap', pose: 'mannequin', captives: 'lock', fear: 'eye', stalk: 'corn' };
+
 function showMapKey() {
   const c = content;
-  const ruleTxt = c ? `<tr><td>${glyph(c.location.rule.kind === 'cold' ? 'snow' : c.location.rule.kind === 'tide' ? 'wave' : c.location.rule.kind === 'calls' ? 'phone' : 'reel')}</td><td><b>${esc(c.location.rule.name)}</b>: ${esc(c.location.rule.text)}</td></tr>` : '';
+  const ruleTxt = c ? `<tr><td>${glyph(RULE_GLYPH[c.location.rule.kind] ?? 'reel')}</td><td><b>${esc(c.location.rule.name)}</b>: ${esc(c.location.rule.text)}</td></tr>` : '';
+  const g = c?.killer.gimmick;
+  const gTxt = g ? `<tr><td>${glyph(GIMMICK_GLYPH[g.kind])}</td><td><b>${esc(g.name)}</b> (${esc(c!.killer.name)}): ${esc(g.text)}</td></tr>` : '';
   modal(`<h2>Map key</h2><table class="keytable">
     <tr><td><span class="kpin you"></span></td><td><b>You</b>: the white pin with your name.</td></tr>
     <tr><td><span class="kpin him"></span></td><td><b>The killer</b>: the red pin. A red dashed line means {he} is <b>one step away</b>.</td></tr>
@@ -1739,6 +1846,7 @@ function showMapKey() {
     <tr><td><span class="kring lair"></span></td><td><b>Red ring</b>: {his} lair.</td></tr>
     <tr><td><span class="kring reach"></span></td><td><b>Glowing gold</b>: where you can step while a move card is resolving.</td></tr>
     ${ruleTxt}
+    ${gTxt}
   </table><p>Hover over (or tap) any location to see its panic table and everything else about it.</p>`);
 }
 
@@ -1755,8 +1863,10 @@ function inspectNode(id: string | null) {
   const v = s.victims[id] ?? 0;
   const lines: string[] = [];
   if (id === s.heroine.loc) lines.push('<b>You are here.</b>');
-  if (id === s.killer.loc) lines.push(`<b class="bad">${esc(c.killer.name)} is here.</b>`);
-  if (n.exit) lines.push('<b class="good">Exit</b>: survivors here with you are rescued.');
+  if (id === s.killer.loc && killerSeen(c, s)) lines.push(`<b class="bad">${esc(c.killer.name)} is here.</b>`);
+  else if (!killerSeen(c, s) && id === s.env.seen) lines.push(`<b class="bad">You last saw ${esc(c.killer.name)} here.</b> {He} could be anywhere in the corn by now.`);
+  if (n.exit && exitOpen(c, s, id)) lines.push('<b class="good">Exit</b>: survivors here with you are rescued.');
+  else if (n.exit) lines.push('<b>Bus stop</b>: an exit only while the bus waits (every 3rd turn). Survivors waiting here get on with or without you.');
   if (id === c.location.lair) lines.push('<b>{His} lair.</b>');
   if (v) lines.push(`${v} survivor${v > 1 ? 's' : ''}.`);
   if (id === s.heroine.loc && npcAt(s, id)) {
@@ -1773,9 +1883,19 @@ function inspectNode(id: string | null) {
   if (n.tags?.includes('warm')) lines.push('Warm: ending your turn here thaws you.');
   if (n.tags?.includes('shore')) lines.push(isFlooded(c, s, id) ? 'Flooded: +1 nerve to enter.' : 'Shore: floods at high tide.');
   if (n.tags?.includes('phone')) lines.push(s.env.ringing === id ? '<b class="bad">The phone is ringing.</b>' : 'Has a phone.');
+  if (n.tags?.includes('fire')) lines.push(haven(c, s, id) ? `<b class="good">Campfire</b> (fuel ${s.env.fuel}/3): no enemy can come in while it burns. Stoke it here (1 nerve).` : 'The campfire is out: no shelter.');
+  if (n.tags?.includes('switch')) lines.push('<b>Shutter override</b>: swap the shutters from here (1 nerve).');
+  if (n.tags?.includes('booth')) lines.push(`<b>DJ Booth</b>: skip the song from here (1 nerve). Now playing: ${esc(SONGS[song(c, s) ?? 0].name)}.`);
+  if (n.tags?.includes('corn')) lines.push('<b>Corn</b>: {he} can’t be seen here from more than 1 step away. Hide rolls +1 die.');
+  if (n.tags?.includes('lookout')) lines.push('<b>Look-out</b>: climb up to see {him} until the turn ends (free).');
+  if (s.traps?.includes(id)) lines.push('<b class="bad">A steel trap</b>: step in and lose 1 health, and your move ends here.');
+  if (s.killer.posed === id) lines.push('<b class="bad">{His} mannequin</b>: {he} strikes here next turn. A barricade here keeps {him} out.');
+  if (id === c.location.lair && s.captives?.length) lines.push(`<b class="bad">${s.captives.length} held captive</b>. Reach this place to cut them loose.`);
+  const shut = neighbors(c, id).filter((x) => gateDown(c, s, id, x));
+  if (shut.length) lines.push(`Shutter down toward ${shut.map((x) => esc(nodeName(c, x))).join(', ')}.`);
   const t = panicTable(c, id);
   lines.push(`<span class="dim">Panic (d6): ${t.map((x, i) => `${i + 1}${x ? `→${esc(nodeName(c, x))}` : ' freeze'}`).join(' · ')}</span>`);
-  if (s.pending?.kind === 'move' && neighbors(c, s.heroine.loc).includes(id)) {
+  if (s.pending?.kind === 'move' && walkNeighbors(c, s, s.heroine.loc).includes(id)) {
     const f = followers(c, s, s.heroine.loc, id);
     lines.push(`Step here${f ? ` with ${f} survivor${f > 1 ? 's' : ''}` : ''}${isFlooded(c, s, id) ? ' (+1 nerve)' : ''}.`);
   }
@@ -1888,7 +2008,7 @@ function runFx(s: GameState) {
         flash(false);
         break;
       case 'env':
-        audio.play(/High Tide/i.test(f.text) ? 'tide' : /Blackout/i.test(f.text) ? 'blackout' : /ringing/i.test(f.text) ? 'ring' : 'card');
+        audio.play(/High Tide/i.test(f.text) ? 'tide' : /Blackout|Fire out|Shutters/i.test(f.text) ? 'blackout' : /ringing|Bus/i.test(f.text) ? 'ring' : /Trap|Taken|Posed/i.test(f.text) ? 'killer' : /freed|stoked/i.test(f.text) ? 'saved' : 'card');
         toast(`<b>${esc(c.location.rule.name)}</b>: ${esc(f.text)}`, 3500);
         break;
       case 'revive':
@@ -2144,8 +2264,9 @@ function showRules() {
   <p>Two hands: a two-handed item fills both. The backpack holds anything, but items needing hands don't work from it. You may rearrange only when you gain an item and during Upkeep. Search cards draw from the item pile at your location; whatever you don't keep goes back on top, face up.</p>
   <h3>Ties</h3>
   <p>If the rules leave a genuine tie (two equally close targets with as many survivors, two equally short routes, or a named survivor standing with the crowd when {he} strikes), the tie-break policy decides (Settings): <b>${esc(TIEBREAK[prefs.tiebreak].label)}</b>. ${esc(TIEBREAK[prefs.tiebreak].text)} The Script logs each tie-break.</p>
-  <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL).'}</p>
-  <h3>Keys</h3><p>1–0 play cards · S stop moving · A answer · H hint · Z undo · E end phase · Space continue · R rules</p>`);
+  <h3>This location: ${content ? esc(content.location.rule.name) : 'Location rules'}</h3><p>${content ? esc(content.location.rule.text) : 'Every location has one signature rule: Intermission (Drive-In), The Tide (Tide Cabins), Rolling Blackouts (Saint Agatha), Whiteout cold (Kettle Peak), Request Line phones (KXRL), and in Season 2 The Campfire, Security Shutters, The Last Bus, The DJ’s Set and The Corn.'}</p>
+  ${content?.killer.gimmick ? `<h3>This killer: ${esc(content.killer.gimmick.name)}</h3><p>${esc(content.killer.gimmick.text)}</p>` : ''}
+  <h3>Keys</h3><p>1–0 play cards · S stop moving · A answer the phone, or this location’s action · H hint · Z undo · E end phase · Space continue · R rules</p>`);
 }
 
 function showSettings() {
@@ -2505,7 +2626,7 @@ window.addEventListener('keydown', (e) => {
     if (card) act({ type: 'playCard', uid: card.uid });
     return;
   }
-  if (e.key === 'a' || e.key === 'A') return act({ type: 'answer' });
+  if (e.key === 'a' || e.key === 'A') return act({ type: game && content?.location.rule.kind === 'calls' ? 'answer' : 'ruleAct' });
   if (e.key === 'e' || e.key === 'E') {
     if (s.phase === 'action') return act({ type: 'endAction' });
     if (s.phase === 'planning') return act({ type: 'endPlanning' });

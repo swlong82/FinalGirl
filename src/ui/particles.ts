@@ -32,6 +32,16 @@ export function startParticles(canvas: HTMLCanvasElement, style: string, finale:
         return { x: Math.random() * (W + 100), y: fresh ? Math.random() * H : -10, vx: -0.4, vy: 6 + Math.random() * 3, r: 0.8, a: 0, life: 1 };
       case 'hospital': // slow dust motes in the light
         return { x: Math.random() * W, y: fresh ? Math.random() * H : Math.random() * H, vx: (Math.random() - 0.5) * 0.15, vy: (Math.random() - 0.5) * 0.15, r: 0.6 + Math.random() * 1.2, a: 0, life: 1 };
+      case 'camp': // fireflies blinking low over the grass
+        return { x: Math.random() * W, y: fresh ? Math.random() * H : H * (0.45 + Math.random() * 0.5), vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.2, r: 1 + Math.random() * 1.2, a: 0, life: 1 };
+      case 'mall': // snow drifting down past the skylight
+        return { x: Math.random() * W, y: fresh ? Math.random() * H : -10, vx: (Math.random() - 0.5) * 0.2, vy: 0.4 + Math.random() * 0.5, r: 0.8 + Math.random() * 1.4, a: 0, life: 1 };
+      case 'motel': // desert dust on the wind
+        return { x: fresh ? Math.random() * W : -10, y: Math.random() * H, vx: 1.2 + Math.random() * 1.4, vy: (Math.random() - 0.5) * 0.4, r: 0.5 + Math.random() * 1, a: 0, life: 1 };
+      case 'rink': // glitter from the mirror ball
+        return { x: Math.random() * W, y: fresh ? Math.random() * H : -10, vx: (Math.random() - 0.5) * 0.4, vy: 0.3 + Math.random() * 0.6, r: 0.6 + Math.random() * 1.6, a: 0, life: 1 };
+      case 'farm': // chaff and seed fluff drifting across the corn
+        return { x: fresh ? Math.random() * W : W + 10, y: Math.random() * H, vx: -0.4 - Math.random() * 0.6, vy: -0.05 + Math.random() * 0.15, r: 0.7 + Math.random() * 1.3, a: 0, life: 1 };
       default: // drive-in: moths & dust drifting toward the screen beam
         return { x: Math.random() * W, y: fresh ? Math.random() * H : H * (0.3 + Math.random() * 0.6), vx: 0.1 + Math.random() * 0.3, vy: -0.1 - Math.random() * 0.2, r: 0.6 + Math.random() * 1.4, a: 0, life: 1 };
     }
@@ -68,6 +78,18 @@ export function startParticles(canvas: HTMLCanvasElement, style: string, finale:
         ctx.moveTo(p.x, p.y);
         ctx.lineTo(p.x + p.vx * 3, p.y + p.vy * 3);
         ctx.stroke();
+      } else if (style === 'camp' || style === 'rink') {
+        // Fireflies blink slowly; glitter flashes in the colours of the rig.
+        const tw = Math.max(0, Math.sin((t + i * 47) / (style === 'camp' ? 22 : 6)));
+        ctx.fillStyle = style === 'camp' ? `rgba(210,255,120,${0.8 * p.a * tw})` : `hsla(${(i * 47 + t) % 360},90%,80%,${0.7 * p.a * tw})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (style === 'motel' || style === 'farm' || style === 'mall') {
+        ctx.fillStyle = style === 'motel' ? `rgba(230,190,140,${0.35 * p.a})` : style === 'farm' ? `rgba(255,230,160,${0.4 * p.a})` : `rgba(230,245,255,${0.6 * p.a})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
       } else {
         const tw = style === 'hospital' ? 0.35 : 0.5 + 0.5 * Math.sin((t + i * 13) / 9);
         ctx.fillStyle = style === 'hospital' ? `rgba(200,255,225,${0.35 * p.a * p.life * tw})` : `rgba(255,240,200,${0.45 * p.a * tw})`;

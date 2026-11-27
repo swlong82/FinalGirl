@@ -18,5 +18,13 @@ const G: Record<string, string> = {
   key: `<circle ${S} cx="8" cy="12" r="4"/><path ${S} d="M12 12h9M17 12v3M20 12v2"/>`,
   target: `<circle ${S} cx="12" cy="12" r="9"/><circle ${S} cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>`,
   flag: `<path ${S} d="M5 21V4M5 4h11l-2 4 2 4H5"/>`,
+  // Season 2
+  lock: `<rect ${S} x="5" y="11" width="14" height="10" rx="2"/><path ${S} d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/>`,
+  bus: `<rect ${S} x="4" y="4" width="16" height="13" rx="2"/><path ${S} d="M4 11h16M7 17v3M17 17v3"/><circle cx="8" cy="14" r="1" fill="currentColor"/><circle cx="16" cy="14" r="1" fill="currentColor"/>`,
+  music: `<path ${S} d="M9 18V5l11-2v13"/><circle ${S} cx="6.5" cy="18" r="2.5"/><circle ${S} cx="17.5" cy="16" r="2.5"/>`,
+  corn: `<path ${S} d="M12 22V8M12 8c-3-1-4-4-3-6 3 1 4 3 3 6zM12 8c3-1 4-4 3-6-3 1-4 3-3 6zM12 14c-4 0-6-3-7-6 4 0 6 2 7 6zM12 14c4 0 6-3 7-6-4 0-6 2-7 6z"/>`,
+  eye: `<path ${S} d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle ${S} cx="12" cy="12" r="3"/>`,
+  trap: `<path ${S} d="M3 15h18M5 15l2-6 2 6 2-6 2 6 2-6 2 6 2-6 1 6"/><path ${S} d="M12 15v5M8 20h8"/>`,
+  mannequin: `<circle ${S} cx="12" cy="5" r="2.5"/><path ${S} d="M9 9h6l-1 7h-4zM12 16v5M8 21h8M9 9l-3 5M15 9l3 5"/>`,
 };
 export const glyph = (name: string, cls = '') => `<svg class="glyph ${cls}" viewBox="0 0 24 24" aria-hidden="true">${G[name] ?? ''}</svg>`;

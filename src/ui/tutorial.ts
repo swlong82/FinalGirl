@@ -193,7 +193,7 @@ export const LESSONS: TutStep[] = [
     // Follows the coach, buy by buy, so the lesson, Hint and the shop's header always agree.
     text: (s) => {
       const a = C ? advise(C, s) : undefined;
-      if (a?.action.type === 'buy') return `Played cards are gone: buy what you’ll need. ${a.why}`;
+      if (a?.action.type === 'buy') return `Played cards are gone: restock. ${a.why}`;
       return 'Your hand covers next turn. Click <b>Done</b>: it’s {his} turn.';
     },
     target: (s) => {

@@ -10,20 +10,26 @@ import {
   cardCost,
   check,
   distances,
+  exitOpen,
   exits,
   HAND_LIMIT,
-  HAND_SLOTS,
+  handSlots,
   handsUsed,
+  hasTag,
+  haven,
   isFlooded,
   isSearch,
   itemDef,
   killerAttack,
+  killerSeen,
   minionsAt,
   neighbors,
   npcAt,
   npcNodes,
   reqCheck,
   totalHealth,
+  walkDistances,
+  walkNeighbors,
 } from './rules';
 import type { Action, ActionCardDef, Card, CardTag, Content, Effect, GameState, HeldItem, NodeId } from './types';
 
@@ -32,19 +38,54 @@ const hasOp = (effs: Effect[], op: Effect['op']): boolean =>
 const heals = (effs: Effect[]) => effs.some((e) => e.op === 'heal');
 const calms = (effs: Effect[]) => effs.some((e) => e.op === 'horror' && e.n < 0);
 
-/** Distances to `target` that treat the killer's location (and its neighbors) as costly. */
-function safeDist(c: Content, s: GameState, target: NodeId, brave = false): Record<NodeId, number> {
-  const base = distances(c, target);
-  const out: Record<NodeId, number> = {};
+/** What stepping into a location costs her on top of the step: danger, floods, traps, his next scene. */
+function danger(c: Content, s: GameState, brave: boolean): (n: NodeId) => number {
   const kn = new Set(neighbors(c, s.killer.loc));
   const mins = new Set(s.minions.map((m) => m.loc));
-  for (const [n, d] of Object.entries(base))
-    out[n] = d + (brave ? 0 : n === s.killer.loc ? 3 : kn.has(n) && s.killer.stunned === 0 ? 0.5 : 0) + (mins.has(n) ? 1.5 : 0) + (isFlooded(c, s, n) ? 0.6 : 0);
-  return out;
+  const traps = c.heroine.traits.trapSense ? new Set<NodeId>() : new Set(s.traps ?? []);
+  return (n) =>
+    (brave ? 0 : n === s.killer.loc ? 3 : kn.has(n) && s.killer.stunned === 0 && !haven(c, s, n) ? 0.5 : 0) +
+    (mins.has(n) ? 1.5 : 0) +
+    (isFlooded(c, s, n) ? 0.6 : 0) +
+    (traps.has(n) ? 2 : 0) +
+    (!brave && s.killer.posed === n ? 2 : 0);
 }
 
-function nearest(c: Content, from: NodeId, pred: (n: NodeId) => boolean): NodeId | undefined {
-  const d = distances(c, from);
+/**
+ * Route cost from every location to `target` on foot (around closed shutters): each step costs 1
+ * plus the danger of the location stepped into. A weighted search, so she detours around him.
+ */
+function costTo(c: Content, s: GameState, target: NodeId, brave = false): Record<NodeId, number> {
+  const pen = danger(c, s, brave);
+  const d: Record<NodeId, number> = { [target]: 0 };
+  const open = new Set<NodeId>([target]);
+  const done = new Set<NodeId>();
+  while (open.size) {
+    let u = '';
+    for (const n of open) if (!u || d[n] < d[u] || (d[n] === d[u] && n < u)) u = n;
+    open.delete(u);
+    done.add(u);
+    for (const v of walkNeighbors(c, s, u)) {
+      if (done.has(v)) continue;
+      const nd = d[u] + 1 + pen(u);
+      if (d[v] === undefined || nd < d[v]) {
+        d[v] = nd;
+        open.add(v);
+      }
+    }
+  }
+  return d;
+}
+
+/** Exits she could lead survivors to: open now, or the bus shelter when the bus comes next turn. */
+function usableExits(c: Content, s: GameState): NodeId[] {
+  const r = c.location.rule;
+  const busNext = r.kind === 'bus' && (s.round + 1) % (r.period ?? 3) === 0;
+  return exits(c).filter((e) => exitOpen(c, s, e) || (busNext && hasTag(c, e, 'bus')));
+}
+
+function nearest(c: Content, s: GameState, from: NodeId, pred: (n: NodeId) => boolean): NodeId | undefined {
+  const d = walkDistances(c, s, from);
   return c.location.nodes
     .map((n) => n.id)
     .filter(pred)
@@ -74,26 +115,34 @@ export function finishing(c: Content, s: GameState): boolean {
   return s.killer.health <= 3 && tagged(c, s, 'attack').length > 0 && totalHealth(s) >= 2;
 }
 
+/** Where she believes he is (the corn can hide him): the coach and the hunt use this. */
+function seenAt(c: Content, s: GameState): NodeId {
+  return killerSeen(c, s) ? s.killer.loc : s.env.seen ?? s.killer.loc;
+}
+
 /** Where she wants to be right now. */
 export function botGoal(c: Content, s: GameState): { node: NodeId; brave: boolean } {
   const h = s.heroine;
   const k = s.killer;
+  const kAt = seenAt(c, s);
   const withHer = npcAt(s, h.loc);
-  const ex = exits(c);
-  if (style === 'rush' && tagged(c, s, 'attack').length > 0 && totalHealth(s) >= 2 && (armed(c, s) || s.round >= 3 || k.finale)) return { node: k.loc, brave: true };
+  const ex = usableExits(c, s);
+  if (style === 'rush' && tagged(c, s, 'attack').length > 0 && totalHealth(s) >= 2 && (armed(c, s) || s.round >= 3 || k.finale)) return { node: kAt, brave: true };
   if (withHer > 0 && !ex.includes(h.loc)) {
-    const d = safeDist(c, s, h.loc);
-    const exit = [...ex].sort((a, b) => (d[a] ?? 99) - (d[b] ?? 99))[0];
-    return { node: exit, brave: false };
+    const exit = [...ex].sort((a, b) => (costTo(c, s, a)[h.loc] ?? 99) - (costTo(c, s, b)[h.loc] ?? 99) || a.localeCompare(b))[0];
+    if (exit) return { node: exit, brave: false };
   }
   const healthy = totalHealth(s) >= 3;
   const hunting = (k.finale || (armed(c, s) && healthy)) && tagged(c, s, 'attack').length > 0;
   // He's nearly done: finish him before anything else.
-  if (finishing(c, s)) return { node: k.loc, brave: true };
-  const victim = nearest(c, h.loc, (n) => npcAt(s, n) > 0 && n !== k.loc && !ex.includes(n));
+  if (finishing(c, s)) return { node: kAt, brave: true };
+  // Room 13: captives die soon. Go and cut them loose (if he isn't standing guard).
+  const lair = c.location.lair;
+  if ((s.captives?.length ?? 0) > 0 && h.loc !== lair && (k.loc !== lair || hunting)) return { node: lair, brave: k.loc === lair };
+  const victim = nearest(c, s, h.loc, (n) => npcAt(s, n) > 0 && n !== k.loc && !exits(c).includes(n));
   if (victim && !(k.finale && hunting)) return { node: victim, brave: false };
-  if (hunting) return { node: k.loc, brave: true };
-  const pile = nearest(c, h.loc, (n) => isSearch(c, n) && (s.piles[n]?.cards.length ?? 0) > 0 && n !== k.loc);
+  if (hunting) return { node: kAt, brave: true };
+  const pile = nearest(c, s, h.loc, (n) => isSearch(c, n) && (s.piles[n]?.cards.length ?? 0) > 0 && n !== k.loc);
   if (pile) return { node: pile, brave: false };
   return { node: h.loc, brave: false };
 }
@@ -102,14 +151,14 @@ function stepFor(c: Content, s: GameState): Action {
   const h = s.heroine;
   const g = botGoal(c, s);
   if (g.node === h.loc) return { type: 'stopMove' };
-  const d = safeDist(c, s, g.node, g.brave);
-  const raw = distances(c, g.node);
-  const opts = neighbors(c, h.loc)
-    .filter((n) => (raw[n] ?? 99) < (raw[h.loc] ?? 99))
-    .sort((a, b) => (d[a] ?? 99) - (d[b] ?? 99) || a.localeCompare(b));
+  const d = costTo(c, s, g.node, g.brave);
+  const pen = danger(c, s, g.brave);
+  const opts = walkNeighbors(c, s, h.loc)
+    .filter((n) => d[n] !== undefined)
+    .sort((a, b) => 1 + pen(a) + d[a] - (1 + pen(b) + d[b]) || a.localeCompare(b));
+  const next = opts[0];
   // Don't walk survivors (or a weak heroine) into him.
-  const next = opts.find((n) => g.brave || n !== s.killer.loc || opts.length === 1);
-  if (!next || (next === s.killer.loc && !g.brave && totalHealth(s) <= 2)) return { type: 'stopMove' };
+  if (!next || (next === s.killer.loc && !g.brave && (totalHealth(s) <= 2 || npcAt(s, h.loc) > 0))) return { type: 'stopMove' };
   return { type: 'step', to: next };
 }
 
@@ -151,10 +200,10 @@ function rearrange(c: Content, s: GameState): Action | null {
     .sort((a, b) => itemScore(c, s, b.id) - itemScore(c, s, a.id))[0];
   if (!best) return null;
   const need = itemDef(c, best.id).hands;
-  if (handsUsed(c, h.items) + need <= HAND_SLOTS) return { type: 'ready', uid: best.uid };
+  if (handsUsed(c, h.items) + need <= handSlots(c)) return { type: 'ready', uid: best.uid };
   const worst = [...h.items].sort((a, b) => itemScore(c, s, a.id) - itemScore(c, s, b.id));
   const out: HeldItem[] = [];
-  let freed = HAND_SLOTS - handsUsed(c, h.items);
+  let freed = handSlots(c) - handsUsed(c, h.items);
   for (const w of worst) {
     if (freed >= need) break;
     out.push(w);
@@ -292,6 +341,10 @@ export function botAction(c: Content, s: GameState): Action {
     if (heals(e) && (hurt >= 2 || totalHealth(s) <= 2)) return a;
     if (calms(e) && h.horror >= 4) return a;
     if (hasOp(e, 'warm') && s.env.cold >= 2) return a;
+    if (hasOp(e, 'fuel') && (s.env.fuel ?? 0) <= 1 && !k.finale) return a;
+    if (hasOp(e, 'gates') && gatesHelp(c, s)) return a;
+    if (hasOp(e, 'bus') && !s.env.bus && withHer > 0 && exits(c).some((x) => hasTag(c, x, 'bus') && (distances(c, h.loc)[x] ?? 9) <= 1)) return a;
+    if (hasOp(e, 'reveal') && !killerSeen(c, s) && !hasOp(e, 'killerMove')) return a;
     if (hasOp(e, 'barricade') && killerNear && !killerHere) return a;
     if (hasOp(e, 'killerMove') && killerNear && !e.some((x) => x.op === 'killerMove' && x.toward === 'heroine')) return a;
     if (e.some((x) => x.op === 'nerve' && x.n > 0) && nerve <= 0) return a;
@@ -303,7 +356,8 @@ export function botAction(c: Content, s: GameState): Action {
     const useful =
       hasOp(e, 'killerDamage') ||
       (hasOp(e, 'killerMove') && killerNear && !botGoal(c, s).brave) || // don't push him off when she wants the fight
-      (hasOp(e, 'barricade') && killerNear && !killerHere) ||
+      (hasOp(e, 'barricade') && killerNear && !killerHere && !botGoal(c, s).brave) ||
+      (hasOp(e, 'hide') && killerNear && !botGoal(c, s).brave && !h.hidden) ||
       (hasOp(e, 'rally') && neighbors(c, h.loc).some((n) => npcAt(s, n) > 0)) ||
       (calms(e) && h.horror >= 2) ||
       (hasOp(e, 'nerve') && !hasOp(e, 'killerMove')) ||
@@ -312,6 +366,13 @@ export function botAction(c: Content, s: GameState): Action {
   }
 
   if (ok({ type: 'answer' })) return { type: 'answer' };
+  // The location's own action: stoke a dying fire, flip the shutters when it shortens the way, look out over the corn.
+  if (ok({ type: 'ruleAct' })) {
+    const kind = c.location.rule.kind;
+    if (kind === 'campfire' && (s.env.fuel ?? 0) <= 1 && nerve >= 2) return { type: 'ruleAct' };
+    if (kind === 'shutters' && gatesHelp(c, s) && nerve >= 2) return { type: 'ruleAct' };
+    if (kind === 'corn') return { type: 'ruleAct' };
+  }
 
   // ── He's here, or in range ──
   // ── Minions in her location and no killer: clear them ──
@@ -332,7 +393,7 @@ export function botAction(c: Content, s: GameState): Action {
   }
 
   // ── Survivors ──
-  if (withHer > 0 && !exits(c).includes(h.loc)) {
+  if (withHer > 0 && !exitOpen(c, s, h.loc)) {
     const mv = playable('move', true, false);
     if (mv) return mv;
   }
@@ -373,6 +434,16 @@ export function botAction(c: Content, s: GameState): Action {
     if (r && tagged(c, s, 'attack').length) return r;
   }
   return { type: 'endAction' };
+}
+
+/** Would swapping the shutters shorten her way to where she's going? */
+function gatesHelp(c: Content, s: GameState): boolean {
+  if (c.location.rule.kind !== 'shutters' || c.heroine.traits.gateKeys) return false;
+  const g = botGoal(c, s);
+  if (g.node === s.heroine.loc) return false;
+  const now = costTo(c, s, g.node, g.brave)[s.heroine.loc] ?? 99;
+  const flipped: GameState = { ...s, env: { ...s.env, gate: ((s.env.gate ?? 0) + 1) % (c.location.rule.gates?.length || 2) } };
+  return (costTo(c, flipped, g.node, g.brave)[s.heroine.loc] ?? 99) + 1 < now;
 }
 
 /** Something always legal, so a simulation can never stall. */

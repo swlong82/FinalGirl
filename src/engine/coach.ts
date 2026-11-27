@@ -2,7 +2,7 @@
 // same plan the bot plays by (botGoal / botAction), so the goal banner, the
 // Show me pointer and the Hint never disagree with each other.
 import { botAction, botGoal, buyDeficits, finishing, type BuyNeed } from './bot';
-import { actionDef, bestWeapon, cardCost, check, escortCap, followPlan, isExit, isSearch, itemDef, minionsAt, nodeName, npcAt, totalHealth } from './rules';
+import { actionDef, bestWeapon, cardCost, check, escortCap, exitOpen, followPlan, isSearch, itemDef, killerShownAt, minionsAt, nodeName, npcAt, ruleAction, totalHealth } from './rules';
 import type { Action, CardTag, Content, GameState, NodeId } from './types';
 
 export type GoalKind = 'escort' | 'rescue' | 'arm' | 'supplies' | 'hunt' | 'finish' | 'fight' | 'flee' | 'finale' | 'prep';
@@ -35,11 +35,18 @@ export function currentGoal(c: Content, s: GameState): Goal {
   const rescueWhy = h.rescued < slots ? `Each rescue powers you up (${h.rescued}/${slots}). All ${slots} unlock your ability.` : 'Every survivor you save is one {he} can’t kill.';
   const withHer = npcAt(s, h.loc);
   const low = finishing(c, s);
+  const kAt = killerShownAt(c, s);
+  const lair = c.location.lair;
+  if ((s.captives?.length ?? 0) > 0 && g.node === lair && h.loc !== lair && !(withHer > 0)) {
+    const n = s.captives!.length;
+    const t = Math.min(...s.captives!.map((x) => x.timer));
+    return { kind: 'rescue', node: lair, title: 'Free the captives', detail: `${n === 1 ? 'A survivor is' : `${n} survivors are`} held at ${at(lair)}. Get there ${t <= 1 ? 'this turn' : `within ${t} turns`} to cut them loose.`, why: 'Captives die when their time runs out, and each death feeds {him}.' };
+  }
   // One decision drives both the banner and Show me: if the next move is a swing at him, the goal is the fight.
   const a = botAction(c, s);
   const card = a.type === 'playCard' ? actionDef(c, h.hand.find((x) => x.uid === a.uid)!.id) : undefined;
   const swinging = !!card?.tags.includes('attack') && (k.loc === h.loc || !minionsAt(s, h.loc).length);
-  if (withHer > 0 && !isExit(c, h.loc) && !swinging) {
+  if (withHer > 0 && !exitOpen(c, s, h.loc) && !swinging) {
     const lead = followPlan(c, s, h.loc, '').count;
     const who = lead >= withHer ? `the survivor${withHer > 1 ? 's' : ''}` : lead ? `${lead} of the ${withHer} survivors` : 'no one (you set 0 to follow)';
     const part = lead > 0 && lead < withHer;
@@ -56,9 +63,9 @@ export function currentGoal(c: Content, s: GameState): Goal {
     return { kind: 'flee', node: g.node !== h.loc ? g.node : undefined, title: 'Get away', detail: `${why} ${moving ? 'Step to a glowing location.' : 'Play a move card.'}`, why: 'Rescue survivors and gear up, then come back for {him}.' };
   }
   if (g.brave) {
-    if (k.finale) return { kind: 'finale', node: k.loc, title: 'Finale: kill {him}', detail: `No more waiting. {He}’s at ${at(k.loc)}: go and attack.`, why: 'In the Finale {he} only hunts you and gets stronger every turn.' };
-    if (low) return { kind: 'finish', node: k.loc, title: 'Finish {him}', detail: `{He}’s down to ${k.health}. {He}’s at ${at(k.loc)}: go and hit {him}.`, why: 'Killing {him} is the only way to win.' };
-    return { kind: 'hunt', node: k.loc, title: 'Hunt {him} down', detail: `You’re ready. {He}’s at ${at(k.loc)}: go and attack.`, why: 'Killing {him} is the only way to win.' };
+    if (k.finale) return { kind: 'finale', node: kAt, title: 'Finale: kill {him}', detail: `No more waiting. {He}’s ${kAt === k.loc ? 'at' : 'last seen at'} ${at(kAt)}: go and attack.`, why: 'In the Finale {he} only hunts you and gets stronger every turn.' };
+    if (low) return { kind: 'finish', node: kAt, title: 'Finish {him}', detail: `{He}’s down to ${k.health}. {He}’s ${kAt === k.loc ? 'at' : 'last seen at'} ${at(kAt)}: go and hit {him}.`, why: 'Killing {him} is the only way to win.' };
+    return { kind: 'hunt', node: kAt, title: 'Hunt {him} down', detail: `You’re ready. {He}’s ${kAt === k.loc ? 'at' : 'last seen at'} ${at(kAt)}: go and attack.`, why: 'Killing {him} is the only way to win.' };
   }
   if (g.node !== h.loc && npcAt(s, g.node) > 0) {
     const n = npcAt(s, g.node);
@@ -70,7 +77,7 @@ export function currentGoal(c: Content, s: GameState): Goal {
     return { kind: 'supplies', node: here ? undefined : g.node, title: 'Gear up', detail: here ? 'Search here for more items.' : `Search ${at(g.node)} for more items.`, why: 'No one needs saving right now.' };
   }
   if (!hasTag(c, s, 'attack')) return { kind: 'prep', title: 'Get attack cards', detail: 'Buy cards from the Fight shelf in Planning, then hunt {him}.', why: 'You can’t hurt {him} without an attack card.' };
-  return { kind: 'hunt', node: k.loc, title: 'Hunt {him} down', detail: `{He}’s at ${at(k.loc)}: go and attack.`, why: 'Killing {him} is the only way to win.' };
+  return { kind: 'hunt', node: kAt, title: 'Hunt {him} down', detail: `{He}’s ${kAt === k.loc ? 'at' : 'last seen at'} ${at(kAt)}: go and attack.`, why: 'Killing {him} is the only way to win.' };
 }
 
 const NEED: Record<BuyNeed, [string, string]> = {
@@ -80,7 +87,7 @@ const NEED: Record<BuyNeed, [string, string]> = {
   search: ['a <b>Search</b> card', '<b>Search</b> cards'],
   heal: ['a heal (<b>Recover</b>)', 'heals (<b>Recover</b>)'],
   calm: ['a calm-down card (<b>Recover</b>)', 'calm-down cards (<b>Recover</b>)'],
-  rally: ['a card to call survivors over (<b>Tricks</b>)', 'cards to call survivors over'],
+  rally: ['a <b>Tricks</b> card to call survivors', '<b>Tricks</b> cards to call survivors'],
   hide: ['a hiding card', 'hiding cards'],
   barricade: ['a barricade', 'barricades'],
   nerve: ['a nerve card', 'nerve cards'],
@@ -174,6 +181,10 @@ function reason(c: Content, s: GameState, a: Action): string {
       return `Your ability <b>${c.heroine.ability.name}</b> is ready: use it.`;
     case 'answer':
       return 'Answer the phone.';
+    case 'ruleAct': {
+      const ra = ruleAction(c);
+      return ra ? `<b>${ra.label}</b>: ${ra.text}.` : 'Use this place.';
+    }
     case 'ready':
       return 'Put your best item in your hands.';
     case 'endAction':
@@ -242,6 +253,8 @@ export function adviceTarget(a: Action): string | undefined {
       return '[data-act=endPlanning]';
     case 'stopMove':
       return '[data-act=stopMove]';
+    case 'ruleAct':
+      return '[data-act=ruleAct]';
     default:
       return undefined;
   }

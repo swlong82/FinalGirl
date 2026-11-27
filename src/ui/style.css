@@ -1632,3 +1632,31 @@ body.focus-move svg.edges .edge:not(.hot) { opacity: .45; }
 }
 .view-simple #heroine-panel .rescue .prose.small { display: block; }
 .view-simple #heroine-panel .rescue .prose.small.next-rescue { display: none; }
+
+/* ── Season 2: location rules and killer mechanics on the map ─────────────── */
+.badge.env.out { background: #1a1414; border-color: #4a2a2a; opacity: .75; }
+.badge.env.corn { background: #2a2410; border-color: #6a5a20; color: #ffe9a8; }
+.badge.trap { background: #3a1a0a; border-color: #c46a1a; color: #ffb36b; }
+.badge.posed { background: #f4f0ff; color: #1a1028; border-color: #ff3fa4; font-size: 8px; letter-spacing: .06em; animation: ring 1.2s infinite; }
+.badge.captive { background: #4a0a1a; border-color: #ff5470; color: #fff; font-size: 9px; }
+.badge.exitb.shut { background: #2a2a2a; color: #aaa; border-color: #555; }
+.node.haven .disc { border-color: #ff9a3c; box-shadow: 0 0 22px rgba(255, 140, 40, .65), inset 0 0 12px rgba(255, 160, 60, .35); }
+.node.trapped .disc { outline: 2px dashed #ff8a2a; outline-offset: 3px; }
+.node.posed .disc { box-shadow: 0 0 0 3px #ff3fa4, 0 0 24px rgba(255, 63, 164, .6); }
+.token.killer.ghost .pin { opacity: .45; filter: grayscale(.6) blur(.6px); }
+.token.killer.ghost::after { content: '?'; position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: #e0a526; color: #120a00; font: 700 12px/18px var(--ui); text-align: center; }
+.token.killer.ghost .tok-hp { opacity: .5; }
+.gate-pin { position: absolute; z-index: 3; transform: translate(-50%, -50%); width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; pointer-events: auto; border: 1px solid #0006; opacity: .55; transition: opacity .2s, transform .2s; }
+.gate-pin .glyph { width: 13px; height: 13px; }
+.gate-pin.g0 { background: #b3122e; color: #fff; }
+.gate-pin.g1 { background: #1d5fbf; color: #fff; }
+.gate-pin.down { opacity: 1; transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 10px #000a; }
+.gate-pin:not(.down) { background: #222 !important; color: #888; }
+svg.edges .edge.shut .core { stroke: #ff3355 !important; stroke-dasharray: 2 5; opacity: .9; }
+#board.strobe::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2; background: rgba(255, 255, 255, .06); animation: strobe 1.1s steps(2) infinite; mix-blend-mode: screen; }
+@keyframes strobe { 50% { background: rgba(180, 92, 255, .12); } }
+.intro-rules { max-width: 680px; margin-top: 18px; text-align: left; opacity: 0; animation: rise 1.2s forwards; border-top: 1px solid #ffffff22; padding-top: 10px; }
+.intro-rules p { font-size: 14px; line-height: 1.5; margin: 6px 0; }
+.intro-rules .glyph { width: 16px; height: 16px; vertical-align: -3px; color: var(--blood); }
+@media (prefers-reduced-motion: reduce) { #board.strobe::after, .badge.posed { animation: none; } }
+@media (max-width: 700px) { .gate-pin { width: 14px; height: 14px; border-radius: 3px; } .gate-pin .glyph { width: 9px; height: 9px; } }

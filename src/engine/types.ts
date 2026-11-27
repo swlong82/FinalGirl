@@ -28,13 +28,23 @@ export type Effect =
   | { op: 'wound'; n: number } // direct health loss: never an attack, so reactions can't stop it
   | { op: 'nerve'; n: number }
   | { op: 'hide' } // hidden until the end of the killer phase
-  | { op: 'barricade'; at: 'here' | NodeId; strength: number }
+  | { op: 'barricade'; at: 'here' | 'around' | NodeId; strength: number } // around: every location next to her
   | { op: 'teleportHeroine'; to: NodeId | 'exit' } // survivors with her (up to her escort limit) come too
   | { op: 'drawItem'; n: number } // from the spare pile (items not dealt to search piles)
   | { op: 'resolve'; n: number } // permanent +n dice on attack rolls
   | { op: 'mod'; key: ModKey; n: number } // until the killer's next behavior is done
   | { op: 'warm' }
   | { op: 'endPhase' }
+  // ── Season 2 location rules (each is a no-op where its rule isn't in play)
+  | { op: 'fuel'; n: number } // The Campfire: feed the fire (fuel is capped at 3)
+  | { op: 'gates' } // Security Shutters: swap which set is down
+  | { op: 'bus' } // The Last Bus: the bus stops at the shelter this turn
+  | { op: 'song' } // The DJ's Set: skip to the next song
+  | { op: 'reveal' } // The Corn: she can see the killer until the end of the turn
+  // ── Season 2 killer gimmicks
+  | { op: 'trap'; at: 'nearHeroine' | 'killer' } // a steel trap is set there
+  | { op: 'pose'; who: Who } // a mannequin marks where he strikes next
+  | { op: 'strikePose' } // he appears at his mannequin and attacks (or hunts, if none is posed)
   // ── attacks & defense
   | { op: 'damage'; n: number } // her attack: a weapon and lore add to it if it deals at least 1
   | { op: 'killerDamage'; n: number } // flat damage to the killer (items); no modifiers
@@ -86,14 +96,27 @@ export type ModKey =
   | 'killerAttack'
   | 'killerMove';
 
-export type NodeTag = 'outdoor' | 'warm' | 'shore' | 'phone';
+export type NodeTag =
+  | 'outdoor'
+  | 'warm'
+  | 'shore'
+  | 'phone'
+  // Season 2
+  | 'fire' // The Campfire: a haven while it burns
+  | 'switch' // Security Shutters: the override panel
+  | 'bus' // The Last Bus: an exit only while the bus waits
+  | 'booth' // The DJ's Set: skip the song here
+  | 'corn' // The Corn: he can't be seen here from more than 1 step away
+  | 'lookout'; // The Corn: look out over the maze here
 
 /** One signature rule per location, interpreted by the engine. */
 export interface LocationRule {
-  kind: 'intermission' | 'tide' | 'power' | 'cold' | 'calls';
+  kind: 'intermission' | 'tide' | 'power' | 'cold' | 'calls' | 'campfire' | 'shutters' | 'bus' | 'dj' | 'corn';
   name: string;
   text: string;
   period?: number;
+  /** Security Shutters: two sets of edges; the set at env.gate is down. */
+  gates?: [NodeId, NodeId][][];
 }
 
 export interface NodeDef {
@@ -118,8 +141,10 @@ export interface SpecialDef {
   text: string; // the exception, as printed
   /** toExit: walks 1 toward the nearest exit each Upkeep. heavy: counts as 2 when following.
    *  still: never panics. loud: each Upkeep he's not with her, the killer's next target is him.
-   *  wander: each Upkeep she's not with him, he wanders to a neighbor (never into the killer). */
-  trait: 'toExit' | 'heavy' | 'still' | 'loud' | 'wander';
+   *  wander: each Upkeep she's not with him, he wanders to a neighbor (never into the killer).
+   *  medic: each Upkeep she is with them, she heals 1. brave: when an enemy attacks where he
+   *  stands, he hits it first for 1. */
+  trait: 'toExit' | 'heavy' | 'still' | 'loud' | 'wander' | 'medic' | 'brave';
   rescue: Effect[]; // extra reward when rescued (on top of the rescue slot)
   death: Effect[]; // consequence when eliminated (on top of bloodlust +1)
 }
@@ -135,7 +160,16 @@ export interface MinionDef {
   max: number; // tokens available; extra spawns are ignored
   who: Who; // what each one targets
   order: 'before' | 'after'; // relative to the killer's behavior in the Killer phase
+  frozenWhenSeen?: boolean; // one in her location or next to it can't move or attack
 }
+
+/** Season 2: one signature mechanic per killer. It never names a location's nodes. */
+export type Gimmick =
+  | { kind: 'traps'; name: string; text: string; max: number } // leaves a trap where he was each time he moves
+  | { kind: 'pose'; name: string; text: string } // telegraphs his next strike with a mannequin
+  | { kind: 'captives'; name: string; text: string; max: number; timer: number } // takes survivors to {his} lair alive
+  | { kind: 'fear'; name: string; text: string } // her horror powers him
+  | { kind: 'stalk'; name: string; text: string; max: number }; // moves as far as she walked
 
 export interface SetupCard {
   heroine: NodeId;
@@ -158,7 +192,7 @@ export interface LocationPack {
   specials: SpecialDef[]; // named survivors, brought in by the location's cards
   items: ItemDef[];
   palette: { sky: string; glow: string; accent: string };
-  art: 'drivein' | 'coast' | 'hospital' | 'snow' | 'radio';
+  art: 'drivein' | 'coast' | 'hospital' | 'snow' | 'radio' | 'camp' | 'mall' | 'motel' | 'rink' | 'farm';
   rule: LocationRule;
 }
 
@@ -189,7 +223,8 @@ export interface KillerPack {
   revive: { name: string; text: string; effects: Effect[] }; // when his final-health token shows a number
   terror: EventDef[]; // killer Terror cards (shuffled with the location's)
   minions?: MinionDef;
-  art: 'projectionist' | 'tidewife' | 'anesthetist' | 'snowblind' | 'caller';
+  art: 'projectionist' | 'tidewife' | 'anesthetist' | 'snowblind' | 'caller' | 'trapper' | 'dresser' | 'manager' | 'mirrorball' | 'harvestman';
+  gimmick?: Gimmick;
   weakness: { text: string };
   items: ItemDef[]; // lore items, always dealt into the search piles
   quotes: string[];
@@ -213,6 +248,13 @@ export interface HeroineTraits {
   coldImmune?: boolean;
   freeAnswer?: boolean;
   durableWeapons?: boolean; // weapons don't spend uses
+  // Season 2
+  trapSense?: boolean; // traps never hurt or stop her: she springs them safely
+  rallyBonus?: number; // rally effects call n more
+  gateKeys?: boolean; // shutters never stop her or the survivors with her
+  handSlots?: number; // hand slots (default 2)
+  lightBonus?: number; // light attacks (Shove, Swing) deal +n
+  cornSight?: boolean; // the corn never hides the killer from her
 }
 
 export interface RescueSlot {
@@ -394,6 +436,7 @@ export interface GameState {
     broke: boolean; // nerve went below zero this Action phase
     bring: number; // how many survivors (in total) she tries to bring
     leave: string[]; // named survivors she has asked to stay put // how many survivors she tries to bring when she moves
+    stepsThisTurn?: number; // steps walked this turn (the Harvestman moves that far)
   };
   killer: {
     loc: NodeId;
@@ -408,6 +451,7 @@ export interface GameState {
     attackBonus: number;
     target?: NodeId;
     lured?: NodeId;
+    posed?: NodeId; // the Window Dresser's mannequin: where he strikes next
   };
   victims: Record<NodeId, number>; // ordinary survivors
   specials: { id: string; at: NodeId }[]; // named survivors on the board
@@ -434,7 +478,22 @@ export interface GameState {
   attack?: { damage: number; by?: number };
   rolling?: { uid: number; dice: number[]; converted: number[]; card: string; reaction: boolean; range: number };
   rearrange: boolean; // she may rearrange items (just gained one, or Upkeep)
-  env: { tideHigh: boolean; dark: boolean; ringing?: NodeId; cold: number };
+  env: {
+    tideHigh: boolean;
+    dark: boolean;
+    ringing?: NodeId;
+    cold: number;
+    // Season 2
+    fuel?: number; // The Campfire: 0–3
+    gate?: number; // Security Shutters: which set is down (index into rule.gates)
+    bus?: boolean; // The Last Bus: the bus is waiting this turn
+    song?: number; // The DJ's Set: 0 fast, 1 couples skate, 2 strobe
+    seen?: NodeId; // The Corn: where she last saw him
+    revealed?: number; // The Corn: the turn she looked out (she sees him all that turn)
+    ruleTurn?: number; // the turn she last used the location's action
+  };
+  traps?: NodeId[]; // the Trapper's traps
+  captives?: { id?: string; timer: number; taken: number }[]; // held in the killer's lair (id = a named survivor; timer = her Action phases left)
 
   down?: { heroine?: boolean; killer?: boolean }; // deaths in the current resolution
   lastRoll?: DiceRoll;
@@ -465,6 +524,7 @@ export type Action =
   | { type: 'stow'; uid: number }
   | { type: 'dropItem'; uid: number }
   | { type: 'answer' }
+  | { type: 'ruleAct' } // the location's own action (stoke, override, skip the song, look out)
   | { type: 'endAction' }
   | { type: 'buy'; id: string }
   | { type: 'endPlanning' }
