@@ -195,15 +195,15 @@ Bot results on Midnight Show (a careful human should beat these):
 | KXRL Hilltop | 31% | 12.0 | 43% |
 | **All** | **33%** | **11.2** | **56%** |
 
-**Tuning pass (v1.1.1).** Balance is now measured with independent seeds per (location, killer, heroine, run): the old script built seeds from id lengths, so heroines and killers shared them and per-killer numbers swung by ±10 between reports. `SCRIPTS=1 N=5 npx vitest run tune` prints a compact table (`SEED=` picks another seed set). Bot, Midnight Show, three 6,000-game runs:
+**Tuning pass (v1.1.1).** Balance is now measured with independent seeds per (location, killer, heroine, run): the old script built seeds from id lengths, so heroines and killers shared them and per-killer numbers swung by ±10 between reports. `SCRIPTS=1 N=5 npx vitest run tune` prints a compact table (`SEED=` picks another seed set). Bot, Midnight Show, 6,000-game runs on independent seed sets (the *after* column is the release build, two seed sets, after the playtest fixes):
 
 | | Before (v1.1.0) | After (v1.1.1) |
 |---|---|---|
-| Overall | 25–26% | **26%** |
-| Killers | 18–35% (Mirrorball 18, Snowblind 35) | **23–28%** |
-| Locations | 21–35% (Holloway 35, Rollerdrome 33) | **23–32%** (Holloway, the starter, highest) |
-| Normal heroines | 16–44% (Dee 16, June 44) | **21–28%** |
-| Easy heroines (Rosa, Tess, Lou) | 21–43% | **27–36%** |
+| Overall | 25–26% | **27%** |
+| Killers | 18–35% (Mirrorball 18, Snowblind 35) | **23–31%** |
+| Locations | 21–35% (Holloway 35, Rollerdrome 33) | **23–31%** (Holloway, the starter, highest) |
+| Normal heroines | 16–44% (Dee 16, June 44) | **21–32%** |
+| Easy heroines (Rosa, Tess, Lou) | 21–43% | **30–33%** |
 | Hard heroine (Mae) | 17–19% | **19%** |
 | Matinee / Nightmare | 74% / 5% | 74% / 5% |
 
