@@ -12,7 +12,7 @@ export const nightManager: KillerPack = {
   gimmick: {
     kind: 'captives',
     name: 'Room 13',
-    text: 'When {he} attacks survivors, {he} doesn’t kill them: {he} drags one to {his} lair alive (bloodlust +1; up to 3 at a time, any more die). A captive dies at the end of the second turn after; that feeds {him} again. Reach {his} lair in time to free them all, then get them out.',
+    text: 'When {he} attacks survivors, {he} doesn’t kill them: {he} drags one to {his} lair alive (bloodlust +1; up to 3 at a time, any more die). A captive dies at the end of the second turn after (horror +1). Reach {his} lair in time to free them all, then get them out.',
     max: 3,
     timer: 2,
   },

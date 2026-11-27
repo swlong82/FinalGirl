@@ -11,7 +11,7 @@ import { killerPortrait, victimIcon } from '../art/art';
 import { glyph } from './glyphs';
 import { sym } from './symbols';
 import { advise } from '../engine/coach';
-import { abilityUnlocked, actionDef, check, exitOpen, gimmick, isExit, killerSeen, npcAt, ruleAction } from '../engine/rules';
+import { abilityUnlocked, actionDef, check, gimmick, isExit, killerSeen, npcAt, ruleAction } from '../engine/rules';
 import type { Content, GameState } from '../engine/types';
 
 /** Parts of the screen kept dim until a step introduces them. */
@@ -149,7 +149,12 @@ export const STEPS: TutStep[] = [
 ];
 
 /** One-time lessons, in priority order: the first whose moment has come is shown. */
+/** Mechanic lessons about this very turn (the bus is here, the fire is low). */
+const NOW = ['rule-bus-here', 'rule-stoke', 'rule-override', 'gim-pose', 'gim-captives'];
+
 export const LESSONS: TutStep[] = [
+  // Time-sensitive nudges first: they only make sense this turn.
+  ...MECHANICS().filter((x) => NOW.includes(x.id!)),
   {
     id: 'roll',
     title: 'Dice',
@@ -286,7 +291,7 @@ export const LESSONS: TutStep[] = [
     target: '.terror-clock',
     trigger: (s) => calm(s) && s.killer.finale,
   },
-  ...MECHANICS(),
+  ...MECHANICS().filter((x) => !NOW.includes(x.id!)),
 ];
 
 /** Where a location's tagged spot is on the map (the fire, the silo...). */
@@ -310,10 +315,10 @@ function MECHANICS(): TutStep[] {
     m({ id: 'rule-calls', title: 'The phones', text: 'A phone is ringing. Answer it there (<b>A</b>), or someone else picks up and {he} heads toward it.', target: (s) => (s.env.ringing ? [`[data-node="${s.env.ringing}"]`, '.rulechip'] : '.rulechip'), trigger: (s) => calm(s) && rule('calls') && !!s.env.ringing }),
     m({ id: 'rule-campfire', title: 'The campfire', text: 'While the fire burns, nobody can attack anyone in it. It burns down each turn: <b>Stoke</b> it there.', target: () => [...tagNode('fire'), '.rulechip'], trigger: (s) => calm(s) && rule('campfire') && !s.killer.finale }),
     m({ id: 'rule-stoke', title: 'Stoke the fire', text: 'The fire is low. You’re at it: <b>Stoke</b> it back up for 1 nerve.', target: (s) => [...ruleBtn(s), '.rulechip'], prefer: 'above', trigger: (s) => calm(s) && rule('campfire') && (s.env.fuel ?? 0) <= 1 && ruleBtn(s).length > 0 }),
-    m({ id: 'rule-shutters', title: 'Security shutters', text: 'Red and blue <b>shutters</b> take turns coming down. A lock blocks you and survivors, never {him}.', target: ['.gate-pin.down', '.rulechip'], trigger: (s) => calm(s) && rule('shutters') }),
+    m({ id: 'rule-shutters', title: 'Security shutters', text: () => (C?.heroine.traits.gateKeys ? 'Red and blue <b>shutters</b> take turns coming down. Your keys open them; survivors running loose stay stuck.' : 'Red and blue <b>shutters</b> take turns coming down. A lock blocks you and survivors, never {him}.'), target: ['.gate-pin.down', '.rulechip'], trigger: (s) => calm(s) && rule('shutters') }),
     m({ id: 'rule-override', title: 'Override', text: 'You’re at the Security Office: <b>Override</b> swaps which shutters are down (1 nerve).', target: (s) => [...ruleBtn(s), '.rulechip'], prefer: 'above', trigger: (s) => calm(s) && rule('shutters') && ruleBtn(s).length > 0 }),
     m({ id: 'rule-bus', title: 'The last bus', text: 'The bus stops here every 3rd turn. Anyone waiting here then gets out, even without you.', target: () => [...tagNode('bus'), '.rulechip'], trigger: (s) => calm(s) && rule('bus') }),
-    m({ id: 'rule-bus-here', title: 'The bus is here', text: 'The bus is waiting at the shelter. It leaves when you end your turn, with everyone there.', target: () => [...tagNode('bus'), '.rulechip'], trigger: (s) => calm(s) && rule('bus') && !!s.env.bus && !!C && !exitOpen(C, s, s.heroine.loc) }),
+    m({ id: 'rule-bus-here', title: 'The bus is here', text: 'The bus is waiting at the shelter. It leaves when you end your turn, with everyone there.', target: () => [...tagNode('bus'), '.rulechip'], trigger: (s) => calm(s) && rule('bus') && !!s.env.bus }),
     m({ id: 'rule-dj', title: 'The DJ', text: 'Each turn a new song: <b>fast</b>, <b>couples skate</b>, <b>strobe</b>. Each changes the odds for you both: check the chip.', trigger: (s) => calm(s) && rule('dj') }),
     m({ id: 'rule-corn', title: 'Lost in the corn', text: '{He}’s in the corn: you only see where you <b>last saw</b> {him}. Climb the silo to look out.', target: ['#tok-k', '.rulechip'], trigger: (s) => calm(s) && rule('corn') && !!C && !killerSeen(C, s) }),
     // ── Killer mechanics

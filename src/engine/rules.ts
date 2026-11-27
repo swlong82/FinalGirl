@@ -248,9 +248,9 @@ function updateSeen(c: Content, s: GameState) {
 
 /** The DJ's Set. */
 export const SONGS = [
-  { name: 'Fast Song', text: 'Your first move card each turn moves +1; {he} moves +1.' },
-  { name: 'Couples Skate', text: 'Lights down: hide +1 die, search −1 die.' },
-  { name: 'Strobe', text: 'Dazzled: your reactions roll −1 die, and {he} hits +1.' },
+  { name: 'Fast Song', text: 'Your first move card each turn moves +1; {he} moves +1.', short: 'you both move +1' },
+  { name: 'Couples Skate', text: 'Lights down: hide +1 die, search −1 die.', short: 'hide +1, search −1' },
+  { name: 'Strobe', text: 'Dazzled: your reactions roll −1 die, and {he} hits +1.', short: '{he} hits +1, skip it' },
 ];
 export function song(c: Content, s: GameState): number | undefined {
   return c.location.rule.kind === 'dj' ? (s.env.song ?? 0) : undefined;
@@ -920,7 +920,7 @@ function capture(c: Content, s: GameState, at: NodeId, timer: number) {
   (s.captives ??= []).push({ id: victim ?? undefined, timer, taken: s.round });
   const who = victim ? specialDef(c, victim).name : 'a survivor';
   log(s, `${c.killer.name} drags ${who} away from ${nodeName(c, at)} to ${nodeName(c, c.location.lair)}, alive. (${timer} turns to get there.)`, 'killer');
-  s.fx.push({ t: 'env', text: 'Taken' });
+  s.fx.push({ t: 'env', text: 'Taken', src: 'killer', msg: `${who === 'a survivor' ? 'A survivor was' : `${who} was`} dragged off to ${nodeName(c, c.location.lair)}, alive. Get there in ${timer} turns to free them.` });
   if (s.heroine.loc === at) pushFront(s, [{ op: 'horror', n: 1 }]);
   addBloodlust(c, s, 1);
 }
@@ -936,7 +936,6 @@ function captiveDies(c: Content, s: GameState, cap: { id?: string }) {
     pushFront(s, d.death);
   } else log(s, `A scream from ${nodeName(c, c.location.lair)}, then silence. A captive is gone.`, 'killer');
   pushFront(s, [{ op: 'horror', n: 1 }]);
-  addBloodlust(c, s, 1);
 }
 
 /** She reaches the lair: every captive is cut loose, and now they need getting out. */
@@ -949,7 +948,7 @@ function freeCaptives(c: Content, s: GameState) {
     else s.victims[h.loc] = (s.victims[h.loc] ?? 0) + 1;
   }
   log(s, `She gets into ${nodeName(c, h.loc)} and cuts ${caps.length === 1 ? 'the captive' : `all ${caps.length} captives`} loose. Now get them out.`, 'good');
-  s.fx.push({ t: 'env', text: 'Captives freed' });
+  s.fx.push({ t: 'env', text: 'Captives freed', src: 'killer', msg: 'You cut the captives loose. Now lead them to an exit.' });
   s.captives = [];
 }
 
@@ -1098,7 +1097,7 @@ function springTrap(c: Content, s: GameState, at: NodeId): boolean {
     return false;
   }
   log(s, `SNAP. A steel trap at ${nodeName(c, at)} bites her leg: 1 damage, and she stops there.`, 'bad');
-  s.fx.push({ t: 'env', text: 'Trap!' });
+  s.fx.push({ t: 'env', text: 'Trap!', src: 'killer', msg: 'SNAP. A steel trap: 1 damage, and your move ends here.' });
   hurtHeroine(c, s, 1);
   return true;
 }
@@ -1634,7 +1633,7 @@ function exec(c: Content, s: GameState, e: Effect) {
       const at = selectTarget(c, s, e.who);
       k.posed = at;
       log(s, `A mannequin now stands at ${nodeName(c, at)}, arranged just so. That is where {he} will strike next.`, 'killer');
-      s.fx.push({ t: 'env', text: 'Posed' });
+      s.fx.push({ t: 'env', text: 'Posed', src: 'killer', msg: `A mannequin now stands at ${nodeName(c, at)}. {He} strikes there next turn.` });
       break;
     }
     case 'strikePose': {
@@ -1663,7 +1662,7 @@ function exec(c: Content, s: GameState, e: Effect) {
       // Nobody waiting in {his} scene: {he} goes looking for them instead.
       if (npcAt(s, k.loc) === 0 && h.loc !== k.loc) {
         log(s, `{His} scene is empty. ${c.killer.name} goes looking for {his} models.`, 'killer');
-        pushFront(s, [{ op: 'target', who: 'any' }, { op: 'hunt', extra: -1 }, { op: 'attack' }]);
+        pushFront(s, [{ op: 'target', who: 'any' }, { op: 'hunt' }, { op: 'attack' }]);
       } else pushFront(s, [{ op: 'attack' }]);
       break;
     }
@@ -2041,7 +2040,7 @@ function ruleUpkeep(c: Content, s: GameState) {
       const due = next % (r.period ?? 3) === 0;
       env.bus = due;
       if (due) {
-        log(s, '🚌 Headlights on the highway: the night bus pulls in to the shelter. It leaves at the end of her next Action phase.', 'good');
+        log(s, '🚌 Headlights on the highway: the night bus pulls in to the shelter. It leaves when you end your next Action phase, with everyone waiting there.', 'good');
         s.fx.push({ t: 'env', text: 'Bus is here' });
       }
       break;
@@ -2129,6 +2128,9 @@ export function reqCheck(c: Content, s: GameState, d: ActionCardDef): { ok: bool
       return { ok: true };
     case 'reach':
       return canReach(c, s) || minionsAt(s, h.loc).length ? { ok: true } : { ok: false, why: '{He} must be here (or in range of a weapon in hand)' };
+    case 'survivorsNear':
+      if (h.loc === s.killer.loc) return { ok: false, why: 'Nobody will come into a room with {him} in it' };
+      return walkNeighbors(c, s, h.loc).some((n) => npcAt(s, n) > 0) ? { ok: true } : { ok: false, why: 'No survivors next door to call' };
     default:
       return { ok: true };
   }

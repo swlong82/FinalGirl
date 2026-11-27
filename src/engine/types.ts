@@ -322,7 +322,7 @@ export interface ActionCardDef {
   roll: boolean; // false: resolve `always` with no Horror Roll
   dice?: number; // bonus dice
   light?: boolean; // attack that weapons, lore and focus don't add to
-  req?: 'killerHere' | 'killerAway' | 'searchSpace' | 'reach';
+  req?: 'killerHere' | 'killerAway' | 'searchSpace' | 'reach' | 'survivorsNear';
   great?: Effect[]; // two or more successes
   good?: Effect[]; // exactly one success
   fail?: Effect[];
@@ -391,7 +391,7 @@ export type Fx =
   | { t: 'revive'; who: 'heroine' | 'killer'; n: number }
   | { t: 'bloodlust'; level: number }
   | { t: 'unlock' }
-  | { t: 'env'; text: string };
+  | { t: 'env'; text: string; src?: 'killer'; msg?: string }; // src: the killer's mechanic, not the location's rule; msg: a full sentence for the toast
 
 export interface LogEntry {
   round: number;

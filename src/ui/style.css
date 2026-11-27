@@ -1661,3 +1661,16 @@ svg.edges .edge.shut .core { stroke: #ff3355 !important; stroke-dasharray: 2 5; 
 @media (prefers-reduced-motion: reduce) { #board.strobe::after, .badge.posed { animation: none; } }
 @media (max-width: 700px) { .gate-pin { width: 14px; height: 14px; border-radius: 3px; } .gate-pin .glyph { width: 9px; height: 9px; } }
 .keytable .gate-pin.kpin-inline { position: static; transform: none; display: inline-grid; opacity: 1; }
+
+/* ── v1.1.1 playtest fixes ─────────────────────────────────────────────────── */
+/* The move banner never steals a tap from the location under it; only its own buttons take clicks. */
+.board-hint { pointer-events: none; }
+.board-hint button, .board-hint .btn { pointer-events: auto; }
+/* A bus stop without a bus is not an exit right now: no green ring. */
+.node.exit.exit-shut .disc { border-color: #6a6a6a; box-shadow: none; }
+.node.exit.ringing.exit-shut .disc { border-color: var(--good); }
+@media (max-width: 700px) {
+  /* Phones: the map key moves to the top-left corner so the bottom exits stay tappable. */
+  .mapkey-btn { top: 6px; bottom: auto; left: 6px; right: auto; padding: 3px 6px; font-size: 10px; }
+  .board-hint { background: rgba(0, 0, 0, .45); }
+}

@@ -11,7 +11,7 @@ export const windowDresser: KillerPack = {
   gimmick: {
     kind: 'pose',
     name: 'The Display',
-    text: '{He} sets the scene before {he} strikes. At the end of {his} turn {he} poses a mannequin where the nearest people are; on {his} next turn {he} appears beside it, wherever {he} was, and attacks. If nobody is there, {he} goes after the closest instead (1 step less than {his} move). A barricade there holds {him} out. A lure that moves {him} knocks the mannequin over.',
+    text: '{He} sets the scene before {he} strikes. At the end of {his} turn {he} poses a mannequin where the nearest people are; on {his} next turn {he} appears beside it, wherever {he} was, and attacks. If nobody is there, {he} goes after the closest instead. A barricade there holds {him} out. A lure that moves {him} knocks the mannequin over.',
   },
   bloodlust: {
     revealAt: 4,

@@ -604,7 +604,7 @@ function renderHeroine() {
           <h3>${esc(h.name)}</h3>
           <div class="sub">${esc(h.title)} <span class="tag">${esc(h.difficulty)}</span></div>
           <p class="hd-bio">${esc(h.bio)}</p>
-          <div class="hd-stats"><span><b>${h.health}</b> health</span><span><b>${h.rescue.slots.length}</b> rescues to unlock</span></div>
+          <div class="hd-stats"><span title="Her last point of health is a hidden second-chance token"><b>${h.health - 1}</b> health + 2nd chance</span><span><b>${h.rescue.slots.length}</b> rescues to unlock</span></div>
           <div class="passive"><b>${esc(h.passive.name)}:</b> ${esc(h.passive.text)}</div>
           <ol class="hd-rescue">${h.rescue.slots.map((r) => `<li>${esc(r.text)}</li>`).join('')}<li class="rep">Every rescue after: ${esc(h.rescue.repeat.text)}</li></ol>
           <div class="hd-ability">★ <b>${esc(h.ability.name)}</b> ${esc(h.ability.text)}</div>
@@ -827,14 +827,14 @@ function ruleChip(): string {
   else if (r.kind === 'power') state = s.env.dark ? 'BLACKOUT' : 'power on';
   else if (r.kind === 'cold') state = c.heroine.traits.coldImmune ? 'immune' : `cold ${s.env.cold}/3`;
   else if (r.kind === 'calls') state = s.env.ringing ? `ringing: ${nodeName(c, s.env.ringing)}` : 'quiet';
-  else if (r.kind === 'campfire') state = s.killer.finale ? 'out for good' : (s.env.fuel ?? 0) > 0 ? `fire ${s.env.fuel}/3` : 'OUT';
-  else if (r.kind === 'shutters') state = `${GATE_NAMES[s.env.gate ?? 0]} down`;
+  else if (r.kind === 'campfire') state = s.killer.finale ? 'out for good' : (s.env.fuel ?? 0) > 0 ? `fire ${s.env.fuel}/3 · safe in it` : 'OUT · not safe';
+  else if (r.kind === 'shutters') state = `${GATE_NAMES[s.env.gate ?? 0]} locks down`;
   else if (r.kind === 'bus') {
     const p = r.period ?? 3;
     const wait = s.env.bus ? 0 : (p - (s.round % p)) % p || p;
     state = s.env.bus ? 'BUS HERE' : `bus in ${wait} turn${wait > 1 ? 's' : ''}`;
-  } else if (r.kind === 'dj') state = SONGS[song(c, s) ?? 0].name;
-  else if (r.kind === 'corn') state = killerSeen(c, s) ? '{he}’s in sight' : 'HIDDEN';
+  } else if (r.kind === 'dj') state = `${SONGS[song(c, s) ?? 0].name}: ${SONGS[song(c, s) ?? 0].short}`;
+  else if (r.kind === 'corn') state = killerSeen(c, s) ? '{he}’s in sight' : `HIDDEN · last seen ${s.env.seen ? nodeName(c, s.env.seen) : '?'}`;
   else if (r.kind === 'intermission') {
     const p = r.period ?? 4;
     const wait = Math.ceil(s.round / p) * p - s.round;
@@ -1148,6 +1148,7 @@ function updateBoard() {
     el.classList.toggle('flooded', isFlooded(c, s, id));
     el.classList.toggle('ringing', s.env.ringing === id || (rk === 'bus' && !!s.env.bus && hasTag(c, id, 'bus')));
     el.classList.toggle('haven', haven(c, s, id));
+    el.classList.toggle('exit-shut', isExit(c, id) && !exitOpen(c, s, id));
     el.classList.toggle('trapped', !!s.traps?.includes(id));
     el.classList.toggle('posed', s.killer.posed === id);
     el.querySelector('.badges')!.innerHTML = badges.join('');
@@ -1468,6 +1469,13 @@ function updateOverlay() {
     return;
   }
   if (p?.kind === 'search') {
+    // Pre-pick what the coach would keep, so Space (or a quick click) never throws a find away.
+    const key = `${s.round}:${p.node}:${p.drawn.join(',')}`;
+    if (searchFor !== key) {
+      searchFor = key;
+      const adv = advise(c, s).action;
+      searchPicks = adv.type === 'keep' ? [...adv.picks] : p.drawn.slice(0, p.keep).map((_, i) => i);
+    }
     root.innerHTML = `<div class="overlay"><div class="swap search-ov">
       <div class="kind">Search · ${esc(nodeName(c, p.node))}</div>
       <h2>Keep up to ${p.keep}</h2>
@@ -1713,6 +1721,7 @@ function act(a: Action) {
   clearCoach();
   if (a.type === 'endAction' && game.heroine.nerve > 0 && !confirmEnd()) return;
   if (a.type === 'endAction') document.querySelector('.toast')?.remove();
+  if (a.type === 'endPlanning' && !confirmShop()) return;
   if (a.type === 'endPlanning') {
     killerLogStart = game.log.length;
     turnStart = { health: totalHealth(game), slain: game.slain, saved: game.saved, bloodlust: game.killer.bloodlust, killerHealth: game.killer.health, finale: game.killer.finale, minions: game.minions.length };
@@ -1726,6 +1735,7 @@ function act(a: Action) {
     convertPick = [];
   }
   if (a.type === 'keep') searchPicks = [];
+  if (game.phase === 'planning' && prev.phase !== 'planning') shopOpenedAt = performance.now();
   if (game.pending?.kind !== 'aim') {
     aimMode = 'choose';
     splitDraft = {};
@@ -1800,6 +1810,21 @@ function rollOutcome(d: ActionCardDef, hits: number): { band: 'great' | 'good' |
 }
 
 let endWarned = -1;
+let shopWarned = -1;
+/** The search the pre-picked items belong to. */
+let searchFor = '';
+/** When the Shop opened: a held-down or doubled E mustn't close it unseen. */
+let shopOpenedAt = 0;
+/** Leaving the Shop with nerve the coach would still spend: say so once a turn. */
+function confirmShop(): boolean {
+  const s = game!;
+  if (shopWarned === s.round || tutorial.active || s.heroine.nerve <= 0) return true;
+  if (advise(content!, s).action.type !== 'buy') return true;
+  shopWarned = s.round;
+  toast(`You still have ${s.heroine.nerve} nerve, and the Shop has cards you need. Leftover nerve is lost. Click <b>Done</b> again to leave anyway.`);
+  return false;
+}
+
 function confirmEnd(): boolean {
   // Only a nudge when a card could still be played; never during the guided night (it just asked for this).
   if (endWarned === game!.round || tutorial.active) return true;
@@ -2003,6 +2028,28 @@ function undo() {
   updateGame();
 }
 
+/** A location rule's change, in one plain sentence for the toast. */
+function envMsg(c: Content, s: GameState, text: string): string {
+  const sg = SONGS.find((x) => x.name === text);
+  if (sg) return `Now playing: ${sg.name}. ${sg.text}`;
+  switch (text) {
+    case 'Fire stoked':
+      return `The campfire roars back up (fuel ${s.env.fuel}/3). Nobody can attack anyone in it.`;
+    case 'Fire out':
+      return 'The campfire is out. It’s no longer a safe place.';
+    case 'Shutters':
+      return `The ${GATE_NAMES[s.env.gate ?? 0]} shutters are down now; the others are open.`;
+    case 'Bus is here':
+      return 'The bus is at the shelter. It leaves when you end your turn, with everyone waiting there.';
+    case 'Look out':
+      return 'From up here you can see {him}. You can follow {him} until the turn ends.';
+    case 'Phone ringing':
+      return s.env.ringing ? `A phone is ringing at ${nodeName(c, s.env.ringing)}.` : 'A phone is ringing.';
+    default:
+      return text;
+  }
+}
+
 function runFx(s: GameState) {
   const c = content!;
   let diceShown = false;
@@ -2023,7 +2070,10 @@ function runFx(s: GameState) {
         break;
       case 'env':
         audio.play(/High Tide/i.test(f.text) ? 'tide' : /Blackout|Fire out|Shutters/i.test(f.text) ? 'blackout' : /ringing|Bus/i.test(f.text) ? 'ring' : /Trap|Taken|Posed/i.test(f.text) ? 'killer' : /freed|stoked/i.test(f.text) ? 'saved' : 'card');
-        toast(`<b>${esc(c.location.rule.name)}</b>: ${esc(f.text)}`, 3500);
+        // Name the real source (the map's rule, or the killer's mechanic) and say it as a sentence.
+        // Changes during his turn are in the turn summary already, so the toast waits for her turn.
+        if (s.phase === 'action' || f.src === 'killer')
+          toast(`<b>${esc(f.src === 'killer' ? c.killer.gimmick?.name ?? c.killer.name : c.location.rule.name)}</b>: ${esc(f.msg ?? envMsg(c, s, f.text))}`, 4000);
         break;
       case 'revive':
         audio.play('finale');
@@ -2643,7 +2693,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'a' || e.key === 'A') return act({ type: game && content?.location.rule.kind === 'calls' ? 'answer' : 'ruleAct' });
   if (e.key === 'e' || e.key === 'E') {
     if (s.phase === 'action') return act({ type: 'endAction' });
-    if (s.phase === 'planning') return act({ type: 'endPlanning' });
+    if (s.phase === 'planning') return performance.now() - shopOpenedAt < 800 ? undefined : act({ type: 'endPlanning' });
     if (s.phase === 'upkeep') return act({ type: 'endUpkeep' });
   }
 });

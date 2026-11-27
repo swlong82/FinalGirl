@@ -221,7 +221,7 @@ describe('The Window Dresser', () => {
     s.killer.posed = 'screen';
     s.barricades.screen = 1;
     s = hisTurn(c, s, 'wd-count');
-    expect(s.killer.loc).toBe('junkyard');
+    expect(s.killer.loc).not.toBe('screen'); // held out of his scene, he goes looking instead
     expect(s.barricades.screen).toBe(0);
     const t = setup(c, 'booth', 'junkyard');
     t.killer.posed = 'screen';

@@ -36,7 +36,7 @@ export const coreActions: ActionCardDef[] = [
   { id: 'ac-rest', name: 'Catch Your Breath', cost: 2, kind: 'action', tags: ['heal'], roll: true, req: 'killerAway', great: [{ op: 'heal', n: 2 }], good: [{ op: 'heal', n: 1 }], fail: [{ op: 'horror', n: 1 }], flavor: 'Bind it tight. Keep going.', copies: 2 },
   { id: 'ac-deepbreath', name: 'Deep Breath', cost: 2, kind: 'action', tags: ['calm'], roll: true, great: [{ op: 'horror', n: -3 }], good: [{ op: 'horror', n: -2 }], fail: [{ op: 'horror', n: -1 }], flavor: 'You are still alive. Hold on to that.', copies: 2 },
   { id: 'ac-adrenaline', name: 'Adrenaline', cost: 1, kind: 'action', tags: ['nerve'], roll: false, always: [{ op: 'nerve', n: 2 }, { op: 'horror', n: 1 }], flavor: 'Heart hammering. Costs 1, gives 2 (+1 horror): worth it only to reach a big card.', copies: 2 },
-  { id: 'ac-overhere', name: 'Over Here!', cost: 1, kind: 'action', tags: ['rally'], roll: true, great: [{ op: 'rally', n: 3 }], good: [{ op: 'rally', n: 2 }], fail: [{ op: 'rally', n: 1 }, { op: 'horror', n: 1 }], flavor: 'Survivors next door run to you.', copies: 2 },
+  { id: 'ac-overhere', name: 'Over Here!', cost: 1, kind: 'action', tags: ['rally'], roll: true, req: 'survivorsNear', great: [{ op: 'rally', n: 3 }], good: [{ op: 'rally', n: 2 }], fail: [{ op: 'rally', n: 1 }, { op: 'horror', n: 1 }], flavor: 'Survivors next door run to you.', copies: 2 },
   { id: 'ac-scream', name: 'Scream', cost: 1, kind: 'action', tags: ['lure'], roll: false, always: [{ op: 'killerMove', toward: 'heroine', steps: 1 }, { op: 'horror', n: 1 }], flavor: '{He} comes 1 step toward you: away from the others.', copies: 1 },
 
   // ── Reactions (only when he attacks you) ──
