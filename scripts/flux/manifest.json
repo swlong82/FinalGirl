@@ -36,6 +36,41 @@
    "bytes": 33240,
    "renderedAt": "2026-11-25T02:00:09.660Z"
   },
+  "backdrop/camp": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/camp.webp",
+   "bytes": 41940,
+   "renderedAt": "2026-11-27T07:24:44.797Z"
+  },
+  "backdrop/mall": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/mall.webp",
+   "bytes": 152230,
+   "renderedAt": "2026-11-27T07:25:04.656Z"
+  },
+  "backdrop/motel": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/motel.webp",
+   "bytes": 83406,
+   "renderedAt": "2026-11-27T07:25:15.086Z"
+  },
+  "backdrop/rink": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/rink.webp",
+   "bytes": 69170,
+   "renderedAt": "2026-11-27T07:25:25.531Z"
+  },
+  "backdrop/farm": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/farm.webp",
+   "bytes": 80306,
+   "renderedAt": "2026-11-27T07:25:37.002Z"
+  },
   "portrait/heroine-rosa": {
    "status": "done",
    "attempts": 2,
@@ -85,6 +120,41 @@
    "bytes": 27480,
    "renderedAt": "2026-11-26T02:35:55.842Z"
   },
+  "portrait/heroine-nora": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/portrait/heroine-nora.webp",
+   "bytes": 35318,
+   "renderedAt": "2026-11-27T07:25:45.928Z"
+  },
+  "portrait/heroine-bea": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/portrait/heroine-bea.webp",
+   "bytes": 25852,
+   "renderedAt": "2026-11-27T07:25:56.733Z"
+  },
+  "portrait/heroine-lou": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/portrait/heroine-lou.webp",
+   "bytes": 24872,
+   "renderedAt": "2026-11-27T07:26:06.530Z"
+  },
+  "portrait/heroine-roxy": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/portrait/heroine-roxy.webp",
+   "bytes": 34810,
+   "renderedAt": "2026-11-27T07:26:15.801Z"
+  },
+  "portrait/heroine-mae": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/portrait/heroine-mae.webp",
+   "bytes": 36398,
+   "renderedAt": "2026-11-27T07:26:21.766Z"
+  },
   "portrait/killer-projectionist": {
    "status": "done",
    "attempts": 3,
@@ -120,6 +190,36 @@
    "bytes": 29074,
    "renderedAt": "2026-11-25T02:02:53.703Z"
   },
+  "portrait/killer-trapper": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/portrait/killer-trapper.webp",
+   "bytes": 30632,
+   "renderedAt": "2026-11-27T07:26:31.400Z"
+  },
+  "portrait/killer-dresser": {
+   "status": "pending",
+   "note": "re-render: first pass showed a human face"
+  },
+  "portrait/killer-manager": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/portrait/killer-manager.webp",
+   "bytes": 26936,
+   "renderedAt": "2026-11-27T07:26:47.422Z"
+  },
+  "portrait/killer-mirrorball": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/portrait/killer-mirrorball.webp",
+   "bytes": 25556,
+   "renderedAt": "2026-11-27T07:26:56.248Z"
+  },
+  "portrait/killer-harvestman": {
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
+  },
   "backdrop/drivein-finale": {
    "status": "done",
    "attempts": 1,
@@ -154,6 +254,606 @@
    "file": "src/art/gen/backdrop/radio-finale.webp",
    "bytes": 39480,
    "renderedAt": "2026-11-25T02:03:33.658Z"
+  },
+  "backdrop/camp-finale": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/camp-finale.webp",
+   "bytes": 125876,
+   "renderedAt": "2026-11-27T07:27:11.688Z"
+  },
+  "backdrop/mall-finale": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/mall-finale.webp",
+   "bytes": 69524,
+   "renderedAt": "2026-11-27T07:27:19.299Z"
+  },
+  "backdrop/motel-finale": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/motel-finale.webp",
+   "bytes": 96642,
+   "renderedAt": "2026-11-27T07:27:29.381Z"
+  },
+  "backdrop/rink-finale": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/rink-finale.webp",
+   "bytes": 102886,
+   "renderedAt": "2026-11-27T07:27:37.442Z"
+  },
+  "backdrop/farm-finale": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/backdrop/farm-finale.webp",
+   "bytes": 121242,
+   "renderedAt": "2026-11-27T07:27:44.467Z"
+  },
+  "icon/ambulance": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/ambulance.webp",
+   "bytes": 3750,
+   "renderedAt": "2026-11-25T02:18:03.237Z"
+  },
+  "icon/bear": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/bear.webp",
+   "bytes": 3452,
+   "renderedAt": "2026-11-26T02:36:27.497Z"
+  },
+  "icon/boat": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/boat.webp",
+   "bytes": 3302,
+   "renderedAt": "2026-11-26T02:36:33.438Z"
+  },
+  "icon/bolt": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/bolt.webp",
+   "bytes": 3012,
+   "renderedAt": "2026-11-26T02:36:38.968Z"
+  },
+  "icon/cabin": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/cabin.webp",
+   "bytes": 2452,
+   "renderedAt": "2026-11-26T02:36:45.356Z"
+  },
+  "icon/candle": {
+   "status": "done",
+   "attempts": 3,
+   "file": "src/art/gen/icon/candle.webp",
+   "bytes": 3874,
+   "renderedAt": "2026-11-26T02:43:40.363Z"
+  },
+  "icon/car": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/car.webp",
+   "bytes": 2564,
+   "renderedAt": "2026-11-26T02:37:00.692Z"
+  },
+  "icon/chair": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/chair.webp",
+   "bytes": 2502,
+   "renderedAt": "2026-11-26T02:37:06.847Z"
+  },
+  "icon/cross": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/cross.webp",
+   "bytes": 2052,
+   "renderedAt": "2026-11-26T02:37:13.057Z"
+  },
+  "icon/desk": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/desk.webp",
+   "bytes": 3288,
+   "renderedAt": "2026-11-26T02:43:47.011Z"
+  },
+  "icon/dial": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/dial.webp",
+   "bytes": 3034,
+   "renderedAt": "2026-11-26T02:37:26.720Z"
+  },
+  "icon/dock": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/dock.webp",
+   "bytes": 3366,
+   "renderedAt": "2026-11-26T02:43:53.379Z"
+  },
+  "icon/door": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/door.webp",
+   "bytes": 2598,
+   "renderedAt": "2026-11-26T02:43:16.912Z"
+  },
+  "icon/drawer": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/drawer.webp",
+   "bytes": 2502,
+   "renderedAt": "2026-11-26T02:43:59.494Z"
+  },
+  "icon/elevator": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/elevator.webp",
+   "bytes": 2590,
+   "renderedAt": "2026-11-26T02:44:04.365Z"
+  },
+  "icon/files": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/files.webp",
+   "bytes": 2584,
+   "renderedAt": "2026-11-26T02:38:03.616Z"
+  },
+  "icon/gate": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/gate.webp",
+   "bytes": 2608,
+   "renderedAt": "2026-11-26T02:38:09.261Z"
+  },
+  "icon/glass": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/glass.webp",
+   "bytes": 3126,
+   "renderedAt": "2026-11-26T02:38:19.385Z"
+  },
+  "icon/grass": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/grass.webp",
+   "bytes": 4294,
+   "renderedAt": "2026-11-26T02:44:10.606Z"
+  },
+  "icon/hearth": {
+   "status": "done",
+   "attempts": 3,
+   "file": "src/art/gen/icon/hearth.webp",
+   "bytes": 3998,
+   "renderedAt": "2026-11-27T03:20:36.176Z"
+  },
+  "icon/hook": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/hook.webp",
+   "bytes": 2674,
+   "renderedAt": "2026-11-26T02:38:36.311Z"
+  },
+  "icon/ice": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/ice.webp",
+   "bytes": 2706,
+   "renderedAt": "2026-11-26T02:44:23.771Z"
+  },
+  "icon/lamp": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/lamp.webp",
+   "bytes": 2938,
+   "renderedAt": "2026-11-26T02:44:28.643Z"
+  },
+  "icon/lighthouse": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/lighthouse.webp",
+   "bytes": 2666,
+   "renderedAt": "2026-11-26T02:38:55.288Z"
+  },
+  "icon/mic": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/mic.webp",
+   "bytes": 3282,
+   "renderedAt": "2026-11-26T02:39:01.939Z"
+  },
+  "icon/mug": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/mug.webp",
+   "bytes": 2740,
+   "renderedAt": "2026-11-26T02:39:08.088Z"
+  },
+  "icon/payphone": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/payphone.webp",
+   "bytes": 2506,
+   "renderedAt": "2026-11-26T02:39:14.913Z"
+  },
+  "icon/peak": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/peak.webp",
+   "bytes": 3126,
+   "renderedAt": "2026-11-26T02:39:20.781Z"
+  },
+  "icon/pill": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/pill.webp",
+   "bytes": 3206,
+   "renderedAt": "2026-11-26T02:44:37.727Z"
+  },
+  "icon/pine": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/pine.webp",
+   "bytes": 3140,
+   "renderedAt": "2026-11-26T02:39:35.937Z"
+  },
+  "icon/pipe": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/pipe.webp",
+   "bytes": 2866,
+   "renderedAt": "2026-11-26T02:39:41.632Z"
+  },
+  "icon/popcorn": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/popcorn.webp",
+   "bytes": 3668,
+   "renderedAt": "2026-11-26T02:39:48.442Z"
+  },
+  "icon/pot": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/pot.webp",
+   "bytes": 3802,
+   "renderedAt": "2026-11-26T02:39:53.042Z"
+  },
+  "icon/projector": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/projector.webp",
+   "bytes": 3104,
+   "renderedAt": "2026-11-26T02:39:57.486Z"
+  },
+  "icon/record": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/record.webp",
+   "bytes": 2736,
+   "renderedAt": "2026-11-26T02:40:01.964Z"
+  },
+  "icon/screen": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/screen.webp",
+   "bytes": 3582,
+   "renderedAt": "2026-11-26T02:42:32.074Z"
+  },
+  "icon/shed": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/shed.webp",
+   "bytes": 3910,
+   "renderedAt": "2026-11-26T02:44:42.268Z"
+  },
+  "icon/ski": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/ski.webp",
+   "bytes": 4802,
+   "renderedAt": "2026-11-26T02:44:47.510Z"
+  },
+  "icon/snowcat": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/snowcat.webp",
+   "bytes": 3586,
+   "renderedAt": "2026-11-26T02:40:29.407Z"
+  },
+  "icon/steam": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/steam.webp",
+   "bytes": 3184,
+   "renderedAt": "2026-11-26T02:40:38.339Z"
+  },
+  "icon/swing": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/swing.webp",
+   "bytes": 3322,
+   "renderedAt": "2026-11-26T02:40:43.325Z"
+  },
+  "icon/ticket": {
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/ticket.webp",
+   "bytes": 3652,
+   "renderedAt": "2026-11-26T02:44:53.224Z"
+  },
+  "icon/tower": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/tower.webp",
+   "bytes": 3030,
+   "renderedAt": "2026-11-26T02:40:58.218Z"
+  },
+  "icon/wave": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/wave.webp",
+   "bytes": 2402,
+   "renderedAt": "2026-11-26T02:41:02.188Z"
+  },
+  "icon/wreck": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/wreck.webp",
+   "bytes": 4160,
+   "renderedAt": "2026-11-26T02:41:07.354Z"
+  },
+  "icon/campfire": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/campfire.webp",
+   "bytes": 3806,
+   "renderedAt": "2026-11-27T07:27:49.574Z"
+  },
+  "icon/target": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/target.webp",
+   "bytes": 4324,
+   "renderedAt": "2026-11-27T07:27:56.285Z"
+  },
+  "icon/canoe": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/canoe.webp",
+   "bytes": 3536,
+   "renderedAt": "2026-11-27T07:28:01.439Z"
+  },
+  "icon/arcade": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/arcade.webp",
+   "bytes": 2758,
+   "renderedAt": "2026-11-27T07:28:05.944Z"
+  },
+  "icon/tray": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/tray.webp",
+   "bytes": 3194,
+   "renderedAt": "2026-11-27T07:28:13.891Z"
+  },
+  "icon/fountain": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/fountain.webp",
+   "bytes": 4628,
+   "renderedAt": "2026-11-27T07:28:20.759Z"
+  },
+  "icon/escalator": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/escalator.webp",
+   "bytes": 3874,
+   "renderedAt": "2026-11-27T07:28:26.333Z"
+  },
+  "icon/mannequin": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/mannequin.webp",
+   "bytes": 2128,
+   "renderedAt": "2026-11-27T07:28:33.233Z"
+  },
+  "icon/gift": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/gift.webp",
+   "bytes": 3014,
+   "renderedAt": "2026-11-27T07:28:39.283Z"
+  },
+  "icon/monitor": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/monitor.webp",
+   "bytes": 3540,
+   "renderedAt": "2026-11-27T07:28:43.616Z"
+  },
+  "icon/truck": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/truck.webp",
+   "bytes": 4182,
+   "renderedAt": "2026-11-27T07:28:48.685Z"
+  },
+  "icon/bus": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/bus.webp",
+   "bytes": 3570,
+   "renderedAt": "2026-11-27T07:28:54.281Z"
+  },
+  "icon/bell": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/bell.webp",
+   "bytes": 3468,
+   "renderedAt": "2026-11-27T07:28:58.614Z"
+  },
+  "icon/neon": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/neon.webp",
+   "bytes": 3092,
+   "renderedAt": "2026-11-27T07:29:03.515Z"
+  },
+  "icon/pool": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/pool.webp",
+   "bytes": 2862,
+   "renderedAt": "2026-11-27T07:29:10.221Z"
+  },
+  "icon/key": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/key.webp",
+   "bytes": 2788,
+   "renderedAt": "2026-11-27T07:29:14.655Z"
+  },
+  "icon/icebox": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/icebox.webp",
+   "bytes": 2660,
+   "renderedAt": "2026-11-27T07:29:19.495Z"
+  },
+  "icon/laundry": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/laundry.webp",
+   "bytes": 3584,
+   "renderedAt": "2026-11-27T07:29:23.655Z"
+  },
+  "icon/road": {
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
+  },
+  "icon/skate": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/skate.webp",
+   "bytes": 3816,
+   "renderedAt": "2026-11-27T07:29:33.911Z"
+  },
+  "icon/soda": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/soda.webp",
+   "bytes": 3290,
+   "renderedAt": "2026-11-27T07:29:40.782Z"
+  },
+  "icon/discoball": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/discoball.webp",
+   "bytes": 4114,
+   "renderedAt": "2026-11-27T07:29:47.301Z"
+  },
+  "icon/pinball": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/pinball.webp",
+   "bytes": 3650,
+   "renderedAt": "2026-11-27T07:29:52.054Z"
+  },
+  "icon/locker": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/locker.webp",
+   "bytes": 2858,
+   "renderedAt": "2026-11-27T07:29:56.646Z"
+  },
+  "icon/spotlight": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/spotlight.webp",
+   "bytes": 2628,
+   "renderedAt": "2026-11-27T07:30:02.722Z"
+  },
+  "icon/ladder": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/ladder.webp",
+   "bytes": 2900,
+   "renderedAt": "2026-11-27T07:30:07.156Z"
+  },
+  "icon/dumpster": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/dumpster.webp",
+   "bytes": 2962,
+   "renderedAt": "2026-11-27T07:30:10.963Z"
+  },
+  "icon/farmhouse": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/farmhouse.webp",
+   "bytes": 3310,
+   "renderedAt": "2026-11-27T07:30:15.156Z"
+  },
+  "icon/pumpkin": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/pumpkin.webp",
+   "bytes": 4538,
+   "renderedAt": "2026-11-27T07:30:19.262Z"
+  },
+  "icon/barn": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/barn.webp",
+   "bytes": 3782,
+   "renderedAt": "2026-11-27T07:30:25.577Z"
+  },
+  "icon/wagon": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/wagon.webp",
+   "bytes": 4898,
+   "renderedAt": "2026-11-27T07:30:30.765Z"
+  },
+  "icon/silo": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/silo.webp",
+   "bytes": 3444,
+   "renderedAt": "2026-11-27T07:30:38.590Z"
+  },
+  "icon/corn": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/corn.webp",
+   "bytes": 3012,
+   "renderedAt": "2026-11-27T07:30:43.193Z"
+  },
+  "icon/scarecrow": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/scarecrow.webp",
+   "bytes": 4176,
+   "renderedAt": "2026-11-27T07:30:49.740Z"
+  },
+  "icon/tractor": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/tractor.webp",
+   "bytes": 3892,
+   "renderedAt": "2026-11-27T07:30:55.502Z"
+  },
+  "icon/cellar": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/icon/cellar.webp",
+   "bytes": 3410,
+   "renderedAt": "2026-11-27T07:31:01.828Z"
   },
   "still/kv-frontrow": {
    "status": "done",
@@ -939,320 +1639,588 @@
    "bytes": 29758,
    "renderedAt": "2026-11-25T02:17:56.697Z"
   },
-  "icon/ambulance": {
+  "still/tr-hounds": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/ambulance.webp",
-   "bytes": 3750,
-   "renderedAt": "2026-11-25T02:18:03.237Z"
+   "file": "src/art/gen/still/tr-hounds.webp",
+   "bytes": 42678,
+   "renderedAt": "2026-11-27T07:31:09.972Z"
   },
-  "icon/bear": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/bear.webp",
-   "bytes": 3452,
-   "renderedAt": "2026-11-26T02:36:27.497Z"
-  },
-  "icon/boat": {
+  "still/tr-set": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/boat.webp",
-   "bytes": 3302,
-   "renderedAt": "2026-11-26T02:36:33.438Z"
+   "file": "src/art/gen/still/tr-set.webp",
+   "bytes": 41472,
+   "renderedAt": "2026-11-27T07:31:19.636Z"
   },
-  "icon/bolt": {
+  "still/tr-drag": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/bolt.webp",
-   "bytes": 3012,
-   "renderedAt": "2026-11-26T02:36:38.968Z"
+   "file": "src/art/gen/still/tr-drag.webp",
+   "bytes": 45060,
+   "renderedAt": "2026-11-27T07:31:26.044Z"
   },
-  "icon/cabin": {
+  "still/tr-line": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/cabin.webp",
-   "bytes": 2452,
-   "renderedAt": "2026-11-26T02:36:45.356Z"
+   "file": "src/art/gen/still/tr-line.webp",
+   "bytes": 22784,
+   "renderedAt": "2026-11-27T07:31:31.370Z"
   },
-  "icon/candle": {
-   "status": "done",
-   "attempts": 3,
-   "file": "src/art/gen/icon/candle.webp",
-   "bytes": 3874,
-   "renderedAt": "2026-11-26T02:43:40.363Z"
-  },
-  "icon/car": {
+  "still/tr-notches": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/car.webp",
-   "bytes": 2564,
-   "renderedAt": "2026-11-26T02:37:00.692Z"
+   "file": "src/art/gen/still/tr-notches.webp",
+   "bytes": 29866,
+   "renderedAt": "2026-11-27T07:31:38.651Z"
   },
-  "icon/chair": {
+  "still/tr-whet": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/chair.webp",
-   "bytes": 2502,
-   "renderedAt": "2026-11-26T02:37:06.847Z"
+   "file": "src/art/gen/still/tr-whet.webp",
+   "bytes": 34464,
+   "renderedAt": "2026-11-27T07:31:44.741Z"
   },
-  "icon/cross": {
+  "still/tr-shack": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/cross.webp",
-   "bytes": 2052,
-   "renderedAt": "2026-11-26T02:37:13.057Z"
+   "file": "src/art/gen/still/tr-shack.webp",
+   "bytes": 51862,
+   "renderedAt": "2026-11-27T07:31:56.678Z"
   },
-  "icon/desk": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/desk.webp",
-   "bytes": 3288,
-   "renderedAt": "2026-11-26T02:43:47.011Z"
-  },
-  "icon/dial": {
+  "still/tr-snapped": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/dial.webp",
-   "bytes": 3034,
-   "renderedAt": "2026-11-26T02:37:26.720Z"
+   "file": "src/art/gen/still/tr-snapped.webp",
+   "bytes": 42078,
+   "renderedAt": "2026-11-27T07:32:03.449Z"
   },
-  "icon/dock": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/dock.webp",
-   "bytes": 3366,
-   "renderedAt": "2026-11-26T02:43:53.379Z"
-  },
-  "icon/door": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/door.webp",
-   "bytes": 2598,
-   "renderedAt": "2026-11-26T02:43:16.912Z"
-  },
-  "icon/drawer": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/drawer.webp",
-   "bytes": 2502,
-   "renderedAt": "2026-11-26T02:43:59.494Z"
-  },
-  "icon/elevator": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/elevator.webp",
-   "bytes": 2590,
-   "renderedAt": "2026-11-26T02:44:04.365Z"
-  },
-  "icon/files": {
+  "still/ct-latebus": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/files.webp",
-   "bytes": 2584,
-   "renderedAt": "2026-11-26T02:38:03.616Z"
+   "file": "src/art/gen/still/ct-latebus.webp",
+   "bytes": 40624,
+   "renderedAt": "2026-11-27T07:32:13.049Z"
   },
-  "icon/gate": {
+  "still/ct-skinnydip": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/gate.webp",
-   "bytes": 2608,
-   "renderedAt": "2026-11-26T02:38:09.261Z"
+   "file": "src/art/gen/still/ct-skinnydip.webp",
+   "bytes": 25836,
+   "renderedAt": "2026-11-27T07:32:31.869Z"
   },
-  "icon/glass": {
+  "still/ct-raid": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/glass.webp",
-   "bytes": 3126,
-   "renderedAt": "2026-11-26T02:38:19.385Z"
+   "file": "src/art/gen/still/ct-raid.webp",
+   "bytes": 37914,
+   "renderedAt": "2026-11-27T07:32:37.961Z"
   },
-  "icon/grass": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/grass.webp",
-   "bytes": 4294,
-   "renderedAt": "2026-11-26T02:44:10.606Z"
-  },
-  "icon/hearth": {
-   "status": "done",
-   "attempts": 3,
-   "file": "src/art/gen/icon/hearth.webp",
-   "bytes": 3998,
-   "renderedAt": "2026-11-27T03:20:36.176Z"
-  },
-  "icon/hook": {
+  "still/ct-snipe": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/hook.webp",
-   "bytes": 2674,
-   "renderedAt": "2026-11-26T02:38:36.311Z"
+   "file": "src/art/gen/still/ct-snipe.webp",
+   "bytes": 22870,
+   "renderedAt": "2026-11-27T07:32:45.614Z"
   },
-  "icon/ice": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/ice.webp",
-   "bytes": 2706,
-   "renderedAt": "2026-11-26T02:44:23.771Z"
-  },
-  "icon/lamp": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/lamp.webp",
-   "bytes": 2938,
-   "renderedAt": "2026-11-26T02:44:28.643Z"
-  },
-  "icon/lighthouse": {
+  "still/ct-nurse": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/lighthouse.webp",
-   "bytes": 2666,
-   "renderedAt": "2026-11-26T02:38:55.288Z"
+   "file": "src/art/gen/still/ct-nurse.webp",
+   "bytes": 26852,
+   "renderedAt": "2026-11-27T07:32:51.395Z"
   },
-  "icon/mic": {
+  "still/ct-snack": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/mic.webp",
-   "bytes": 3282,
-   "renderedAt": "2026-11-26T02:39:01.939Z"
+   "file": "src/art/gen/still/ct-snack.webp",
+   "bytes": 32954,
+   "renderedAt": "2026-11-27T07:32:58.271Z"
   },
-  "icon/mug": {
+  "still/ct-loons": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/mug.webp",
-   "bytes": 2740,
-   "renderedAt": "2026-11-26T02:39:08.088Z"
+   "file": "src/art/gen/still/ct-loons.webp",
+   "bytes": 19654,
+   "renderedAt": "2026-11-27T07:33:04.345Z"
   },
-  "icon/payphone": {
+  "still/ct-batteries": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/payphone.webp",
-   "bytes": 2506,
-   "renderedAt": "2026-11-26T02:39:14.913Z"
+   "file": "src/art/gen/still/ct-batteries.webp",
+   "bytes": 51386,
+   "renderedAt": "2026-11-27T07:33:12.638Z"
   },
-  "icon/peak": {
+  "still/ct-song": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/peak.webp",
-   "bytes": 3126,
-   "renderedAt": "2026-11-26T02:39:20.781Z"
+   "file": "src/art/gen/still/ct-song.webp",
+   "bytes": 19234,
+   "renderedAt": "2026-11-27T07:33:18.749Z"
   },
-  "icon/pill": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/pill.webp",
-   "bytes": 3206,
-   "renderedAt": "2026-11-26T02:44:37.727Z"
-  },
-  "icon/pine": {
+  "still/ct-smores": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/pine.webp",
-   "bytes": 3140,
-   "renderedAt": "2026-11-26T02:39:35.937Z"
+   "file": "src/art/gen/still/ct-smores.webp",
+   "bytes": 37320,
+   "renderedAt": "2026-11-27T07:33:25.254Z"
   },
-  "icon/pipe": {
+  "still/ct-ranger": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/pipe.webp",
-   "bytes": 2866,
-   "renderedAt": "2026-11-26T02:39:41.632Z"
+   "file": "src/art/gen/still/ct-ranger.webp",
+   "bytes": 30688,
+   "renderedAt": "2026-11-27T07:33:32.151Z"
   },
-  "icon/popcorn": {
+  "still/ct-fog": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/popcorn.webp",
-   "bytes": 3668,
-   "renderedAt": "2026-11-26T02:39:48.442Z"
+   "file": "src/art/gen/still/ct-fog.webp",
+   "bytes": 26798,
+   "renderedAt": "2026-11-27T07:33:38.541Z"
   },
-  "icon/pot": {
+  "still/ct-cicadas": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/pot.webp",
-   "bytes": 3802,
-   "renderedAt": "2026-11-26T02:39:53.042Z"
+   "file": "src/art/gen/still/ct-cicadas.webp",
+   "bytes": 35868,
+   "renderedAt": "2026-11-27T07:33:43.660Z"
   },
-  "icon/projector": {
+  "still/ct-fireflies": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/projector.webp",
-   "bytes": 3104,
-   "renderedAt": "2026-11-26T02:39:57.486Z"
+   "file": "src/art/gen/still/ct-fireflies.webp",
+   "bytes": 48220,
+   "renderedAt": "2026-11-27T07:33:51.440Z"
   },
-  "icon/record": {
+  "still/wd-stock": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/record.webp",
-   "bytes": 2736,
-   "renderedAt": "2026-11-26T02:40:01.964Z"
+   "file": "src/art/gen/still/wd-stock.webp",
+   "bytes": 33496,
+   "renderedAt": "2026-11-27T07:33:57.595Z"
   },
-  "icon/screen": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/screen.webp",
-   "bytes": 3582,
-   "renderedAt": "2026-11-26T02:42:32.074Z"
-  },
-  "icon/shed": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/shed.webp",
-   "bytes": 3910,
-   "renderedAt": "2026-11-26T02:44:42.268Z"
-  },
-  "icon/ski": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/ski.webp",
-   "bytes": 4802,
-   "renderedAt": "2026-11-26T02:44:47.510Z"
-  },
-  "icon/snowcat": {
+  "still/wd-pose": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/snowcat.webp",
-   "bytes": 3586,
-   "renderedAt": "2026-11-26T02:40:29.407Z"
+   "file": "src/art/gen/still/wd-pose.webp",
+   "bytes": 47116,
+   "renderedAt": "2026-11-27T07:34:05.315Z"
   },
-  "icon/steam": {
+  "still/wd-shears": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/steam.webp",
-   "bytes": 3184,
-   "renderedAt": "2026-11-26T02:40:38.339Z"
+   "file": "src/art/gen/still/wd-shears.webp",
+   "bytes": 31944,
+   "renderedAt": "2026-11-27T07:34:14.876Z"
   },
-  "icon/swing": {
+  "still/wd-count": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/swing.webp",
-   "bytes": 3322,
-   "renderedAt": "2026-11-26T02:40:43.325Z"
+   "file": "src/art/gen/still/wd-count.webp",
+   "bytes": 36624,
+   "renderedAt": "2026-11-27T07:34:21.816Z"
   },
-  "icon/ticket": {
-   "status": "done",
-   "attempts": 2,
-   "file": "src/art/gen/icon/ticket.webp",
-   "bytes": 3652,
-   "renderedAt": "2026-11-26T02:44:53.224Z"
-  },
-  "icon/tower": {
+  "still/wd-change": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/tower.webp",
-   "bytes": 3030,
-   "renderedAt": "2026-11-26T02:40:58.218Z"
+   "file": "src/art/gen/still/wd-change.webp",
+   "bytes": 41966,
+   "renderedAt": "2026-11-27T07:34:27.865Z"
   },
-  "icon/wave": {
+  "still/wd-inventory": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/wave.webp",
-   "bytes": 2402,
-   "renderedAt": "2026-11-26T02:41:02.188Z"
+   "file": "src/art/gen/still/wd-inventory.webp",
+   "bytes": 37570,
+   "renderedAt": "2026-11-27T07:34:37.378Z"
   },
-  "icon/wreck": {
+  "still/wd-browsing": {
    "status": "done",
    "attempts": 1,
-   "file": "src/art/gen/icon/wreck.webp",
-   "bytes": 4160,
-   "renderedAt": "2026-11-26T02:41:07.354Z"
+   "file": "src/art/gen/still/wd-browsing.webp",
+   "bytes": 36106,
+   "renderedAt": "2026-11-27T07:34:44.849Z"
+  },
+  "still/wd-shattered": {
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
+  },
+  "still/sg-shoppers": {
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
+  },
+  "still/sg-highscore": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-highscore.webp",
+   "bytes": 29152,
+   "renderedAt": "2026-11-27T07:35:04.300Z"
+  },
+  "still/sg-santa": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-santa.webp",
+   "bytes": 38318,
+   "renderedAt": "2026-11-27T07:35:12.138Z"
+  },
+  "still/sg-stock": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-stock.webp",
+   "bytes": 30658,
+   "renderedAt": "2026-11-27T07:35:19.795Z"
+  },
+  "still/sg-janitor": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-janitor.webp",
+   "bytes": 27704,
+   "renderedAt": "2026-11-27T07:35:28.608Z"
+  },
+  "still/sg-lost": {
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
+  },
+  "still/sg-muzak": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-muzak.webp",
+   "bytes": 36532,
+   "renderedAt": "2026-11-27T07:35:45.027Z"
+  },
+  "still/sg-lights": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-lights.webp",
+   "bytes": 34986,
+   "renderedAt": "2026-11-27T07:35:51.146Z"
+  },
+  "still/sg-samples": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-samples.webp",
+   "bytes": 42768,
+   "renderedAt": "2026-11-27T07:35:59.823Z"
+  },
+  "still/sg-carols": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-carols.webp",
+   "bytes": 43942,
+   "renderedAt": "2026-11-27T07:36:05.728Z"
+  },
+  "still/sg-cruiser": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-cruiser.webp",
+   "bytes": 30838,
+   "renderedAt": "2026-11-27T07:36:13.690Z"
+  },
+  "still/sg-snow": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-snow.webp",
+   "bytes": 41946,
+   "renderedAt": "2026-11-27T07:36:21.808Z"
+  },
+  "still/sg-alarm": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/sg-alarm.webp",
+   "bytes": 32646,
+   "renderedAt": "2026-11-27T07:36:31.828Z"
+  },
+  "still/sg-neon": {
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
+  },
+  "still/nm-turndown": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/nm-turndown.webp",
+   "bytes": 26812,
+   "renderedAt": "2026-11-27T07:36:45.077Z"
+  },
+  "still/nm-keys": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/nm-keys.webp",
+   "bytes": 24408,
+   "renderedAt": "2026-11-27T07:36:51.113Z"
+  },
+  "still/nm-dnd": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/nm-dnd.webp",
+   "bytes": 25512,
+   "renderedAt": "2026-11-27T07:37:00.078Z"
+  },
+  "still/nm-ledger": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/nm-ledger.webp",
+   "bytes": 24832,
+   "renderedAt": "2026-11-27T07:37:05.341Z"
+  },
+  "still/nm-shears": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/nm-shears.webp",
+   "bytes": 37924,
+   "renderedAt": "2026-11-27T07:37:12.372Z"
+  },
+  "still/nm-vacancy": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/nm-vacancy.webp",
+   "bytes": 23622,
+   "renderedAt": "2026-11-27T07:37:22.028Z"
+  },
+  "still/nm-bell": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/nm-bell.webp",
+   "bytes": 33822,
+   "renderedAt": "2026-11-27T07:37:28.732Z"
+  },
+  "still/nm-latemovie": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/nm-latemovie.webp",
+   "bytes": 27014,
+   "renderedAt": "2026-11-27T07:37:35.623Z"
+  },
+  "still/pm-justmarried": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-justmarried.webp",
+   "bytes": 36594,
+   "renderedAt": "2026-11-27T07:37:44.560Z"
+  },
+  "still/pm-family": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-family.webp",
+   "bytes": 29084,
+   "renderedAt": "2026-11-27T07:37:52.192Z"
+  },
+  "still/pm-trucker": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-trucker.webp",
+   "bytes": 40486,
+   "renderedAt": "2026-11-27T07:38:00.112Z"
+  },
+  "still/pm-cook": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-cook.webp",
+   "bytes": 33228,
+   "renderedAt": "2026-11-27T07:38:05.875Z"
+  },
+  "still/pm-hitch": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-hitch.webp",
+   "bytes": 33798,
+   "renderedAt": "2026-11-27T07:38:12.581Z"
+  },
+  "still/pm-latecheckin": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-latecheckin.webp",
+   "bytes": 31662,
+   "renderedAt": "2026-11-27T07:38:19.317Z"
+  },
+  "still/pm-dustdevil": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-dustdevil.webp",
+   "bytes": 32584,
+   "renderedAt": "2026-11-27T07:38:27.417Z"
+  },
+  "still/pm-novacancy": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-novacancy.webp",
+   "bytes": 35642,
+   "renderedAt": "2026-11-27T07:38:33.685Z"
+  },
+  "still/pm-fireworks": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-fireworks.webp",
+   "bytes": 44550,
+   "renderedAt": "2026-11-27T07:38:40.408Z"
+  },
+  "still/pm-cola": {
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
+  },
+  "still/pm-trooper": {
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
+  },
+  "still/pm-heat": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-heat.webp",
+   "bytes": 30440,
+   "renderedAt": "2026-11-27T07:39:01.816Z"
+  },
+  "still/pm-coyotes": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-coyotes.webp",
+   "bytes": 43330,
+   "renderedAt": "2026-11-27T07:39:07.997Z"
+  },
+  "still/pm-moon": {
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/pm-moon.webp",
+   "bytes": 31946,
+   "renderedAt": "2026-11-27T07:39:15.170Z"
+  },
+  "still/mb-rats": {
+   "status": "pending",
+   "attempts": 1
+  },
+  "still/mb-spotlight": {
+   "status": "pending"
+  },
+  "still/mb-glide": {
+   "status": "pending"
+  },
+  "still/mb-crown": {
+   "status": "pending"
+  },
+  "still/mb-toestops": {
+   "status": "pending"
+  },
+  "still/mb-blackout": {
+   "status": "pending"
+  },
+  "still/mb-rig": {
+   "status": "pending"
+  },
+  "still/mb-laces": {
+   "status": "pending"
+  },
+  "still/rs-birthday": {
+   "status": "pending"
+  },
+  "still/rs-couples": {
+   "status": "pending"
+  },
+  "still/rs-dan": {
+   "status": "pending"
+  },
+  "still/rs-wizards": {
+   "status": "pending"
+  },
+  "still/rs-rental": {
+   "status": "pending"
+  },
+  "still/rs-latecomer": {
+   "status": "pending"
+  },
+  "still/rs-scratch": {
+   "status": "pending"
+  },
+  "still/rs-surge": {
+   "status": "pending"
+  },
+  "still/rs-freeskate": {
+   "status": "pending"
+  },
+  "still/rs-slush": {
+   "status": "pending"
+  },
+  "still/rs-guard": {
+   "status": "pending"
+  },
+  "still/rs-fog": {
+   "status": "pending"
+  },
+  "still/rs-bass": {
+   "status": "pending"
+  },
+  "still/rs-houselights": {
+   "status": "pending"
+  },
+  "still/hm-poles": {
+   "status": "pending"
+  },
+  "still/hm-rustle": {
+   "status": "pending"
+  },
+  "still/hm-whet": {
+   "status": "pending"
+  },
+  "still/hm-notches": {
+   "status": "pending"
+  },
+  "still/hm-rows": {
+   "status": "pending"
+  },
+  "still/hm-pole": {
+   "status": "pending"
+  },
+  "still/hm-freeze": {
+   "status": "pending"
+  },
+  "still/hm-wind": {
+   "status": "pending"
+  },
+  "still/hf-hayride": {
+   "status": "pending"
+  },
+  "still/hf-lost": {
+   "status": "pending"
+  },
+  "still/hf-cider": {
+   "status": "pending"
+  },
+  "still/hf-jessup": {
+   "status": "pending"
+  },
+  "still/hf-sheet": {
+   "status": "pending"
+  },
+  "still/hf-farmhand": {
+   "status": "pending"
+  },
+  "still/hf-crows": {
+   "status": "pending"
+  },
+  "still/hf-wind": {
+   "status": "pending"
+  },
+  "still/hf-hotcider": {
+   "status": "pending"
+  },
+  "still/hf-bonfire": {
+   "status": "pending"
+  },
+  "still/hf-sheriff": {
+   "status": "pending"
+  },
+  "still/hf-mist": {
+   "status": "pending"
+  },
+  "still/hf-wire": {
+   "status": "pending"
+  },
+  "still/hf-moon": {
+   "status": "pending"
   },
   "item/orrin-s-logbook": {
    "status": "done",
@@ -1807,6 +2775,261 @@
    "bytes": 1816,
    "renderedAt": "2026-11-27T03:21:46.221Z"
   },
+  "item/trapline-lease-1938": {
+   "status": "pending"
+  },
+  "item/camper-s-name-tag": {
+   "status": "pending"
+  },
+  "item/pink-slip-january-1986": {
+   "status": "pending"
+  },
+  "item/window-sketchbook": {
+   "status": "pending"
+  },
+  "item/guest-register-1959": {
+   "status": "pending"
+  },
+  "item/unsent-postcard": {
+   "status": "pending"
+  },
+  "item/king-of-the-rink-sash": {
+   "status": "pending"
+  },
+  "item/contest-polaroid": {
+   "status": "pending"
+  },
+  "item/farmer-s-almanac-1958": {
+   "status": "pending"
+  },
+  "item/family-photograph": {
+   "status": "pending"
+  },
+  "item/canoe-paddle": {
+   "status": "pending"
+  },
+  "item/woodpile-axe": {
+   "status": "pending"
+  },
+  "item/archery-bow": {
+   "status": "pending"
+  },
+  "item/emergency-flare": {
+   "status": "pending"
+  },
+  "item/bug-spray": {
+   "status": "pending"
+  },
+  "item/camp-flashlight": {
+   "status": "pending"
+  },
+  "item/camp-first-aid-kit": {
+   "status": "pending"
+  },
+  "item/bug-juice": {
+   "status": "pending"
+  },
+  "item/letter-from-home": {
+   "status": "pending"
+  },
+  "item/footlocker": {
+   "status": "pending"
+  },
+  "item/reveille-bugle": {
+   "status": "pending"
+  },
+  "item/dinner-triangle": {
+   "status": "pending"
+  },
+  "item/spare-canoe": {
+   "status": "pending"
+  },
+  "item/ranger-cb-radio": {
+   "status": "pending"
+  },
+  "item/lighter-fluid": {
+   "status": "pending"
+  },
+  "item/curtain-rod": {
+   "status": "pending"
+  },
+  "item/sporting-goods-bat": {
+   "status": "pending"
+  },
+  "item/display-crossbow": {
+   "status": "pending"
+  },
+  "item/hairspray-lighter": {
+   "status": "pending"
+  },
+  "item/pepper-spray": {
+   "status": "pending"
+  },
+  "item/mall-cop-flashlight": {
+   "status": "pending"
+  },
+  "item/pharmacy-first-aid-kit": {
+   "status": "pending"
+  },
+  "item/soft-pretzel": {
+   "status": "pending"
+  },
+  "item/peppermint-cocoa": {
+   "status": "pending"
+  },
+  "item/clothing-rack": {
+   "status": "pending"
+  },
+  "item/boom-box": {
+   "status": "pending"
+  },
+  "item/talking-doll": {
+   "status": "pending"
+  },
+  "item/delivery-van-keys": {
+   "status": "pending"
+  },
+  "item/security-radio": {
+   "status": "pending"
+  },
+  "item/shutter-key": {
+   "status": "pending"
+  },
+  "item/tire-thumper": {
+   "status": "pending"
+  },
+  "item/pool-rescue-hook": {
+   "status": "pending"
+  },
+  "item/snake-rifle": {
+   "status": "pending"
+  },
+  "item/bottle-rocket": {
+   "status": "pending"
+  },
+  "item/pool-chlorine": {
+   "status": "pending"
+  },
+  "item/trucker-s-spotlight": {
+   "status": "pending"
+  },
+  "item/motel-first-aid-kit": {
+   "status": "pending"
+  },
+  "item/slice-of-cherry-pie": {
+   "status": "pending"
+  },
+  "item/minibar-tequila": {
+   "status": "pending"
+  },
+  "item/vending-machine": {
+   "status": "pending"
+  },
+  "item/jukebox-quarters": {
+   "status": "pending"
+  },
+  "item/cherry-bombs": {
+   "status": "pending"
+  },
+  "item/pickup-truck-keys": {
+   "status": "pending"
+  },
+  "item/cb-handset": {
+   "status": "pending"
+  },
+  "item/bus-depot-number": {
+   "status": "pending"
+  },
+  "item/roller-skate": {
+   "status": "pending"
+  },
+  "item/push-broom": {
+   "status": "pending"
+  },
+  "item/industrial-staple-gun": {
+   "status": "pending"
+  },
+  "item/live-extension-cord": {
+   "status": "pending"
+  },
+  "item/can-of-floor-wax": {
+   "status": "pending"
+  },
+  "item/glow-sticks": {
+   "status": "pending"
+  },
+  "item/rink-first-aid-kit": {
+   "status": "pending"
+  },
+  "item/sugar-straws": {
+   "status": "pending"
+  },
+  "item/mood-ring": {
+   "status": "pending"
+  },
+  "item/pinball-machine": {
+   "status": "pending"
+  },
+  "item/spare-mirror-ball": {
+   "status": "pending"
+  },
+  "item/fire-bell": {
+   "status": "pending"
+  },
+  "item/unicorn-van-keys": {
+   "status": "pending"
+  },
+  "item/dime-for-the-pay-phone": {
+   "status": "pending"
+  },
+  "item/request-slip": {
+   "status": "pending"
+  },
+  "item/corn-knife": {
+   "status": "pending"
+  },
+  "item/pitchfork": {
+   "status": "pending"
+  },
+  "item/varmint-rifle": {
+   "status": "pending"
+  },
+  "item/kerosene-lantern": {
+   "status": "pending"
+  },
+  "item/sack-of-lime": {
+   "status": "pending"
+  },
+  "item/hand-crank-flashlight": {
+   "status": "pending"
+  },
+  "item/farmhouse-first-aid-kit": {
+   "status": "pending"
+  },
+  "item/caramel-apple": {
+   "status": "pending"
+  },
+  "item/grandma-s-tonic": {
+   "status": "pending"
+  },
+  "item/hay-bales": {
+   "status": "pending"
+  },
+  "item/dinner-bell": {
+   "status": "pending"
+  },
+  "item/scarecrow-rattle": {
+   "status": "pending"
+  },
+  "item/tractor-keys": {
+   "status": "pending"
+  },
+  "item/party-line-phone": {
+   "status": "pending"
+  },
+  "item/railroad-flare": {
+   "status": "pending"
+  },
   "symbol/horror": {
    "status": "done",
    "attempts": 1,
@@ -1837,8 +3060,8 @@
   }
  },
  "lastRun": {
-  "at": "2026-11-27 03:22 UTC",
-  "rendered": 1,
-  "stop": "queue finished"
+  "at": "2026-11-27 07:39 UTC",
+  "rendered": 113,
+  "stop": "daily neuron limit (4006: AiError: AiError: you have used up your daily free allocation of 10,000 neurons, please upgrade to Cloudflare's Workers Paid plan if you would like to continue usage. (613bbb72-e0ea-45ac-96ce-ba43f75d68cd))"
  }
 }

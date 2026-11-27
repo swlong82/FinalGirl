@@ -311,6 +311,25 @@ class AudioEngine {
         if (r < 0.35) this.noiseBurst(t, 0.4, 1800, 0.4, 0.03, this.musicBus!);
         else if (r < 0.45) this.noiseBurst(t, 2.8, 90, 0.7, 0.18, this.musicBus!);
         break;
+      case 'camp': // a loon across the lake, a crackle from the fire
+        if (r < 0.12) [392, 523.25, 466.16].forEach((f, i) => this.tone(t + i * 0.5, f, 0.9, 'sine', 0.02));
+        else if (r < 0.5) this.noiseBurst(t, 0.12, 2400, 3, 0.03, this.musicBus!);
+        break;
+      case 'mall': // a store chime, the hum of the escalators
+        if (r < 0.15) [1567.98, 1318.51, 1046.5].forEach((f, i) => this.tone(t + i * 0.3, f, 0.9, 'sine', 0.018));
+        else if (r < 0.35) this.noiseBurst(t, 1.8, 140, 1.2, 0.04, this.musicBus!);
+        break;
+      case 'motel': // neon buzz, a far-off firework
+        if (r < 0.3) this.noiseBurst(t, 0.6, 120, 6, 0.03, this.musicBus!);
+        else if (r < 0.38) this.noiseBurst(t + 0.4, 1.6, 200, 0.6, 0.12, this.musicBus!);
+        break;
+      case 'rink': // muffled four-on-the-floor kick through the wall
+        if (r < 0.6) for (let i = 0; i < 8; i++) this.tone(t + i * 0.5, 55, 0.18, 'sine', 0.05);
+        break;
+      case 'farm': // crows, wind in the corn
+        if (r < 0.15) [740, 700].forEach((f, i) => this.noiseBurst(t + i * 0.35, 0.2, f, 2, 0.04, this.musicBus!));
+        else if (r < 0.6) this.noiseBurst(t, 3, 600, 0.5, 0.05, this.musicBus!);
+        break;
     }
   }
 
@@ -454,6 +473,12 @@ const THEMES: Record<string, { root: number; wind: number; hum: number; rain: nu
   hospital: { root: 58.27, wind: 0.3, hum: 0.6, rain: 0.004, crickets: false }, // B-flat
   snow: { root: 41.2, wind: 2.2, hum: 0, rain: 0, crickets: false }, // E
   radio: { root: 65.41, wind: 0.8, hum: 0.15, rain: 0.012, crickets: false }, // C
+  // Season 2
+  camp: { root: 46.25, wind: 0.9, hum: 0, rain: 0, crickets: true }, // F-sharp
+  mall: { root: 61.74, wind: 0.2, hum: 0.5, rain: 0, crickets: false }, // B
+  motel: { root: 51.91, wind: 1.6, hum: 0.25, rain: 0, crickets: true }, // G-sharp
+  rink: { root: 69.3, wind: 0.2, hum: 0.3, rain: 0, crickets: false }, // C-sharp
+  farm: { root: 43.65, wind: 1.3, hum: 0, rain: 0, crickets: true }, // F
 };
 
 export const audio = new AudioEngine();

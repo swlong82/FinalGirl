@@ -5,6 +5,7 @@ import { heroinePortraitV2 } from './portraits';
 import { anesthetistPortrait, hospitalBackdrop, HOSPITAL_ICONS } from './scenes';
 import { callerPortrait, radioBackdrop, SEASON1_ICONS, snowBackdrop, snowblindPortrait } from './season1';
 import { gen, genSvg, portraitOverlay } from './gen';
+import { season2Backdrop, season2Portrait, SEASON2_ICONS } from './season2';
 
 let gid = 0;
 const uid = (p: string) => `${p}${++gid}`;
@@ -96,11 +97,12 @@ export function heroineToken(h: HeroineDef, opts: { grim?: number } = {}): strin
 // ── Killer portraits ────────────────────────────────────────────────────────
 export function killerPortrait(state: { finale?: boolean; art?: string } = {}): string {
   const url = gen(`portrait/killer-${state.art ?? 'projectionist'}`);
-  if (url) return genSvg(url, { w: 200, h: 200, cls: 'portrait killer', label: `The ${(state.art ?? 'projectionist').replace(/^./, (c) => c.toUpperCase())}`, overlay: portraitOverlay({ tint: '#ff1a3c', tintOpacity: state.finale ? 0.5 : 0 }) });
+  if (url) return genSvg(url, { w: 200, h: 200, cls: 'portrait killer', label: `The ${(state.art === 'dresser' ? 'Window Dresser' : state.art === 'manager' ? 'Night Manager' : state.art ?? 'projectionist').replace(/^./, (c) => c.toUpperCase())}`, overlay: portraitOverlay({ tint: '#ff1a3c', tintOpacity: state.finale ? 0.5 : 0 }) });
   if (state.art === 'tidewife') return tidewifePortrait(state);
   if (state.art === 'anesthetist') return anesthetistPortrait(state);
   if (state.art === 'snowblind') return snowblindPortrait(state);
   if (state.art === 'caller') return callerPortrait(state);
+  if (['trapper', 'dresser', 'manager', 'mirrorball', 'harvestman'].includes(state.art ?? '')) return season2Portrait(state.art!, state.finale);
   return projectionistPortrait(state);
 }
 
@@ -194,7 +196,7 @@ export function icon(key: string, color = '#d9d3c7'): string {
     dock: `<path ${s} d="M2 18 H36"/><path ${s} d="M6 18 V32 M14 18 V32 M22 18 V32 M30 18 V32"/><path ${s} d="M2 30 Q8 26 14 30 T26 30 T38 30"/>`,
     wreck: `<path ${s} d="M4 28 L8 18 L16 16 L22 20 L32 18 L34 28 Z"/><circle ${s} cx="11" cy="29" r="3"/><path ${s} d="M24 10 L28 6 M30 12 L34 10"/>`,
   };
-  const extra = (HOSPITAL_ICONS[key] ?? SEASON1_ICONS[key])?.(s, f);
+  const extra = (HOSPITAL_ICONS[key] ?? SEASON1_ICONS[key] ?? SEASON2_ICONS[key])?.(s, f);
   return `<svg viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" class="icon" style="color:${color}">${extra ?? paths[key] ?? paths.door}</svg>`;
 }
 
@@ -210,6 +212,7 @@ export function mapBackdrop(loc: LocationPack, finale: boolean): string {
   if (loc.art === 'hospital') return hospitalBackdrop(loc, finale);
   if (loc.art === 'snow') return snowBackdrop(loc, finale);
   if (loc.art === 'radio') return radioBackdrop(loc, finale);
+  if (['camp', 'mall', 'motel', 'rink', 'farm'].includes(loc.art)) return season2Backdrop(loc, finale);
   return loc.art === 'coast' ? coastBackdrop(loc, finale) : driveInBackdrop(loc, finale);
 }
 

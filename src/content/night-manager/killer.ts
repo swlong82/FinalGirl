@@ -1,0 +1,66 @@
+import type { KillerPack } from '../../engine/types';
+
+// Original killer for LAST LIGHT — Feature Eight (Season 2).
+export const nightManager: KillerPack = {
+  id: 'the-night-manager',
+  name: 'The Night Manager',
+  epithet: 'Mrs. Vera Haskell, who never lets a guest check out',
+  art: 'manager',
+  pronoun: 'she',
+  health: 10,
+  horror: 2,
+  gimmick: {
+    kind: 'captives',
+    name: 'Room 13',
+    text: 'When {he} attacks survivors, {he} doesn’t kill them: {he} drags one to {his} lair alive (bloodlust +1; up to 3 at a time, any more die). A captive dies at the end of the second turn after; that feeds {him} again. Reach {his} lair in time to free them all, then get them out.',
+    max: 3,
+    timer: 2,
+  },
+  bloodlust: {
+    revealAt: 4,
+    levels: [
+      { move: 1, attack: 1, name: 'At the Desk', text: 'She rings the bell once, and waits.' },
+      { move: 2, attack: 1 },
+      { move: 2, attack: 1, name: 'Fresh Linens', text: 'She binds her wounds in clean, bleached sheets.', effects: [{ op: 'killerHeal', n: 2 }] },
+      { move: 2, attack: 1, name: 'The Ledger', text: 'Her name, written in the guest ledger in perfect copperplate. Checkout: tonight.', effects: [{ op: 'horror', n: 2 }] },
+      { move: 2, attack: 2, name: 'Do Not Disturb', text: 'Her power is revealed.' },
+      { move: 3, attack: 2, name: 'Room Service', text: 'A knock. She is already inside.', effects: [{ op: 'killerTeleport', to: 'heroine' }, { op: 'horror', n: 1 }] },
+      { move: 3, attack: 2, name: 'Sewing Kit', text: 'A needle, so fine she only sees the thread.', effects: [{ op: 'wound', n: 1 }] },
+      { move: 3, attack: 3, name: 'Full House', text: 'Every key on the rack is gone. Every room is hers.', effects: [{ op: 'horror', n: 1 }] },
+    ],
+    max: { text: 'She tidies up after herself: she heals 1.', effects: [{ op: 'killerHeal', n: 1 }] },
+  },
+  behavior: { text: 'She goes for the closest guest (you, if there are none) and attacks. Guests she catches are taken to her lair alive.', effects: [{ op: 'target', who: 'npc' }, { op: 'hunt' }, { op: 'attack' }] },
+  power: { name: 'Do Not Disturb', text: 'She hangs the card on her own door and locks herself in her housecoat of quilted pink. 4 temporary health.', health: 4 },
+  lore: [
+    'Vera Haskell ran the front desk of the Paloma from the day it opened. In 1959 her husband drove off in a guest’s convertible with the guest beside him, and Vera kept the motel, the ledger, and a grudge against anyone who leaves without paying what they owe.',
+    'She wears a lacquered silver beehive, a quilted pink housecoat, cat-eye glasses with the lenses painted black, and a ring of brass room keys on a chain around her waist. She carries a pair of sewing shears and a laundry cart that squeaks.',
+    'She doesn’t want you dead. Not yet. She wants you checked in.',
+  ],
+  weakness: { text: 'Find out what happened to Mr. Haskell. Each lore item you find makes your attacks deal +1 damage; she has never once let anyone read the ledger aloud.' },
+  finale: {
+    name: 'Checkout Time',
+    text: 'The neon goes dark. She is standing behind her at the desk, and from now on she hunts only her. Her attacks deal +1. Every Upkeep in the Finale: bloodlust +1.',
+    effects: [{ op: 'killerTeleport', to: 'heroine' }, { op: 'horror', n: 1 }],
+    behavior: { text: 'One guest is still unaccounted for: she hunts her and attacks.', effects: [{ op: 'target', who: 'heroine' }, { op: 'hunt' }, { op: 'attack' }] },
+    attack: 1,
+    upkeep: [{ op: 'bloodlust', n: 1 }],
+  },
+  revive: { name: 'Late Checkout', text: 'The desk bell rings twice. She sits up, straightens her glasses, and smooths her housecoat.', effects: [{ op: 'horror', n: 1 }] },
+  quotes: ['"Checkout is at eleven, dear."', '"You haven’t settled your bill."', '"Ring if you need anything."', '"There’s always room for one more."'],
+  minions: { name: 'A Housekeeper', plural: 'Housekeepers', text: 'Her silent maids in grey uniforms, their faces wrapped in pillowcases. 1 health, move 1, attack 1. They go for the closest survivor and act after she does.', health: 1, move: 1, attack: 1, max: 2, who: 'npc', order: 'after' },
+  terror: [
+    { id: 'nm-turndown', name: 'Turndown Service', tone: 'killer', text: 'A housekeeping cart squeaks out of a doorway that was locked a minute ago.', effects: [{ op: 'spawnMinion', at: 'random', n: 1 }, { op: 'minionsAct' }] },
+    { id: 'nm-keys', name: 'Ring of Keys', tone: 'killer', text: 'Keys jingling, coming closer, trying every lock on the way.', effects: [{ op: 'killerMove', toward: 'heroine', steps: 2 }, { op: 'attack' }] },
+    { id: 'nm-dnd', name: 'Do Not Disturb', tone: 'killer', text: 'A door closes. A card swings on the knob. She is back in her rooms.', effects: [{ op: 'killerTeleport', to: 'lair' }] },
+    { id: 'nm-ledger', name: 'The Guest Ledger', tone: 'killer', text: 'She draws a neat line through another name.', effects: [{ op: 'bloodlust', n: 1 }] },
+    { id: 'nm-shears', name: 'Sewing Shears', tone: 'killer', text: 'A soft snick-snick, testing the blades.', effects: [{ op: 'mod', key: 'killerAttack', n: 1 }, { op: 'bloodlust', n: 1 }] },
+    { id: 'nm-vacancy', name: 'Vacancy', tone: 'killer', text: 'A room key clatters on the desk. She’s gone to make up a room somewhere.', effects: [{ op: 'killerTeleport', to: 'random' }] },
+    { id: 'nm-bell', name: 'Ring for Service', tone: 'killer', text: 'Ding. The desk bell, then her voice: “Front desk. How may I help you?”', effects: [{ op: 'if', cond: { c: 'alone' }, then: [{ op: 'horror', n: 1 }], else: [{ op: 'killerMove', toward: 'heroine', steps: 1 }] }] },
+    { id: 'nm-latemovie', name: 'The Late Movie', tone: 'calm', text: 'Her favorite picture is on Channel 5. She stops in a doorway to watch.', effects: [{ op: 'killerStun', n: 1 }] },
+  ],
+  items: [
+    { id: 'lore-register', name: 'Guest Register, 1959', kind: 'lore', hands: 0, text: 'Lore. Your attacks that hit deal +1 damage to her.', lore: 'Room 13 was never built, but the register has an entry for it: “Mr. & Mrs. H. Haskell. Arrived June 6, 1959. Departed:” The last box is empty.' },
+    { id: 'lore-postcard', name: 'Unsent Postcard', kind: 'lore', hands: 0, text: 'Lore. Your attacks that hit deal +1 damage to her. +1 nerve.', onGain: [{ op: 'nerve', n: 1 }], lore: 'A flamingo on the front. On the back, a man’s scrawl: “Vera — I’m not coming back. Don’t wait up. — H.” It has a stamp and an address. She never mailed it to herself, and she never threw it out.' },
+  ],
+};
