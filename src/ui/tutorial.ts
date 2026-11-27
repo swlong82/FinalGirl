@@ -11,7 +11,7 @@ import { killerPortrait, victimIcon } from '../art/art';
 import { glyph } from './glyphs';
 import { sym } from './symbols';
 import { advise } from '../engine/coach';
-import { abilityUnlocked, actionDef, check, isExit, npcAt } from '../engine/rules';
+import { abilityUnlocked, actionDef, check, exitOpen, gimmick, isExit, killerSeen, npcAt, ruleAction } from '../engine/rules';
 import type { Content, GameState } from '../engine/types';
 
 /** Parts of the screen kept dim until a step introduces them. */
@@ -44,6 +44,8 @@ export interface TutStep {
   prefer?: 'above' | 'below';
   /** Keep the bubble off this too (the panel around the target: its header, its other buttons). */
   avoid?: string;
+  /** A location rule or killer mechanic: taught even to players who skipped the basics. */
+  mechanic?: boolean;
 }
 
 /** The content of the game being taught (lessons name its cards and killer). */
@@ -273,7 +275,7 @@ export const LESSONS: TutStep[] = [
   {
     id: 'ability',
     title: 'Ability unlocked',
-    text: () => `Your special ability, <b>${C?.heroine.ability.name ?? ''}</b>, is ready. Read it here; it works once a night.`,
+    text: () => `Your special ability, <b>${C?.heroine.ability.name ?? ''}</b>, is ready. Read it here; it works once a turn.`,
     target: ['#heroine-panel .ability.on', '#bottombar .items-btn'],
     trigger: (s) => calm(s) && !!C && abilityUnlocked(C, s) && !s.heroine.abilityUsed,
   },
@@ -284,7 +286,44 @@ export const LESSONS: TutStep[] = [
     target: '.terror-clock',
     trigger: (s) => calm(s) && s.killer.finale,
   },
+  ...MECHANICS(),
 ];
+
+/** Where a location's tagged spot is on the map (the fire, the silo...). */
+const tagNode = (tag: string) => (C ? C.location.nodes.filter((n) => n.tags?.includes(tag as never)).map((n) => `[data-node="${n.id}"]`) : []);
+const rule = (kind: string) => C?.location.rule.kind === kind;
+/** The location's own button, when she is standing where it works. */
+const ruleBtn = (s: GameState) => (C && ruleAction(C) && check(C, s, { type: 'ruleAct' }).ok ? ['#bottombar [data-act=ruleAct]'] : []);
+
+/**
+ * One lesson per location rule and killer mechanic, the first time it matters.
+ * Season 1's rules are here too, so every map teaches its own twist.
+ */
+function MECHANICS(): TutStep[] {
+  const m = (x: TutStep): TutStep => ({ ...x, mechanic: true, target: x.target ?? '.rulechip' });
+  return [
+    // ── Location rules
+    m({ id: 'rule-intermission', title: 'Intermission', text: 'Every 4th turn the projector stops: +1 nerve and horror −1. The chip up top counts down.', trigger: (s) => calm(s) && rule('intermission') && s.round >= 2 }),
+    m({ id: 'rule-tide', title: 'The tide', text: 'The tide turns every 4 turns. At <b>high tide</b>, stepping onto the shore costs 1 extra nerve.', trigger: (s) => calm(s) && rule('tide') && (s.round >= 3 || s.env.tideHigh) }),
+    m({ id: 'rule-power', title: 'Blackouts', text: 'The power fails on and off. In the dark: searching is harder, hiding easier, and {he} moves 1 farther.', trigger: (s) => calm(s) && rule('power') && (s.env.dark || s.round >= 2) }),
+    m({ id: 'rule-cold', title: 'The cold', text: 'End a turn outdoors and you get colder; at 3 cold you lose 1 health. End by a fire to thaw.', trigger: (s) => calm(s) && rule('cold') && s.round >= 1 && !C?.heroine.traits.coldImmune }),
+    m({ id: 'rule-calls', title: 'The phones', text: 'A phone is ringing. Answer it there (<b>A</b>), or someone else picks up and {he} heads toward it.', target: (s) => (s.env.ringing ? [`[data-node="${s.env.ringing}"]`, '.rulechip'] : '.rulechip'), trigger: (s) => calm(s) && rule('calls') && !!s.env.ringing }),
+    m({ id: 'rule-campfire', title: 'The campfire', text: 'While the fire burns, nobody can attack anyone in it. It burns down each turn: <b>Stoke</b> it there.', target: () => [...tagNode('fire'), '.rulechip'], trigger: (s) => calm(s) && rule('campfire') && !s.killer.finale }),
+    m({ id: 'rule-stoke', title: 'Stoke the fire', text: 'The fire is low. You’re at it: <b>Stoke</b> it back up for 1 nerve.', target: (s) => [...ruleBtn(s), '.rulechip'], prefer: 'above', trigger: (s) => calm(s) && rule('campfire') && (s.env.fuel ?? 0) <= 1 && ruleBtn(s).length > 0 }),
+    m({ id: 'rule-shutters', title: 'Security shutters', text: 'Red and blue <b>shutters</b> take turns coming down. A lock blocks you and survivors, never {him}.', target: ['.gate-pin.down', '.rulechip'], trigger: (s) => calm(s) && rule('shutters') }),
+    m({ id: 'rule-override', title: 'Override', text: 'You’re at the Security Office: <b>Override</b> swaps which shutters are down (1 nerve).', target: (s) => [...ruleBtn(s), '.rulechip'], prefer: 'above', trigger: (s) => calm(s) && rule('shutters') && ruleBtn(s).length > 0 }),
+    m({ id: 'rule-bus', title: 'The last bus', text: 'The bus stops here every 3rd turn. Anyone waiting here then gets out, even without you.', target: () => [...tagNode('bus'), '.rulechip'], trigger: (s) => calm(s) && rule('bus') }),
+    m({ id: 'rule-bus-here', title: 'The bus is here', text: 'The bus is waiting at the shelter. It leaves when you end your turn, with everyone there.', target: () => [...tagNode('bus'), '.rulechip'], trigger: (s) => calm(s) && rule('bus') && !!s.env.bus && !!C && !exitOpen(C, s, s.heroine.loc) }),
+    m({ id: 'rule-dj', title: 'The DJ', text: 'Each turn a new song: <b>fast</b>, <b>couples skate</b>, <b>strobe</b>. Each changes the odds for you both: check the chip.', trigger: (s) => calm(s) && rule('dj') }),
+    m({ id: 'rule-corn', title: 'Lost in the corn', text: '{He}’s in the corn: you only see where you <b>last saw</b> {him}. Climb the silo to look out.', target: ['#tok-k', '.rulechip'], trigger: (s) => calm(s) && rule('corn') && !!C && !killerSeen(C, s) }),
+    // ── Killer mechanics
+    m({ id: 'gim-traps', title: 'Traps', text: '{He} leaves a steel <b>trap</b> wherever {he} has been. Step in: lose 1 health and stop. Walk around.', target: ['.badge.trap', '#killer-panel .gimmick', '#sum-k'], trigger: (s) => calm(s) && !!C && !!gimmick(C, 'traps') && (s.traps?.length ?? 0) > 0 }),
+    m({ id: 'gim-pose', title: 'The mannequin', text: 'A <b>mannequin</b> marks where {he} strikes next turn. Get everyone out of there, or barricade it.', target: ['.badge.posed', '#killer-panel .gimmick', '#sum-k'], trigger: (s) => calm(s) && !!s.killer.posed }),
+    m({ id: 'gim-captives', title: 'Taken alive', text: '{He} dragged someone to {his} lair, alive. Get there before the clock on it runs out to free them.', target: ['.badge.captive', '#killer-panel .gimmick', '#sum-k'], trigger: (s) => calm(s) && (s.captives?.length ?? 0) > 0 }),
+    m({ id: 'gim-fear', title: 'Fear feeds {him}', text: 'At horror 5 {he} moves farther; at 6 {he} hits harder and heals. Keep your horror down.', target: ['#bottombar .status', '#killer-panel .gimmick'], trigger: (s) => calm(s) && !!C && !!gimmick(C, 'fear') && s.heroine.horror >= 4 }),
+    m({ id: 'gim-stalk', title: 'Only when you move', text: '{He} moves exactly as far as you walk each turn. Walk less, and {he} only creeps.', target: ['#killer-panel .gimmick', '#sum-k'], trigger: (s) => calm(s) && !!C && !!gimmick(C, 'stalk') }),
+  ];
+}
 
 /**
  * Phones pin the hand bar over the bottom of the page: if the target sits

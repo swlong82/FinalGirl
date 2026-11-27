@@ -829,6 +829,28 @@ describe('lessons', async () => {
     // The everyday moments all come up in ordinary play.
     for (const id of ['roll', 'search', 'react', 'histurn', 'shop', 'goal', 'escort', 'rescued', 'clock']) expect(seen, id).toContain(id);
   });
+  it('every location rule and killer mechanic has a short lesson that comes up in play', () => {
+    const seen = new Set<string>();
+    LOCATIONS.forEach((l, i) => {
+      for (const k of [KILLERS[i], KILLERS[(i + 5) % KILLERS.length]]) {
+        const c = buildContent(l.id, k.id, 'june');
+        teachContent(c);
+        let s = newGame(c, 9 + i, 'standard');
+        for (let n = 0; n < 600 && !s.outcome; n++) {
+          for (const x of LESSONS) {
+            if (!x.mechanic || !x.trigger!(s)) continue;
+            seen.add(x.id!);
+            const text = typeof x.text === 'function' ? x.text(s) : x.text;
+            expect(words(text), `${x.id}: ${text}`).toBeLessThanOrEqual(22);
+            if (typeof x.target === 'function') x.target(s);
+          }
+          s = dispatch(c, s, botAction(c, s));
+        }
+      }
+    });
+    const kinds = ['intermission', 'tide', 'power', 'cold', 'calls', 'campfire', 'shutters', 'bus', 'dj', 'corn'].map((k) => `rule-${k}`);
+    for (const id of [...kinds, 'gim-traps', 'gim-pose', 'gim-captives', 'gim-fear', 'gim-stalk']) expect(seen, id).toContain(id);
+  });
   it('the core tutorial is short and covers what it promises', () => {
     expect(STEPS.length).toBeLessThanOrEqual(7);
     const taught = STEPS.flatMap((x) => x.teaches ?? []);

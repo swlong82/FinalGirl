@@ -176,7 +176,8 @@ let splitDraft: Record<number, number> = {};
 const prefs: Prefs = { sound: true, volume: 0.8, music: 0.7, grain: 0.6, tips: true, tiebreak: 'adverse', ...load(PREFS_KEY, {}) };
 const seenTips = new Set<string>(load(TIPS_KEY, [] as string[]));
 // Players with a few nights behind them already know what the lessons teach.
-const seenLessons = new Set<string>(load<string[] | null>(LESSONS_KEY, null) ?? (load<unknown[]>(STATS_KEY, []).length >= 3 ? LESSONS.map((l) => l.id!) : []));
+// Veterans skip the basics, but every map's rule and every killer's mechanic is still taught once.
+const seenLessons = new Set<string>(load<string[] | null>(LESSONS_KEY, null) ?? (load<unknown[]>(STATS_KEY, []).length >= 3 ? LESSONS.filter((l) => !l.mechanic).map((l) => l.id!) : []));
 let logOpen = false; // Simple view folds the log away until asked for
 function simpleView() {
   return (prefs.view ?? (load<unknown[]>(STATS_KEY, []).length < 5 ? 'simple' : 'full')) === 'simple';
@@ -1834,6 +1835,18 @@ function showMapKey() {
   const ruleTxt = c ? `<tr><td>${glyph(RULE_GLYPH[c.location.rule.kind] ?? 'reel')}</td><td><b>${esc(c.location.rule.name)}</b>: ${esc(c.location.rule.text)}</td></tr>` : '';
   const g = c?.killer.gimmick;
   const gTxt = g ? `<tr><td>${glyph(GIMMICK_GLYPH[g.kind])}</td><td><b>${esc(g.name)}</b> (${esc(c!.killer.name)}): ${esc(g.text)}</td></tr>` : '';
+  // The marks this map and this killer put on the board, and only those.
+  const rk = c?.location.rule.kind;
+  const marks = [
+    rk === 'campfire' ? `<tr><td><span class="badge env warm">${glyph('fire')}3</span></td><td><b>Campfire</b>: a safe place while it burns (the number is its fuel). Nobody can attack anyone in it.</td></tr>` : '',
+    rk === 'shutters' ? `<tr><td><span class="gate-pin g0 down kpin-inline">${glyph('lock')}</span></td><td><b>Shutter</b>: a red or blue lock on a path. Lit = down: you and survivors can’t pass. Grey = open.</td></tr>` : '',
+    rk === 'bus' ? `<tr><td><span class="badge exitb shut">BUS</span></td><td><b>Bus stop</b>: an exit only while the bus waits (every 3rd turn). Survivors waiting there leave on it.</td></tr>` : '',
+    rk === 'dj' ? `<tr><td><span class="badge env">${glyph('music')}</span></td><td><b>DJ Booth</b>: skip to the next song from here. The chip at the top names the song playing.</td></tr>` : '',
+    rk === 'corn' ? `<tr><td><span class="badge env corn">${glyph('corn')}</span></td><td><b>Corn</b>: {he} can’t be seen here from more than 1 step away. A faded pin with <b>?</b> marks where you last saw {him}.</td></tr><tr><td><span class="badge env">${glyph('eye')}</span></td><td><b>Look-out</b>: climb up to see {him} until the turn ends.</td></tr>` : '',
+    g?.kind === 'traps' ? `<tr><td><span class="badge trap">${glyph('trap')}</span></td><td><b>Trap</b>: step in and lose 1 health; your move stops there.</td></tr>` : '',
+    g?.kind === 'pose' ? `<tr><td><span class="badge posed">${glyph('mannequin')}next</span></td><td><b>Mannequin</b>: where {he} strikes next turn. A barricade there keeps {him} out.</td></tr>` : '',
+    g?.kind === 'captives' ? `<tr><td><span class="badge captive">${glyph('lock')}1·2</span></td><td><b>Captives</b> in {his} lair: how many, and turns left. Reach the lair to free them.</td></tr>` : '',
+  ].join('');
   modal(`<h2>Map key</h2><table class="keytable">
     <tr><td><span class="kpin you"></span></td><td><b>You</b>: the white pin with your name.</td></tr>
     <tr><td><span class="kpin him"></span></td><td><b>The killer</b>: the red pin. A red dashed line means {he} is <b>one step away</b>.</td></tr>
@@ -1845,6 +1858,7 @@ function showMapKey() {
     <tr><td><span class="minion">☠</span></td><td><b>Minions</b>: some killers bring help. They have their own health, move and attack. Survivors will follow you into their location, just not into {his}.</td></tr>
     <tr><td><span class="kring lair"></span></td><td><b>Red ring</b>: {his} lair.</td></tr>
     <tr><td><span class="kring reach"></span></td><td><b>Glowing gold</b>: where you can step while a move card is resolving.</td></tr>
+    ${marks}
     ${ruleTxt}
     ${gTxt}
   </table><p>Hover over (or tap) any location to see its panic table and everything else about it.</p>`);
