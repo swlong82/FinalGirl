@@ -198,8 +198,12 @@
    "renderedAt": "2026-11-27T07:26:31.400Z"
   },
   "portrait/killer-dresser": {
-   "status": "pending",
-   "note": "re-render: first pass showed a human face"
+   "status": "done",
+   "note": "re-render: first pass showed a human face",
+   "attempts": 1,
+   "file": "src/art/gen/portrait/killer-dresser.webp",
+   "bytes": 22708,
+   "renderedAt": "2026-11-28T08:00:47.973Z"
   },
   "portrait/killer-manager": {
    "status": "done",
@@ -217,7 +221,7 @@
   },
   "portrait/killer-harvestman": {
    "status": "flagged",
-   "attempts": 1,
+   "attempts": 3,
    "error": "3030: output flagged"
   },
   "backdrop/drivein-finale": {
@@ -732,9 +736,11 @@
    "renderedAt": "2026-11-27T07:29:23.655Z"
   },
   "icon/road": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/icon/road.webp",
+   "bytes": 2494,
+   "renderedAt": "2026-11-28T08:01:01.937Z"
   },
   "icon/skate": {
    "status": "done",
@@ -1843,14 +1849,18 @@
    "renderedAt": "2026-11-27T07:34:44.849Z"
   },
   "still/wd-shattered": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/still/wd-shattered.webp",
+   "bytes": 30164,
+   "renderedAt": "2026-11-28T08:01:11.546Z"
   },
   "still/sg-shoppers": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/still/sg-shoppers.webp",
+   "bytes": 40998,
+   "renderedAt": "2026-11-28T08:01:20.206Z"
   },
   "still/sg-highscore": {
    "status": "done",
@@ -1881,9 +1891,11 @@
    "renderedAt": "2026-11-27T07:35:28.608Z"
   },
   "still/sg-lost": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/still/sg-lost.webp",
+   "bytes": 30138,
+   "renderedAt": "2026-11-28T08:01:27.640Z"
   },
   "still/sg-muzak": {
    "status": "done",
@@ -1935,9 +1947,11 @@
    "renderedAt": "2026-11-27T07:36:31.828Z"
   },
   "still/sg-neon": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/still/sg-neon.webp",
+   "bytes": 47250,
+   "renderedAt": "2026-11-28T08:01:34.302Z"
   },
   "still/nm-turndown": {
    "status": "done",
@@ -2060,13 +2074,15 @@
   },
   "still/pm-cola": {
    "status": "flagged",
-   "attempts": 1,
+   "attempts": 2,
    "error": "3030: output flagged"
   },
   "still/pm-trooper": {
-   "status": "flagged",
-   "attempts": 1,
-   "error": "3030: output flagged"
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/still/pm-trooper.webp",
+   "bytes": 33904,
+   "renderedAt": "2026-11-28T08:01:51.036Z"
   },
   "still/pm-heat": {
    "status": "done",
@@ -2090,137 +2106,310 @@
    "renderedAt": "2026-11-27T07:39:15.170Z"
   },
   "still/mb-rats": {
-   "status": "pending",
-   "attempts": 1
+   "status": "done",
+   "attempts": 2,
+   "file": "src/art/gen/still/mb-rats.webp",
+   "bytes": 35448,
+   "renderedAt": "2026-11-28T08:02:00.194Z"
   },
   "still/mb-spotlight": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/mb-spotlight.webp",
+   "bytes": 29092,
+   "renderedAt": "2026-11-28T08:02:10.433Z"
   },
   "still/mb-glide": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/mb-glide.webp",
+   "bytes": 33730,
+   "renderedAt": "2026-11-28T08:02:17.925Z"
   },
   "still/mb-crown": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/mb-crown.webp",
+   "bytes": 43590,
+   "renderedAt": "2026-11-28T08:02:26.088Z"
   },
   "still/mb-toestops": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/mb-toestops.webp",
+   "bytes": 37758,
+   "renderedAt": "2026-11-28T08:02:33.102Z"
   },
   "still/mb-blackout": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/mb-blackout.webp",
+   "bytes": 24218,
+   "renderedAt": "2026-11-28T08:02:40.031Z"
   },
   "still/mb-rig": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/mb-rig.webp",
+   "bytes": 47058,
+   "renderedAt": "2026-11-28T08:02:48.345Z"
   },
   "still/mb-laces": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/mb-laces.webp",
+   "bytes": 28544,
+   "renderedAt": "2026-11-28T08:02:57.121Z"
   },
   "still/rs-birthday": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-birthday.webp",
+   "bytes": 43430,
+   "renderedAt": "2026-11-28T08:03:05.078Z"
   },
   "still/rs-couples": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-couples.webp",
+   "bytes": 25636,
+   "renderedAt": "2026-11-28T08:03:12.310Z"
   },
   "still/rs-dan": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-dan.webp",
+   "bytes": 43918,
+   "renderedAt": "2026-11-28T08:03:19.343Z"
   },
   "still/rs-wizards": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-wizards.webp",
+   "bytes": 33314,
+   "renderedAt": "2026-11-28T08:03:25.911Z"
   },
   "still/rs-rental": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-rental.webp",
+   "bytes": 40274,
+   "renderedAt": "2026-11-28T08:03:35.490Z"
   },
   "still/rs-latecomer": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-latecomer.webp",
+   "bytes": 22974,
+   "renderedAt": "2026-11-28T08:03:42.610Z"
   },
   "still/rs-scratch": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-scratch.webp",
+   "bytes": 43206,
+   "renderedAt": "2026-11-28T08:03:50.830Z"
   },
   "still/rs-surge": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-surge.webp",
+   "bytes": 34936,
+   "renderedAt": "2026-11-28T08:03:58.967Z"
   },
   "still/rs-freeskate": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-freeskate.webp",
+   "bytes": 43624,
+   "renderedAt": "2026-11-28T08:04:05.883Z"
   },
   "still/rs-slush": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-slush.webp",
+   "bytes": 34586,
+   "renderedAt": "2026-11-28T08:04:15.518Z"
   },
   "still/rs-guard": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-guard.webp",
+   "bytes": 33588,
+   "renderedAt": "2026-11-28T08:04:22.419Z"
   },
   "still/rs-fog": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-fog.webp",
+   "bytes": 33212,
+   "renderedAt": "2026-11-28T08:04:32.630Z"
   },
   "still/rs-bass": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-bass.webp",
+   "bytes": 29894,
+   "renderedAt": "2026-11-28T08:04:41.835Z"
   },
   "still/rs-houselights": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/rs-houselights.webp",
+   "bytes": 39572,
+   "renderedAt": "2026-11-28T08:04:48.959Z"
   },
   "still/hm-poles": {
-   "status": "pending"
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
   },
   "still/hm-rustle": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hm-rustle.webp",
+   "bytes": 53130,
+   "renderedAt": "2026-11-28T08:05:03.578Z"
   },
   "still/hm-whet": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hm-whet.webp",
+   "bytes": 32774,
+   "renderedAt": "2026-11-28T08:05:12.703Z"
   },
   "still/hm-notches": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hm-notches.webp",
+   "bytes": 38470,
+   "renderedAt": "2026-11-28T08:05:21.463Z"
   },
   "still/hm-rows": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hm-rows.webp",
+   "bytes": 28474,
+   "renderedAt": "2026-11-28T08:05:28.618Z"
   },
   "still/hm-pole": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hm-pole.webp",
+   "bytes": 43950,
+   "renderedAt": "2026-11-28T08:05:37.647Z"
   },
   "still/hm-freeze": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hm-freeze.webp",
+   "bytes": 39512,
+   "renderedAt": "2026-11-28T08:05:47.498Z"
   },
   "still/hm-wind": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hm-wind.webp",
+   "bytes": 39496,
+   "renderedAt": "2026-11-28T08:05:57.417Z"
   },
   "still/hf-hayride": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-hayride.webp",
+   "bytes": 36924,
+   "renderedAt": "2026-11-28T08:06:04.378Z"
   },
   "still/hf-lost": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-lost.webp",
+   "bytes": 43754,
+   "renderedAt": "2026-11-28T08:06:12.662Z"
   },
   "still/hf-cider": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-cider.webp",
+   "bytes": 45354,
+   "renderedAt": "2026-11-28T08:06:23.883Z"
   },
   "still/hf-jessup": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-jessup.webp",
+   "bytes": 26162,
+   "renderedAt": "2026-11-28T08:06:31.281Z"
   },
   "still/hf-sheet": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-sheet.webp",
+   "bytes": 27514,
+   "renderedAt": "2026-11-28T08:06:41.188Z"
   },
   "still/hf-farmhand": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-farmhand.webp",
+   "bytes": 34174,
+   "renderedAt": "2026-11-28T08:06:48.546Z"
   },
   "still/hf-crows": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-crows.webp",
+   "bytes": 60066,
+   "renderedAt": "2026-11-28T08:06:55.590Z"
   },
   "still/hf-wind": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-wind.webp",
+   "bytes": 52224,
+   "renderedAt": "2026-11-28T08:07:04.620Z"
   },
   "still/hf-hotcider": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-hotcider.webp",
+   "bytes": 31198,
+   "renderedAt": "2026-11-28T08:07:10.477Z"
   },
   "still/hf-bonfire": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-bonfire.webp",
+   "bytes": 47476,
+   "renderedAt": "2026-11-28T08:07:19.659Z"
   },
   "still/hf-sheriff": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-sheriff.webp",
+   "bytes": 43438,
+   "renderedAt": "2026-11-28T08:07:27.036Z"
   },
   "still/hf-mist": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-mist.webp",
+   "bytes": 46922,
+   "renderedAt": "2026-11-28T08:07:34.237Z"
   },
   "still/hf-wire": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-wire.webp",
+   "bytes": 40422,
+   "renderedAt": "2026-11-28T08:07:45.483Z"
   },
   "still/hf-moon": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/still/hf-moon.webp",
+   "bytes": 20238,
+   "renderedAt": "2026-11-28T08:07:51.781Z"
   },
   "item/orrin-s-logbook": {
    "status": "done",
@@ -2776,259 +2965,597 @@
    "renderedAt": "2026-11-27T03:21:46.221Z"
   },
   "item/trapline-lease-1938": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/trapline-lease-1938.webp",
+   "bytes": 2950,
+   "renderedAt": "2026-11-28T08:07:59.185Z"
   },
   "item/camper-s-name-tag": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/camper-s-name-tag.webp",
+   "bytes": 988,
+   "renderedAt": "2026-11-28T08:08:04.083Z"
   },
   "item/pink-slip-january-1986": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pink-slip-january-1986.webp",
+   "bytes": 952,
+   "renderedAt": "2026-11-28T08:08:09.564Z"
   },
   "item/window-sketchbook": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/window-sketchbook.webp",
+   "bytes": 2220,
+   "renderedAt": "2026-11-28T08:08:15.048Z"
   },
   "item/guest-register-1959": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/guest-register-1959.webp",
+   "bytes": 2348,
+   "renderedAt": "2026-11-28T08:08:19.707Z"
   },
   "item/unsent-postcard": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/unsent-postcard.webp",
+   "bytes": 1822,
+   "renderedAt": "2026-11-28T08:08:24.454Z"
   },
   "item/king-of-the-rink-sash": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/king-of-the-rink-sash.webp",
+   "bytes": 1752,
+   "renderedAt": "2026-11-28T08:08:28.956Z"
   },
   "item/contest-polaroid": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/contest-polaroid.webp",
+   "bytes": 1820,
+   "renderedAt": "2026-11-28T08:08:35.566Z"
   },
   "item/farmer-s-almanac-1958": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/farmer-s-almanac-1958.webp",
+   "bytes": 1662,
+   "renderedAt": "2026-11-28T08:08:41.567Z"
   },
   "item/family-photograph": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/family-photograph.webp",
+   "bytes": 1546,
+   "renderedAt": "2026-11-28T08:08:46.825Z"
   },
   "item/canoe-paddle": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/canoe-paddle.webp",
+   "bytes": 684,
+   "renderedAt": "2026-11-28T08:08:51.103Z"
   },
   "item/woodpile-axe": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/woodpile-axe.webp",
+   "bytes": 2216,
+   "renderedAt": "2026-11-28T08:08:57.318Z"
   },
   "item/archery-bow": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/archery-bow.webp",
+   "bytes": 2288,
+   "renderedAt": "2026-11-28T08:09:03.070Z"
   },
   "item/emergency-flare": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/emergency-flare.webp",
+   "bytes": 1224,
+   "renderedAt": "2026-11-28T08:09:07.964Z"
   },
   "item/bug-spray": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/bug-spray.webp",
+   "bytes": 1060,
+   "renderedAt": "2026-11-28T08:09:14.860Z"
   },
   "item/camp-flashlight": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/camp-flashlight.webp",
+   "bytes": 1760,
+   "renderedAt": "2026-11-28T08:09:21.536Z"
   },
   "item/camp-first-aid-kit": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/camp-first-aid-kit.webp",
+   "bytes": 1148,
+   "renderedAt": "2026-11-28T08:09:28.325Z"
   },
   "item/bug-juice": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/bug-juice.webp",
+   "bytes": 1502,
+   "renderedAt": "2026-11-28T08:09:33.363Z"
   },
   "item/letter-from-home": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/letter-from-home.webp",
+   "bytes": 2082,
+   "renderedAt": "2026-11-28T08:09:37.292Z"
   },
   "item/footlocker": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/footlocker.webp",
+   "bytes": 1616,
+   "renderedAt": "2026-11-28T08:09:41.779Z"
   },
   "item/reveille-bugle": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/reveille-bugle.webp",
+   "bytes": 1900,
+   "renderedAt": "2026-11-28T08:09:50.626Z"
   },
   "item/dinner-triangle": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/dinner-triangle.webp",
+   "bytes": 1310,
+   "renderedAt": "2026-11-28T08:09:55.107Z"
   },
   "item/spare-canoe": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/spare-canoe.webp",
+   "bytes": 926,
+   "renderedAt": "2026-11-28T08:09:59.422Z"
   },
   "item/ranger-cb-radio": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/ranger-cb-radio.webp",
+   "bytes": 1762,
+   "renderedAt": "2026-11-28T08:10:05.307Z"
   },
   "item/lighter-fluid": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/lighter-fluid.webp",
+   "bytes": 1036,
+   "renderedAt": "2026-11-28T08:10:11.611Z"
   },
   "item/curtain-rod": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/curtain-rod.webp",
+   "bytes": 964,
+   "renderedAt": "2026-11-28T08:10:19.777Z"
   },
   "item/sporting-goods-bat": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/sporting-goods-bat.webp",
+   "bytes": 834,
+   "renderedAt": "2026-11-28T08:10:24.653Z"
   },
   "item/display-crossbow": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/display-crossbow.webp",
+   "bytes": 1884,
+   "renderedAt": "2026-11-28T08:10:30.268Z"
   },
   "item/hairspray-lighter": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/hairspray-lighter.webp",
+   "bytes": 1258,
+   "renderedAt": "2026-11-28T08:10:37.707Z"
   },
   "item/pepper-spray": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pepper-spray.webp",
+   "bytes": 1146,
+   "renderedAt": "2026-11-28T08:10:44.246Z"
   },
   "item/mall-cop-flashlight": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/mall-cop-flashlight.webp",
+   "bytes": 1778,
+   "renderedAt": "2026-11-28T08:10:49.912Z"
   },
   "item/pharmacy-first-aid-kit": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pharmacy-first-aid-kit.webp",
+   "bytes": 1276,
+   "renderedAt": "2026-11-28T08:10:53.979Z"
   },
   "item/soft-pretzel": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/soft-pretzel.webp",
+   "bytes": 3178,
+   "renderedAt": "2026-11-28T08:10:58.976Z"
   },
   "item/peppermint-cocoa": {
-   "status": "pending"
+   "status": "flagged",
+   "attempts": 1,
+   "error": "3030: output flagged"
   },
   "item/clothing-rack": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/clothing-rack.webp",
+   "bytes": 1440,
+   "renderedAt": "2026-11-28T08:11:10.161Z"
   },
   "item/boom-box": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/boom-box.webp",
+   "bytes": 1710,
+   "renderedAt": "2026-11-28T08:11:16.596Z"
   },
   "item/talking-doll": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/talking-doll.webp",
+   "bytes": 2402,
+   "renderedAt": "2026-11-28T08:11:26.116Z"
   },
   "item/delivery-van-keys": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/delivery-van-keys.webp",
+   "bytes": 1728,
+   "renderedAt": "2026-11-28T08:11:30.419Z"
   },
   "item/security-radio": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/security-radio.webp",
+   "bytes": 1538,
+   "renderedAt": "2026-11-28T08:11:34.719Z"
   },
   "item/shutter-key": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/shutter-key.webp",
+   "bytes": 1206,
+   "renderedAt": "2026-11-28T08:11:40.202Z"
   },
   "item/tire-thumper": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/tire-thumper.webp",
+   "bytes": 1262,
+   "renderedAt": "2026-11-28T08:11:44.359Z"
   },
   "item/pool-rescue-hook": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pool-rescue-hook.webp",
+   "bytes": 792,
+   "renderedAt": "2026-11-28T08:11:50.006Z"
   },
   "item/snake-rifle": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/snake-rifle.webp",
+   "bytes": 1068,
+   "renderedAt": "2026-11-28T08:11:56.627Z"
   },
   "item/bottle-rocket": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/bottle-rocket.webp",
+   "bytes": 2424,
+   "renderedAt": "2026-11-28T08:12:02.064Z"
   },
   "item/pool-chlorine": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pool-chlorine.webp",
+   "bytes": 1464,
+   "renderedAt": "2026-11-28T08:12:06.710Z"
   },
   "item/trucker-s-spotlight": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/trucker-s-spotlight.webp",
+   "bytes": 1550,
+   "renderedAt": "2026-11-28T08:12:11.026Z"
   },
   "item/motel-first-aid-kit": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/motel-first-aid-kit.webp",
+   "bytes": 1794,
+   "renderedAt": "2026-11-28T08:12:17.856Z"
   },
   "item/slice-of-cherry-pie": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/slice-of-cherry-pie.webp",
+   "bytes": 2598,
+   "renderedAt": "2026-11-28T08:12:26.976Z"
   },
   "item/minibar-tequila": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/minibar-tequila.webp",
+   "bytes": 1906,
+   "renderedAt": "2026-11-28T08:12:32.903Z"
   },
   "item/vending-machine": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/vending-machine.webp",
+   "bytes": 1480,
+   "renderedAt": "2026-11-28T08:12:38.262Z"
   },
   "item/jukebox-quarters": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/jukebox-quarters.webp",
+   "bytes": 1746,
+   "renderedAt": "2026-11-28T08:12:42.892Z"
   },
   "item/cherry-bombs": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/cherry-bombs.webp",
+   "bytes": 1156,
+   "renderedAt": "2026-11-28T08:12:47.745Z"
   },
   "item/pickup-truck-keys": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pickup-truck-keys.webp",
+   "bytes": 2124,
+   "renderedAt": "2026-11-28T08:12:54.052Z"
   },
   "item/cb-handset": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/cb-handset.webp",
+   "bytes": 1806,
+   "renderedAt": "2026-11-28T08:12:58.785Z"
   },
   "item/bus-depot-number": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/bus-depot-number.webp",
+   "bytes": 1660,
+   "renderedAt": "2026-11-28T08:13:06.150Z"
   },
   "item/roller-skate": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/roller-skate.webp",
+   "bytes": 2392,
+   "renderedAt": "2026-11-28T08:13:12.137Z"
   },
   "item/push-broom": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/push-broom.webp",
+   "bytes": 2016,
+   "renderedAt": "2026-11-28T08:13:16.566Z"
   },
   "item/industrial-staple-gun": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/industrial-staple-gun.webp",
+   "bytes": 1914,
+   "renderedAt": "2026-11-28T08:13:23.976Z"
   },
   "item/live-extension-cord": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/live-extension-cord.webp",
+   "bytes": 1654,
+   "renderedAt": "2026-11-28T08:13:29.435Z"
   },
   "item/can-of-floor-wax": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/can-of-floor-wax.webp",
+   "bytes": 1456,
+   "renderedAt": "2026-11-28T08:13:34.802Z"
   },
   "item/glow-sticks": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/glow-sticks.webp",
+   "bytes": 2082,
+   "renderedAt": "2026-11-28T08:13:41.663Z"
   },
   "item/rink-first-aid-kit": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/rink-first-aid-kit.webp",
+   "bytes": 1610,
+   "renderedAt": "2026-11-28T08:13:48.180Z"
   },
   "item/sugar-straws": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/sugar-straws.webp",
+   "bytes": 3094,
+   "renderedAt": "2026-11-28T08:13:53.634Z"
   },
   "item/mood-ring": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/mood-ring.webp",
+   "bytes": 1572,
+   "renderedAt": "2026-11-28T08:13:58.306Z"
   },
   "item/pinball-machine": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pinball-machine.webp",
+   "bytes": 2086,
+   "renderedAt": "2026-11-28T08:14:04.792Z"
   },
   "item/spare-mirror-ball": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/spare-mirror-ball.webp",
+   "bytes": 1490,
+   "renderedAt": "2026-11-28T08:14:10.609Z"
   },
   "item/fire-bell": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/fire-bell.webp",
+   "bytes": 2194,
+   "renderedAt": "2026-11-28T08:14:18.473Z"
   },
   "item/unicorn-van-keys": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/unicorn-van-keys.webp",
+   "bytes": 2282,
+   "renderedAt": "2026-11-28T08:14:25.801Z"
   },
   "item/dime-for-the-pay-phone": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/dime-for-the-pay-phone.webp",
+   "bytes": 1314,
+   "renderedAt": "2026-11-28T08:14:32.406Z"
   },
   "item/request-slip": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/request-slip.webp",
+   "bytes": 1266,
+   "renderedAt": "2026-11-28T08:14:38.523Z"
   },
   "item/corn-knife": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/corn-knife.webp",
+   "bytes": 1054,
+   "renderedAt": "2026-11-28T08:14:43.183Z"
   },
   "item/pitchfork": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/pitchfork.webp",
+   "bytes": 870,
+   "renderedAt": "2026-11-28T08:14:47.178Z"
   },
   "item/varmint-rifle": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/varmint-rifle.webp",
+   "bytes": 1252,
+   "renderedAt": "2026-11-28T08:14:52.900Z"
   },
   "item/kerosene-lantern": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/kerosene-lantern.webp",
+   "bytes": 2110,
+   "renderedAt": "2026-11-28T08:14:57.797Z"
   },
   "item/sack-of-lime": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/sack-of-lime.webp",
+   "bytes": 1952,
+   "renderedAt": "2026-11-28T08:15:01.584Z"
   },
   "item/hand-crank-flashlight": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/hand-crank-flashlight.webp",
+   "bytes": 1382,
+   "renderedAt": "2026-11-28T08:15:08.580Z"
   },
   "item/farmhouse-first-aid-kit": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/farmhouse-first-aid-kit.webp",
+   "bytes": 1798,
+   "renderedAt": "2026-11-28T08:15:15.076Z"
   },
   "item/caramel-apple": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/caramel-apple.webp",
+   "bytes": 1548,
+   "renderedAt": "2026-11-28T08:15:19.584Z"
   },
   "item/grandma-s-tonic": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/grandma-s-tonic.webp",
+   "bytes": 1438,
+   "renderedAt": "2026-11-28T08:15:25.329Z"
   },
   "item/hay-bales": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/hay-bales.webp",
+   "bytes": 2414,
+   "renderedAt": "2026-11-28T08:15:33.326Z"
   },
   "item/dinner-bell": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/dinner-bell.webp",
+   "bytes": 1594,
+   "renderedAt": "2026-11-28T08:15:39.302Z"
   },
   "item/scarecrow-rattle": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/scarecrow-rattle.webp",
+   "bytes": 1818,
+   "renderedAt": "2026-11-28T08:15:45.582Z"
   },
   "item/tractor-keys": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/tractor-keys.webp",
+   "bytes": 2330,
+   "renderedAt": "2026-11-28T08:15:52.640Z"
   },
   "item/party-line-phone": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/party-line-phone.webp",
+   "bytes": 2284,
+   "renderedAt": "2026-11-28T08:15:59.386Z"
   },
   "item/railroad-flare": {
-   "status": "pending"
+   "status": "done",
+   "attempts": 1,
+   "file": "src/art/gen/item/railroad-flare.webp",
+   "bytes": 1752,
+   "renderedAt": "2026-11-28T08:16:03.895Z"
   },
   "symbol/horror": {
    "status": "done",
@@ -3060,8 +3587,8 @@
   }
  },
  "lastRun": {
-  "at": "2026-11-27 07:39 UTC",
-  "rendered": 113,
-  "stop": "daily neuron limit (4006: AiError: AiError: you have used up your daily free allocation of 10,000 neurons, please upgrade to Cloudflare's Workers Paid plan if you would like to continue usage. (613bbb72-e0ea-45ac-96ce-ba43f75d68cd))"
+  "at": "2026-11-28 08:16 UTC",
+  "rendered": 0,
+  "stop": "daily neuron limit (4006: AiError: AiError: you have used up your daily free allocation of 10,000 neurons, please upgrade to Cloudflare's Workers Paid plan if you would like to continue usage. (5fd467a9-4f0c-47ba-9a11-d9a7673a9131))"
  }
 }

@@ -108,7 +108,7 @@ const KILLERS = {
   mirrorball:
     'a lean figure in a split silver satin disco jacket, his whole head encased in a helmet covered in small square mirror tiles like a disco ball with no visible face or eyeholes, reflecting colored light in a thousand points, white roller skates, a dark roller rink with purple spotlights and haze behind him',
   harvestman:
-    'a tall, thin scarecrow figure in an old brown farmer\'s coat and a flat hat, straw poking out at the cuffs and collar, his face a plain burlap sack with two simple stitched eyes, a long-handled farm sickle resting at his side, a cornfield and a huge orange harvest moon behind him, amber light',
+    'a tall scarecrow figure in an old brown farmer\'s coat and a flat felt hat, straw poking out at the cuffs and collar, a plain burlap sack head with two stitched X eyes, standing very still among tall dry corn stalks under a huge orange harvest moon, autumn evening, amber light',
 };
 for (const [id, p] of Object.entries(KILLERS))
   add(`portrait/killer-${id}`, 'portrait', `${PORTRAIT}, ${p}, mysterious and still, ${STYLE}`, 768, 768, [512, 512]);
@@ -396,7 +396,7 @@ const STILLS = {
     'pm-dustdevil': 'a dust devil sweeping across a motel parking lot at night, blotting out the neon',
     'pm-novacancy': 'a pink neon motel sign with the word NO flickering on beside VACANCY, desert night',
     'pm-fireworks': 'fireworks blooming red white and blue over a desert mesa seen from a motel lot, people cheering',
-    'pm-cola': 'a vintage glass cola bottle with beads of cold water standing on top of a red soda vending machine, warm light',
+    'pm-cola': 'a cold glass soda bottle on a motel front counter beside a neon-lit window, warm lamplight, cozy',
     'pm-trooper': 'a 1970s police car rolling past a pink neon motel sign on a desert road at night, hopeful',
     'pm-heat': 'silent heat lightning on the desert horizon behind a roadside motel',
     'pm-coyotes': 'coyotes watching from a dry desert wash at night, eyes glinting',
@@ -427,7 +427,7 @@ const STILLS = {
     'rs-houselights': 'the house lights coming up full over an empty roller rink floor, bright and plain',
   },
   farm: {
-    'hm-poles': 'a scarecrow climbing down off its wooden pole at the edge of a dark cornfield under the moon',
+    'hm-poles': 'an empty wooden scarecrow pole at the edge of a dark cornfield, a coil of rope at its foot, moonlight',
     'hm-rustle': 'tall corn stalks bending as something races unseen along the next row, moonlight',
     'hm-whet': 'close-up of a curved corn knife being filed, sparks, dark barn',
     'hm-notches': 'fresh notches carved into an old wooden scarecrow pole, moonlight',
@@ -579,7 +579,7 @@ const ITEMS = {
   'Mall-Cop Flashlight': 'a long black security guard flashlight',
   'Pharmacy First-Aid Kit': 'a white first-aid box from a drugstore',
   'Soft Pretzel': 'a big salted soft pretzel',
-  'Peppermint Cocoa': 'a mug of hot cocoa with a candy cane',
+  'Peppermint Cocoa': 'a red mug of hot chocolate topped with whipped cream and a peppermint stick',
   'Clothing Rack': 'a rolling chrome clothing rack',
   'Boom Box': 'a big 1980s boom box stereo',
   'Talking Doll': 'a vintage pull-string talking doll',
